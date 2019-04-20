@@ -8,8 +8,6 @@ const DEFAULT_LOCATION: &str = "/scratch";
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
-  pub name: String,
-
   #[serde(default)]
   pub dependencies: Vec<String>,
 
@@ -41,7 +39,7 @@ fn default_task_location() -> String {
 #[serde(deny_unknown_fields)]
 pub struct Job {
   pub image: String,
-  pub tasks: Vec<Task>,
+  pub tasks: HashMap<String, Task>,
 }
 
 // Parse config data.
@@ -49,37 +47,22 @@ pub fn parse(job: &str) -> Result<Job, String> {
   serde_yaml::from_str(job).map_err(|e| format!("{}", e))
 }
 
-// Build a map from task name to task ID.
-pub fn index(job: &Job) -> Result<HashMap<String, usize>, String> {
-  let mut job_index = HashMap::new();
-  for i in 0..job.tasks.len() {
-    if job_index.contains_key(&job.tasks[i].name) {
-      return Err(
-        format!("Duplicate task name: `{}`.", job.tasks[i].name).to_owned(),
-      );
-    } else {
-      job_index.insert(job.tasks[i].name.clone(), i);
-    }
-  }
-  Ok(job_index)
-}
-
 #[cfg(test)]
 mod tests {
-  use crate::job::{index, parse, Job, Task, DEFAULT_LOCATION};
+  use crate::job::{parse, Job, Task, DEFAULT_LOCATION};
   use std::collections::HashMap;
 
   #[test]
   fn parse_empty() {
     let input = r#"
 image: ubuntu:bionic
-tasks: []
+tasks: {}
     "#
     .trim();
 
     let job = Ok(Job {
       image: "ubuntu:bionic".to_owned(),
-      tasks: vec![],
+      tasks: HashMap::new(),
     });
 
     assert_eq!(parse(input), job);
@@ -90,21 +73,26 @@ tasks: []
     let input = r#"
 image: ubuntu:bionic
 tasks:
-  - name: build
+  build: {}
     "#
     .trim();
 
-    let job = Ok(Job {
-      image: "ubuntu:bionic".to_owned(),
-      tasks: vec![Task {
-        name: "build".to_owned(),
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
         files: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         command: None,
-      }],
+      },
+    );
+
+    let job = Ok(Job {
+      image: "ubuntu:bionic".to_owned(),
+      tasks,
     });
 
     assert_eq!(parse(input), job);
@@ -115,7 +103,7 @@ tasks:
     let input = r#"
 image: ubuntu:bionic
 tasks:
-  - name: build
+  build:
     dependencies:
       - install_rust
     cache: true
@@ -137,13 +125,13 @@ tasks:
     args.insert("AWS_DEFAULT_REGION".to_owned(), None);
     args.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
 
-    let job = Ok(Job {
-      image: "ubuntu:bionic".to_owned(),
-      tasks: vec![Task {
-        name: "build".to_owned(),
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
         dependencies: vec!["install_rust".to_owned()],
         cache: true,
-        args: args,
+        args,
         files: vec![
           "Cargo.lock".to_owned(),
           "Cargo.toml".to_owned(),
@@ -151,83 +139,14 @@ tasks:
         ],
         location: "/code".to_owned(),
         command: Some("cargo build".to_owned()),
-      }],
+      },
+    );
+
+    let job = Ok(Job {
+      image: "ubuntu:bionic".to_owned(),
+      tasks,
     });
 
     assert_eq!(parse(input), job);
-  }
-
-  #[test]
-  fn index_empty() {
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
-      tasks: vec![],
-    };
-
-    let job_index = HashMap::new();
-
-    assert_eq!(index(&job), Ok(job_index));
-  }
-
-  #[test]
-  fn index_no_dupes() {
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
-      tasks: vec![
-        Task {
-          name: "build".to_owned(),
-          dependencies: vec![],
-          cache: true,
-          args: HashMap::new(),
-          files: vec![],
-          location: DEFAULT_LOCATION.to_owned(),
-          command: None,
-        },
-        Task {
-          name: "test".to_owned(),
-          dependencies: vec![],
-          cache: true,
-          args: HashMap::new(),
-          files: vec![],
-          location: DEFAULT_LOCATION.to_owned(),
-          command: None,
-        },
-      ],
-    };
-
-    let mut job_index = HashMap::new();
-    job_index.insert("build".to_owned(), 0);
-    job_index.insert("test".to_owned(), 1);
-
-    assert_eq!(index(&job), Ok(job_index));
-  }
-
-  #[test]
-  fn index_dupes() {
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
-      tasks: vec![
-        Task {
-          name: "build".to_owned(),
-          dependencies: vec![],
-          cache: true,
-          args: HashMap::new(),
-          files: vec![],
-          location: DEFAULT_LOCATION.to_owned(),
-          command: None,
-        },
-        Task {
-          name: "build".to_owned(),
-          dependencies: vec![],
-          cache: true,
-          args: HashMap::new(),
-          files: vec![],
-          location: DEFAULT_LOCATION.to_owned(),
-          command: None,
-        },
-      ],
-    };
-
-    assert!(index(&job).is_err());
   }
 }

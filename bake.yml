@@ -1,19 +1,19 @@
 image: ubuntu:bionic
 tasks:
-  - name: install_rust
+  install_rust:
     command: apt-get install rust
 
-  - name: build
+  build:
     dependencies:
       - install_rust
     files:
       - Cargo.lock
       - Cargo.toml
-      - src/*
+      - src
     location: /scratch
     command: cargo build
 
-  - name: publish
+  publish:
     dependencies:
       - build
     cache: false
