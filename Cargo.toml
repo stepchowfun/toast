@@ -5,3 +5,13 @@ authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 edition = "2018"
 
 [dependencies]
+serde_yaml = "0.8"
+
+[dependencies.clap]
+version = "2"
+default-features = true
+features = ["wrap_help"]
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
