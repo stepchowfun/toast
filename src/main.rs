@@ -7,7 +7,7 @@ use std::{fs, process::exit};
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
 
 // Command-line option names
-const JOB_FILE_OPTION: &str = "job-file";
+const JOB_FILE_OPTION: &str = "file";
 
 fn main() {
   // Set up the command-line interface.
