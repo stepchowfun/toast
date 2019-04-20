@@ -38,8 +38,14 @@ fn main() {
     eprintln!("Unable to read file `{}`. Reason: {}", job_file_path, e);
     exit(1);
   });
-  let _job = job::parse(&job_data).unwrap_or_else(|e| {
-    eprintln!("Unable to parse file `{}`. Reason: {}.", job_file_path, e);
+  let job = job::parse(&job_data).unwrap_or_else(|e| {
+    eprintln!("Unable to parse file `{}`. Reason: {}", job_file_path, e);
+    exit(1);
+  });
+
+  // Build a map from task name to task ID.
+  let _job_index = job::index(&job).unwrap_or_else(|e| {
+    eprintln!("Unable to parse file `{}`. Reason: {}", job_file_path, e);
     exit(1);
   });
 }
