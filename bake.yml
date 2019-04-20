@@ -1,0 +1,25 @@
+image: ubuntu:bionic
+tasks:
+  - name: install_rust
+    command: apt-get install rust
+
+  - name: build
+    dependencies:
+      - install_rust
+    files:
+      - Cargo.lock
+      - Cargo.toml
+      - src/*
+    location: /scratch
+    command: cargo build
+
+  - name: publish
+    dependencies:
+      - build
+    cache: false
+    args:
+      AWS_ACCESS_KEY_ID: null
+      AWS_DEFAULT_REGION: null
+      AWS_SECRET_ACCESS_KEY: null
+    location: /scratch
+    command: aws s3 cp target/release/program s3://bucket/program
