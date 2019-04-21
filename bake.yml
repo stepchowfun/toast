@@ -1,4 +1,4 @@
-image: ubuntu:bionic
+image: ubuntu:18.04
 tasks:
   install_rust:
     command: apt-get install rust

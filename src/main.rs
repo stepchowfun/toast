@@ -1,4 +1,4 @@
-mod job;
+mod bakefile;
 mod schedule;
 
 use clap::{App, Arg};
@@ -30,38 +30,48 @@ fn main() {
         .long(JOB_FILE_OPTION)
         .value_name("PATH")
         .help(&format!(
-          "Sets the path to the job file (default: {})",
+          "Sets the path to the bakefile (default: {})",
           JOB_FILE_DEFAULT_PATH,
         ))
         .takes_value(true),
     )
     .get_matches();
 
-  // Parse the job file path.
-  let job_file_path = matches
+  // Parse the bakefile path.
+  let bakefile_file_path = matches
     .value_of(JOB_FILE_OPTION)
     .unwrap_or(JOB_FILE_DEFAULT_PATH);
 
-  // Parse the job file.
-  let job_data = fs::read_to_string(job_file_path).unwrap_or_else(|e| {
-    eprintln!("Unable to read file `{}`. Reason: {}", job_file_path, e);
-    exit(1);
-  });
-  let job = job::parse(&job_data).unwrap_or_else(|e| {
-    eprintln!("Unable to parse file `{}`. Reason: {}", job_file_path, e);
+  // Parse the bakefile.
+  let bakefile_data =
+    fs::read_to_string(bakefile_file_path).unwrap_or_else(|e| {
+      eprintln!(
+        "Unable to read file `{}`. Reason: {}",
+        bakefile_file_path, e
+      );
+      exit(1);
+    });
+  let bakefile = bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
+    eprintln!(
+      "Unable to parse file `{}`. Reason: {}",
+      bakefile_file_path, e
+    );
     exit(1);
   });
 
   // Parse the tasks.
   let root_tasks: Vec<&str> =
     matches.values_of(JOB_TASKS_ARGUMENT).map_or_else(
-      || job.tasks.keys().map(|key| &key[..]).collect(),
+      || bakefile.tasks.keys().map(|key| &key[..]).collect(),
       |tasks| {
         tasks
           .map(|task| {
-            if !job.tasks.contains_key(task) {
+            if !bakefile.tasks.contains_key(task) {
               // [tag:tasks_valid]
-              eprintln!("No task named `{}` in `{}`.", task, job_file_path);
+              eprintln!(
+                "No task named `{}` in `{}`.",
+                task, bakefile_file_path
+              );
               exit(1);
             };
             task
@@ -71,7 +81,7 @@ fn main() {
     );
 
   // Compute a schedule of tasks to run.
-  let tasks_to_run = schedule::compute(&job, &root_tasks);
+  let tasks_to_run = schedule::compute(&bakefile, &root_tasks);
 
   // Execute the schedule.
   for task in tasks_to_run {
