@@ -1,7 +1,10 @@
 image: ubuntu:18.04
 tasks:
   install_rust:
-    command: apt-get install rust
+    command: |
+      DEBIAN_FRONTEND=noninteractive apt-get --yes update
+      DEBIAN_FRONTEND=noninteractive apt-get --yes install curl=7.52.1-5+deb9u7
+      curl https://sh.rustup.rs -sSf | sh
 
   build:
     dependencies:

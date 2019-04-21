@@ -1,8 +1,14 @@
 mod bakefile;
+mod cache;
+mod runner;
 mod schedule;
 
+#[macro_use]
+extern crate log;
+
 use clap::{App, Arg};
-use std::{fs, process::exit};
+use env_logger::{Builder, Env};
+use std::{fs, io::Write, process::exit};
 
 // Defaults
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
@@ -13,6 +19,17 @@ const JOB_TASKS_ARGUMENT: &str = "tasks";
 
 // Let the fun begin!
 fn main() {
+  // Set up the logger.
+  Builder::from_env(
+    Env::default()
+      .filter_or("LOG_LEVEL", "info")
+      .write_style("LOG_STYLE"),
+  )
+  .format(|buf, record| {
+    writeln!(buf, "[{}] {}", record.level(), record.args())
+  })
+  .init();
+
   // Set up the command-line interface.
   let matches = App::new("Bake")
     .version("0.1.0")
@@ -45,14 +62,14 @@ fn main() {
   // Parse the bakefile.
   let bakefile_data =
     fs::read_to_string(bakefile_file_path).unwrap_or_else(|e| {
-      eprintln!(
+      error!(
         "Unable to read file `{}`. Reason: {}",
         bakefile_file_path, e
       );
       exit(1);
     });
   let bakefile = bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
-    eprintln!(
+    error!(
       "Unable to parse file `{}`. Reason: {}",
       bakefile_file_path, e
     );
@@ -68,10 +85,7 @@ fn main() {
           .map(|task| {
             if !bakefile.tasks.contains_key(task) {
               // [tag:tasks_valid]
-              eprintln!(
-                "No task named `{}` in `{}`.",
-                task, bakefile_file_path
-              );
+              error!("No task named `{}` in `{}`.", task, bakefile_file_path);
               exit(1);
             };
             task
@@ -81,11 +95,21 @@ fn main() {
     );
 
   // Compute a schedule of tasks to run.
-  let tasks_to_run = schedule::compute(&bakefile, &root_tasks);
+  let schedule = schedule::compute(&bakefile, &root_tasks);
 
   // Execute the schedule.
-  for task in tasks_to_run {
-    // Just print the task name for now.
-    println!("Running task `{}`...", task);
+  let mut from_image = bakefile.image.clone();
+  let mut schedule_prefix = vec![];
+  for task in schedule {
+    info!("Running task `{}`...", task);
+    schedule_prefix.push(&bakefile.tasks[task]);
+    let cache_key = cache::key(&bakefile.image, &schedule_prefix);
+    let to_image = format!("bake:{}", cache_key);
+    if let Err(e) = runner::run(&bakefile.tasks[task], &from_image, &to_image)
+    {
+      error!("{}", e);
+      exit(1);
+    }
+    from_image = to_image;
   }
 }
