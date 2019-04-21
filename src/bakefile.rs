@@ -34,44 +34,44 @@ fn default_task_location() -> String {
   DEFAULT_LOCATION.to_owned()
 }
 
-// This struct represents a job.
+// This struct represents a bakefile.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Job {
+pub struct Bakefile {
   pub image: String,
   pub tasks: HashMap<String, Task>,
 }
 
 // Parse config data.
-pub fn parse(job: &str) -> Result<Job, String> {
-  serde_yaml::from_str(job).map_err(|e| format!("{}", e))
+pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
+  serde_yaml::from_str(bakefile).map_err(|e| format!("{}", e))
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::job::{parse, Job, Task, DEFAULT_LOCATION};
+  use crate::bakefile::{parse, Bakefile, Task, DEFAULT_LOCATION};
   use std::collections::HashMap;
 
   #[test]
   fn parse_empty() {
     let input = r#"
-image: ubuntu:bionic
+image: ubuntu:18.04
 tasks: {}
     "#
     .trim();
 
-    let job = Ok(Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Ok(Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks: HashMap::new(),
     });
 
-    assert_eq!(parse(input), job);
+    assert_eq!(parse(input), bakefile);
   }
 
   #[test]
   fn parse_minimal_task() {
     let input = r#"
-image: ubuntu:bionic
+image: ubuntu:18.04
 tasks:
   build: {}
     "#
@@ -90,18 +90,18 @@ tasks:
       },
     );
 
-    let job = Ok(Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Ok(Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     });
 
-    assert_eq!(parse(input), job);
+    assert_eq!(parse(input), bakefile);
   }
 
   #[test]
   fn parse_comprehensive_task() {
     let input = r#"
-image: ubuntu:bionic
+image: ubuntu:18.04
 tasks:
   build:
     dependencies:
@@ -142,11 +142,11 @@ tasks:
       },
     );
 
-    let job = Ok(Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Ok(Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     });
 
-    assert_eq!(parse(input), job);
+    assert_eq!(parse(input), bakefile);
   }
 }

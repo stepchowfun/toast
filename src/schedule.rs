@@ -1,9 +1,9 @@
-use crate::job::Job;
+use crate::bakefile::Bakefile;
 use std::collections::HashSet;
 
 // Compute a topological sort of the transitive reflexive closure of a set of
 // tasks. The resulting schedule does not depend on the order of the inputs.
-pub fn compute<'a>(job: &'a Job, tasks: &[&'a str]) -> Vec<&'a str> {
+pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   // Sort the input tasks to ensure that the given order doesn't matter.
   let mut roots: Vec<&'a str> = tasks.to_vec();
   roots.sort();
@@ -42,7 +42,7 @@ pub fn compute<'a>(job: &'a Job, tasks: &[&'a str]) -> Vec<&'a str> {
 
       // Add the task's dependencies to the frontier.
       // The `unwrap` is safe due to [ref:tasks_valid].
-      for dependency in &job.tasks[task].dependencies {
+      for dependency in &bakefile.tasks[task].dependencies {
         let dep: &'a str = &dependency;
         if !visited.contains(dep) {
           visited.insert(dep);
@@ -65,18 +65,18 @@ pub fn compute<'a>(job: &'a Job, tasks: &[&'a str]) -> Vec<&'a str> {
 
 #[cfg(test)]
 mod tests {
-  use crate::job::{Job, Task, DEFAULT_LOCATION};
+  use crate::bakefile::{Bakefile, Task, DEFAULT_LOCATION};
   use crate::schedule::compute;
   use std::collections::HashMap;
 
   #[test]
   fn schedule_empty() {
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks: HashMap::new(),
     };
 
-    let actual: Vec<&str> = compute(&job, &[]);
+    let actual: Vec<&str> = compute(&bakefile, &[]);
     let expected: Vec<&str> = vec![];
 
     assert_eq!(actual, expected);
@@ -97,12 +97,12 @@ mod tests {
       },
     );
 
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&job, &["foo"]);
+    let actual: Vec<&str> = compute(&bakefile, &["foo"]);
     let expected: Vec<&str> = vec!["foo"];
 
     assert_eq!(actual, expected);
@@ -145,12 +145,12 @@ mod tests {
       },
     );
 
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&job, &["baz"]);
+    let actual: Vec<&str> = compute(&bakefile, &["baz"]);
     let expected: Vec<&str> = vec!["foo", "bar", "baz"];
 
     assert_eq!(actual, expected);
@@ -193,12 +193,12 @@ mod tests {
       },
     );
 
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&job, &["baz", "baz"]);
+    let actual: Vec<&str> = compute(&bakefile, &["baz", "baz"]);
     let expected: Vec<&str> = vec!["foo", "bar", "baz"];
 
     assert_eq!(actual, expected);
@@ -241,12 +241,12 @@ mod tests {
       },
     );
 
-    let job = Job {
-      image: "ubuntu:bionic".to_owned(),
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&job, &["foo", "bar", "baz"]);
+    let actual: Vec<&str> = compute(&bakefile, &["foo", "bar", "baz"]);
     let expected: Vec<&str> = vec!["bar", "baz", "foo"];
 
     assert_eq!(actual, expected);
