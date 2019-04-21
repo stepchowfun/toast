@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // The default location for commands and files.
-const DEFAULT_LOCATION: &str = "/scratch";
+pub const DEFAULT_LOCATION: &str = "/scratch";
 
 // This struct represents a task.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
