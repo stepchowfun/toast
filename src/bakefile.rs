@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 // The default location for commands and paths.
 pub const DEFAULT_LOCATION: &str = "/scratch";
@@ -60,10 +60,35 @@ pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
   Ok(bakefile)
 }
 
+// Fetch the args for a task from the environment.
+pub fn args(task: &Task) -> Result<HashMap<String, String>, Vec<String>> {
+  let mut violations = vec![];
+  let mut result = HashMap::new();
+  for (arg, default) in &task.args {
+    let maybe_var = env::var(arg);
+    if let Some(default) = default {
+      result
+        .insert(arg.clone(), maybe_var.unwrap_or_else(|_| default.clone()));
+    } else if let Ok(var) = maybe_var {
+      result.insert(arg.clone(), var);
+    } else {
+      violations.push(arg.clone());
+    }
+  }
+
+  if !violations.is_empty() {
+    return Err(violations);
+  }
+
+  Ok(result)
+}
+
 // Check that all dependencies exist.
 fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
   let mut violations: HashMap<String, Vec<String>> = HashMap::new();
+  // [tag:task_valid]
   for task in bakefile.tasks.keys() {
+    // [ref:task_valid]
     for dependency in &bakefile.tasks[task].dependencies {
       if !bakefile.tasks.contains_key(dependency) {
         violations
@@ -99,9 +124,10 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
   use crate::bakefile::{
-    check_dependencies, parse, Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
+    args, check_dependencies, parse, Bakefile, Task, DEFAULT_LOCATION,
+    DEFAULT_USER,
   };
-  use std::collections::HashMap;
+  use std::{collections::HashMap, env};
 
   #[test]
   fn parse_empty() {
@@ -215,6 +241,96 @@ tasks:
     });
 
     assert_eq!(parse(input), bakefile);
+  }
+
+  #[test]
+  fn args_empty() {
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      args: HashMap::new(),
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: None,
+    };
+
+    assert_eq!(args(&task), Ok(HashMap::new()));
+  }
+
+  #[test]
+  fn args_default_overridden() {
+    // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
+    // parallel tests clobbering environment variables used by other threads.
+    let mut args_map = HashMap::new();
+    args_map.insert("foo1".to_owned(), Some("bar".to_owned()));
+
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      args: args_map,
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: None,
+    };
+
+    let mut expected = HashMap::new();
+    expected.insert("foo1".to_owned(), "baz".to_owned());
+
+    env::set_var("foo1", "baz");
+    assert_eq!(env::var("foo1"), Ok("baz".to_owned()));
+    assert_eq!(args(&task), Ok(expected));
+  }
+
+  #[test]
+  fn args_default_not_overridden() {
+    // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
+    // parallel tests clobbering environment variables used by other threads.
+    let mut args_map = HashMap::new();
+    args_map.insert("foo2".to_owned(), Some("bar".to_owned()));
+
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      args: args_map,
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: None,
+    };
+
+    let mut expected = HashMap::new();
+    expected.insert("foo2".to_owned(), "bar".to_owned());
+
+    env::remove_var("foo2");
+    assert!(env::var("foo2").is_err());
+    assert_eq!(args(&task), Ok(expected));
+  }
+
+  #[test]
+  fn args_missing() {
+    // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
+    // parallel tests clobbering environment variables used by other threads.
+    let mut args_map = HashMap::new();
+    args_map.insert("foo3".to_owned(), None);
+
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      args: args_map,
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: None,
+    };
+
+    let mut expected = HashMap::new();
+    expected.insert("foo3".to_owned(), "bar".to_owned());
+
+    env::remove_var("foo3");
+    assert!(env::var("foo3").is_err());
+    assert!(args(&task).is_err());
   }
 
   #[test]

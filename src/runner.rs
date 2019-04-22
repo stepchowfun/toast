@@ -1,5 +1,5 @@
 use crate::bakefile::Task;
-use std::{path::Path, process::Command};
+use std::{collections::HashMap, path::Path, process::Command};
 use tempfile::TempDir;
 
 // Run a task and return the ID of the resulting Docker image.
@@ -7,6 +7,7 @@ pub fn run(
   task: &Task,
   from_image: &str,
   to_image: &str,
+  args: &HashMap<String, String>,
 ) -> Result<(), String> {
   // Construct the command to run inside the container.
   let mut commands_to_run = vec![];
@@ -18,7 +19,19 @@ pub fn run(
     commands_to_run.push(format!(
       "su -l -c {} {}",
       shell_escape(&format!(
-        "set -eu; cd {}; {}",
+        "{} set -eu; cd {}; {}",
+        task
+          .args
+          .keys()
+          .map(|arg| {
+            format!(
+              "export {}={};",
+              shell_escape(&arg),
+              shell_escape(&args[arg]) // [ref:args_valid]
+            )
+          })
+          .collect::<Vec<_>>()
+          .join(" "),
         shell_escape(&task.location),
         command,
       )),
