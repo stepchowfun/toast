@@ -41,7 +41,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
       topological_sort.push(task);
 
       // Add the task's dependencies to the frontier.
-      // The `unwrap` is safe due to [ref:tasks_valid].
+      // The indexing is safe due to [ref:tasks_valid].
       for dependency in &bakefile.tasks[task].dependencies {
         let dep: &'a str = &dependency;
         if !visited.contains(dep) {

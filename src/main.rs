@@ -12,6 +12,7 @@ use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
 use std::{
+  collections::HashMap,
   fs,
   io::{stdout, Write},
   process::exit,
@@ -155,13 +156,48 @@ fn main() {
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);
   info!(
-    "Here is the schedule: {}.",
+    "Here's the schedule: {}.",
     (schedule
       .iter()
       .map(|task| format!("`{}`", task))
       .collect::<Vec<_>>())
     .join(", ")
   );
+
+  // Eagerly fetch all the args for all the tasks.
+  let mut args = HashMap::new();
+  let mut violations = HashMap::new();
+  for task in &schedule {
+    match bakefile::args(&bakefile.tasks[*task]) {
+      // [ref:tasks_valid]
+      Ok(args_for_task) => {
+        args.extend(args_for_task);
+      }
+      Err(e) => {
+        violations.insert((*task).to_owned(), e);
+      }
+    }
+  }
+  if !violations.is_empty() {
+    // [tag:args_valid]
+    error!(
+      "The following tasks are missing args from the environment: {}.",
+      violations
+        .iter()
+        .map(|(task, args)| format!(
+          "`{}` ({})",
+          task,
+          args
+            .iter()
+            .map(|arg| format!("`{}`", arg))
+            .collect::<Vec<_>>()
+            .join(", ")
+        ))
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
+    exit(1);
+  }
 
   // Execute the schedule.
   let mut from_image = bakefile.image.clone();
@@ -175,10 +211,13 @@ fn main() {
 
     // Run the task.
     info!("Running task `{}`...", task);
-    schedule_prefix.push(&bakefile.tasks[*task]);
-    let cache_key = cache::key(&bakefile.image, &schedule_prefix);
+    schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
+    let cache_key = cache::key(&bakefile.image, &schedule_prefix, &args);
     let to_image = format!("bake:{}", cache_key);
-    if let Err(e) = runner::run(&bakefile.tasks[*task], &from_image, &to_image)
+
+    // The indexing is safe due to [ref:tasks_valid].
+    if let Err(e) =
+      runner::run(&bakefile.tasks[*task], &from_image, &to_image, &args)
     {
       if running.load(Ordering::SeqCst) {
         error!("{}", e);
