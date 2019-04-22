@@ -54,13 +54,52 @@ pub struct Bakefile {
 
 // Parse config data.
 pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
-  serde_yaml::from_str(bakefile).map_err(|e| format!("{}", e))
+  let bakefile =
+    serde_yaml::from_str(bakefile).map_err(|e| format!("{}", e))?;
+  check_dependencies(&bakefile)?;
+  Ok(bakefile)
+}
+
+// Check that all dependencies exist.
+fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
+  let mut violations: HashMap<String, Vec<String>> = HashMap::new();
+  for task in bakefile.tasks.keys() {
+    for dependency in &bakefile.tasks[task].dependencies {
+      if !bakefile.tasks.contains_key(dependency) {
+        violations
+          .entry(task.to_owned())
+          .or_insert_with(|| vec![])
+          .push(dependency.to_owned());
+      }
+    }
+  }
+
+  if !violations.is_empty() {
+    return Err(format!(
+      "The following dependencies are invalid: {}.",
+      violations
+        .iter()
+        .map(|(task, dependencies)| format!(
+          "`{}` ({})",
+          task,
+          dependencies
+            .iter()
+            .map(|task| format!("`{}`", task))
+            .collect::<Vec<_>>()
+            .join(", ")
+        ))
+        .collect::<Vec<_>>()
+        .join(", ")
+    ));
+  }
+
+  Ok(())
 }
 
 #[cfg(test)]
 mod tests {
   use crate::bakefile::{
-    parse, Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
+    check_dependencies, parse, Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
   };
   use std::collections::HashMap;
 
@@ -116,6 +155,7 @@ tasks:
     let input = r#"
 image: ubuntu:18.04
 tasks:
+  install_rust: {}
   build:
     dependencies:
       - install_rust
@@ -141,6 +181,18 @@ tasks:
 
     let mut tasks = HashMap::new();
     tasks.insert(
+      "install_rust".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        args: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
       "build".to_owned(),
       Task {
         dependencies: vec!["install_rust".to_owned()],
@@ -163,5 +215,87 @@ tasks:
     });
 
     assert_eq!(parse(input), bakefile);
+  }
+
+  #[test]
+  fn check_dependencies_empty() {
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      tasks: HashMap::new(),
+    };
+
+    assert!(check_dependencies(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn check_dependencies_nonempty() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        args: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
+      "test".to_owned(),
+      Task {
+        dependencies: vec!["build".to_owned()],
+        cache: true,
+        args: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      tasks,
+    };
+
+    assert!(check_dependencies(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn check_dependencies_nonexistent() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        args: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
+      "test".to_owned(),
+      Task {
+        dependencies: vec!["build".to_owned(), "do_thing".to_owned()],
+        cache: true,
+        args: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      tasks,
+    };
+
+    assert!(check_dependencies(&bakefile).is_err());
   }
 }
