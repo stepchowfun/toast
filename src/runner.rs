@@ -27,7 +27,6 @@ pub fn run(
   }
 
   let command = commands_to_run.join(" && ");
-  debug!("The container will run this command: {}", command);
 
   // Create the container.
   debug!("Creating container...");
@@ -43,6 +42,21 @@ pub fn run(
       .trim()
       .to_owned();
   debug!("Created container `{}`.", container_id);
+
+  // Delete the container when this function returns.
+  defer! {{
+    debug!("Deleting container...");
+    let mut delete_command = Command::new("docker");
+    delete_command.arg("rm");
+    delete_command.arg("--force");
+    delete_command.arg(&container_id);
+    if let Err(e) = run_command_quiet(
+      delete_command,
+      "Unable to delete container."
+    ) {
+      error!("{}", e);
+    }
+  }};
 
   // Create a temporary directory for creating ancestor directories in the
   // container via `docker cp`.
@@ -80,7 +94,7 @@ pub fn run(
     }
 
     // Copy the target into the container.
-    debug!(
+    info!(
       "Copying `{}` into container at `{}`...",
       path, destination_str
     );
@@ -99,6 +113,10 @@ pub fn run(
 
   // Start the container.
   debug!("Starting container...");
+  if let Some(command) = &task.command {
+    info!("{}", command);
+  }
+
   let mut start_command = Command::new("docker");
   start_command
     .arg("start")
@@ -114,14 +132,6 @@ pub fn run(
   commit_command.arg(to_image);
   run_command_quiet(commit_command, "Unable to create image.")?;
   debug!("Created image `{}`.", to_image);
-
-  // Delete the container.
-  debug!("Deleting container.");
-  let mut delete_command = Command::new("docker");
-  delete_command.arg("rm");
-  delete_command.arg("--force");
-  delete_command.arg(&container_id);
-  run_command_quiet(delete_command, "Unable to delete container.")?;
 
   Ok(())
 }
