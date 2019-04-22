@@ -9,15 +9,7 @@ extern crate log;
 use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
-use std::{
-  fs,
-  io::Write,
-  process::exit,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-  },
-};
+use std::{fs, io::Write, process::exit};
 
 // Defaults
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
@@ -63,12 +55,13 @@ fn main() {
   })
   .init();
 
-  // Set up the Ctrl+C handler.
-  let running = Arc::new(AtomicBool::new(true));
-  let running_ref = running.clone();
-  if let Err(e) = ctrlc::set_handler(move || {
-    running_ref.store(false, Ordering::SeqCst);
-  }) {
+  // Set up the SIGINT handler that ignores the signal. If the user presses
+  // CTRL+C, all processes attached to the foreground process group receive
+  // the signal, which includes processes in the container since we use the
+  // `--tty` option with `docker create` [ref:tty]. So the user can kill the
+  // container directly, and by ignoring SIGINT here we get a chance to clean
+  // up afterward.
+  if let Err(e) = ctrlc::set_handler(move || {}) {
     error!("Error installing signal handler. Reason: {}", e);
     exit(1);
   }
@@ -151,12 +144,6 @@ fn main() {
   let mut from_image = bakefile.image.clone();
   let mut schedule_prefix = vec![];
   for task in &schedule {
-    // If the user wants to stop the job, quit now.
-    if !running.load(Ordering::SeqCst) {
-      info!("Terminating...");
-      exit(1);
-    }
-
     // Run the task.
     info!("Running task `{}`...", task);
     schedule_prefix.push(&bakefile.tasks[*task]);
