@@ -33,6 +33,7 @@ pub fn run(
   debug!("Creating container...");
   let mut create_command = Command::new("docker");
   create_command.arg("create");
+  create_command.arg("--tty"); // [tag:tty]
   create_command.arg(from_image);
   create_command.arg("/bin/sh");
   create_command.arg("-c");
