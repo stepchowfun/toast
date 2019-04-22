@@ -20,7 +20,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   for root in roots {
     // If we have already scheduled this root task, skip to the next one.
     if visited.contains(root) {
-      break;
+      continue;
     }
 
     // Mark this task as seen so we don't process it again.
