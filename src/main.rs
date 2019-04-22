@@ -15,7 +15,7 @@ const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
 
 // Command-line argument and option names
 const JOB_FILE_OPTION: &str = "file";
-const JOB_TASKS_ARGUMENT: &str = "tasks";
+const TASKS_ARGUMENT: &str = "tasks";
 
 // Let the fun begin!
 fn main() {
@@ -36,7 +36,7 @@ fn main() {
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
     .arg(
-      Arg::with_name(JOB_TASKS_ARGUMENT)
+      Arg::with_name(TASKS_ARGUMENT)
         .value_name("TASKS")
         .multiple(true)
         .help("Sets the tasks to run"),
@@ -77,22 +77,21 @@ fn main() {
   });
 
   // Parse the tasks.
-  let root_tasks: Vec<&str> =
-    matches.values_of(JOB_TASKS_ARGUMENT).map_or_else(
-      || bakefile.tasks.keys().map(|key| &key[..]).collect(),
-      |tasks| {
-        tasks
-          .map(|task| {
-            if !bakefile.tasks.contains_key(task) {
-              // [tag:tasks_valid]
-              error!("No task named `{}` in `{}`.", task, bakefile_file_path);
-              exit(1);
-            };
-            task
-          })
-          .collect()
-      },
-    );
+  let root_tasks: Vec<&str> = matches.values_of(TASKS_ARGUMENT).map_or_else(
+    || bakefile.tasks.keys().map(|key| &key[..]).collect(),
+    |tasks| {
+      tasks
+        .map(|task| {
+          if !bakefile.tasks.contains_key(task) {
+            // [tag:tasks_valid]
+            error!("No task named `{}` in `{}`.", task, bakefile_file_path);
+            exit(1);
+          };
+          task
+        })
+        .collect()
+    },
+  );
 
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);

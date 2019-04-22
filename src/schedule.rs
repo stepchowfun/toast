@@ -65,7 +65,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
 
 #[cfg(test)]
 mod tests {
-  use crate::bakefile::{Bakefile, Task, DEFAULT_LOCATION};
+  use crate::bakefile::{Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER};
   use crate::schedule::compute;
   use std::collections::HashMap;
 
@@ -91,8 +91,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -117,8 +118,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -128,8 +130,9 @@ mod tests {
         dependencies: vec!["foo".to_owned()],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -139,8 +142,9 @@ mod tests {
         dependencies: vec!["bar".to_owned()],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -165,8 +169,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -176,8 +181,9 @@ mod tests {
         dependencies: vec!["foo".to_owned()],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -187,8 +193,9 @@ mod tests {
         dependencies: vec!["bar".to_owned()],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -213,8 +220,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -224,8 +232,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -235,8 +244,9 @@ mod tests {
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );

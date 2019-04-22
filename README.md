@@ -46,8 +46,9 @@ Tasks have the following schema:
 dependencies: <names of dependencies (default: [])>
 cache: <whether a task can be cached (default: true)>
 args: <map from string to string or null (default: {})>
-files: <paths to copy into the container (default: [])>
+paths: <paths to copy into the container (default: [])>
 location: <path in the container for running this task>
+user: <name of the user in the container for running this task>
 command: <shell command to run in the container>
 ```
 
@@ -63,27 +64,28 @@ Here is an example bakefile:
 ```
 image: ubuntu:18.04
 tasks:
-  install_rust:
-    command: apt-get install rust
+  rust_dependencies:
+    command: |
+      DEBIAN_FRONTEND=noninteractive apt-get --yes update
+      DEBIAN_FRONTEND=noninteractive apt-get --yes install build-essential curl
+
+  user:
+    command: useradd --user-group --create-home user
+
+  rust:
+    dependencies:
+      - rust_dependencies
+      - user
+    user: user
+    command: curl https://sh.rustup.rs -sSf | sh -s -- -y
 
   build:
     dependencies:
-      - install_rust
-    files:
+      - rust
+    paths:
       - Cargo.lock
       - Cargo.toml
       - src
-    location: /scratch
+    user: user
     command: cargo build
-
-  publish:
-    dependencies:
-      - build
-    cache: false
-    args:
-      AWS_ACCESS_KEY_ID: null
-      AWS_DEFAULT_REGION: null
-      AWS_SECRET_ACCESS_KEY: null
-    location: /scratch
-    command: aws s3 cp target/release/program s3://bucket/program
 ```
