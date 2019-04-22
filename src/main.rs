@@ -7,14 +7,15 @@ mod schedule;
 extern crate log;
 
 use clap::{App, Arg};
-use env_logger::{Builder, Env};
+use env_logger::{fmt::Color, Builder, Env};
+use log::Level;
 use std::{fs, io::Write, process::exit};
 
 // Defaults
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
 
 // Command-line argument and option names
-const JOB_FILE_OPTION: &str = "file";
+const BAKEFILE_OPTION: &str = "file";
 const TASKS_ARGUMENT: &str = "tasks";
 
 // Let the fun begin!
@@ -26,7 +27,31 @@ fn main() {
       .write_style("LOG_STYLE"),
   )
   .format(|buf, record| {
-    writeln!(buf, "[{}] {}", record.level(), record.args())
+    let mut style = buf.style();
+    style.set_bold(true);
+    match record.level() {
+      Level::Error => {
+        style.set_color(Color::Red);
+      }
+      Level::Warn => {
+        style.set_color(Color::Yellow);
+      }
+      Level::Info => {
+        style.set_color(Color::Green);
+      }
+      Level::Debug | Level::Trace => {
+        style.set_color(Color::Blue);
+      }
+    }
+    writeln!(
+      buf,
+      "{} {}",
+      style.value(format!("[{}]", record.level())),
+      record.args().to_string().replace(
+        "\n",
+        &format!("\n{}", " ".repeat(record.level().to_string().len() + 3))
+      )
+    )
   })
   .init();
 
@@ -42,9 +67,9 @@ fn main() {
         .help("Sets the tasks to run"),
     )
     .arg(
-      Arg::with_name(JOB_FILE_OPTION)
+      Arg::with_name(BAKEFILE_OPTION)
         .short("f")
-        .long(JOB_FILE_OPTION)
+        .long(BAKEFILE_OPTION)
         .value_name("PATH")
         .help(&format!(
           "Sets the path to the bakefile (default: {})",
@@ -56,7 +81,7 @@ fn main() {
 
   // Parse the bakefile path.
   let bakefile_file_path = matches
-    .value_of(JOB_FILE_OPTION)
+    .value_of(BAKEFILE_OPTION)
     .unwrap_or(JOB_FILE_DEFAULT_PATH);
 
   // Parse the bakefile.
@@ -95,20 +120,31 @@ fn main() {
 
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);
+  info!(
+    "Here is the schedule of tasks to run: {}.",
+    (schedule
+      .iter()
+      .map(|task| format!("`{}`", task))
+      .collect::<Vec<_>>())
+    .join(", ")
+  );
 
   // Execute the schedule.
   let mut from_image = bakefile.image.clone();
   let mut schedule_prefix = vec![];
-  for task in schedule {
+  for task in &schedule {
     info!("Running task `{}`...", task);
-    schedule_prefix.push(&bakefile.tasks[task]);
+    schedule_prefix.push(&bakefile.tasks[*task]);
     let cache_key = cache::key(&bakefile.image, &schedule_prefix);
     let to_image = format!("bake:{}", cache_key);
-    if let Err(e) = runner::run(&bakefile.tasks[task], &from_image, &to_image)
+    if let Err(e) = runner::run(&bakefile.tasks[*task], &from_image, &to_image)
     {
       error!("{}", e);
       exit(1);
     }
     from_image = to_image;
   }
+
+  // Celebrate with the user.
+  info!("Successfully executed the schedule.");
 }

@@ -52,7 +52,7 @@ pub fn run(
     "{}{}{}",
     dockerfile_image, dockerfile_paths, dockerfile_command
   );
-  debug!("Dockerfile:\n{}", dockerfile);
+  debug!("Dockerfile:\n{}", &dockerfile[..dockerfile.len() - 1]);
 
   // Write the Dockerfile to the build context.
   let dockerfile_path = build_context.path().join("Dockerfile");
