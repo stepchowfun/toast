@@ -3,8 +3,8 @@ tasks:
   install_rust:
     command: |
       DEBIAN_FRONTEND=noninteractive apt-get --yes update
-      DEBIAN_FRONTEND=noninteractive apt-get --yes install curl=7.52.1-5+deb9u7
-      curl https://sh.rustup.rs -sSf | sh
+      DEBIAN_FRONTEND=noninteractive apt-get --yes install curl
+      curl https://sh.rustup.rs -sSf | sh -s -- -y
 
   build:
     dependencies:
@@ -14,7 +14,7 @@ tasks:
       - Cargo.toml
       - src
     location: /scratch
-    command: cargo build
+    command: PATH="$PATH:$HOME/.cargo/bin" cargo build
 
   publish:
     dependencies:
