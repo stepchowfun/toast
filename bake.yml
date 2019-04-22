@@ -1,28 +1,54 @@
 image: ubuntu:18.04
 tasks:
-  install_rust:
+  packages:
     command: |
       DEBIAN_FRONTEND=noninteractive apt-get --yes update
-      DEBIAN_FRONTEND=noninteractive apt-get --yes install curl
+      DEBIAN_FRONTEND=noninteractive apt-get --yes install build-essential curl
+
+  tagref:
+    dependencies:
+      - packages
+    command: |
+      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
+
+  user:
+    command: useradd --user-group --create-home user
+
+  rust:
+    dependencies:
+      - packages
+      - user
+    user: user
+    command: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y
+      . $HOME/.cargo/env
+      rustup component add clippy
+      rustup component add rustfmt
 
   build:
     dependencies:
-      - install_rust
-    files:
+      - rust
+    paths:
       - Cargo.lock
       - Cargo.toml
       - src
-    location: /scratch
-    command: PATH="$PATH:$HOME/.cargo/bin" cargo build
+    user: user
+    command: cargo build
 
-  publish:
+  test:
     dependencies:
       - build
-    cache: false
-    args:
-      AWS_ACCESS_KEY_ID: null
-      AWS_DEFAULT_REGION: null
-      AWS_SECRET_ACCESS_KEY: null
-    location: /scratch
-    command: aws s3 cp target/release/program s3://bucket/program
+    user: user
+    command: cargo test
+
+  lint:
+    dependencies:
+      - build
+      - tagref
+    paths:
+      - rustfmt.toml
+    user: user
+    command: |
+      cargo fmt --all -- --check
+      cargo clippy -- --deny clippy::pedantic
+      tagref

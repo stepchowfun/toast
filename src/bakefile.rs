@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// The default location for commands and files.
+// The default location for commands and paths.
 pub const DEFAULT_LOCATION: &str = "/scratch";
+
+// The default user for commands and paths.
+pub const DEFAULT_USER: &str = "root";
 
 // This struct represents a task.
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -18,10 +21,13 @@ pub struct Task {
   pub args: HashMap<String, Option<String>>,
 
   #[serde(default)]
-  pub files: Vec<String>,
+  pub paths: Vec<String>,
 
   #[serde(default = "default_task_location")]
   pub location: String,
+
+  #[serde(default = "default_task_user")]
+  pub user: String,
 
   pub command: Option<String>,
 }
@@ -32,6 +38,10 @@ fn default_task_cache() -> bool {
 
 fn default_task_location() -> String {
   DEFAULT_LOCATION.to_owned()
+}
+
+fn default_task_user() -> String {
+  DEFAULT_USER.to_owned()
 }
 
 // This struct represents a bakefile.
@@ -49,7 +59,9 @@ pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
 
 #[cfg(test)]
 mod tests {
-  use crate::bakefile::{parse, Bakefile, Task, DEFAULT_LOCATION};
+  use crate::bakefile::{
+    parse, Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
+  };
   use std::collections::HashMap;
 
   #[test]
@@ -84,8 +96,9 @@ tasks:
         dependencies: vec![],
         cache: true,
         args: HashMap::new(),
-        files: vec![],
+        paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
         command: None,
       },
     );
@@ -111,11 +124,12 @@ tasks:
       AWS_ACCESS_KEY_ID: null
       AWS_DEFAULT_REGION: null
       AWS_SECRET_ACCESS_KEY: null
-    files:
+    paths:
       - Cargo.lock
       - Cargo.toml
       - src/*
     location: /code
+    user: foo
     command: cargo build
     "#
     .trim();
@@ -132,12 +146,13 @@ tasks:
         dependencies: vec!["install_rust".to_owned()],
         cache: true,
         args,
-        files: vec![
+        paths: vec![
           "Cargo.lock".to_owned(),
           "Cargo.toml".to_owned(),
           "src/*".to_owned(),
         ],
         location: "/code".to_owned(),
+        user: "foo".to_owned(),
         command: Some("cargo build".to_owned()),
       },
     );
