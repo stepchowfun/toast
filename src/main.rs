@@ -5,11 +5,21 @@ mod schedule;
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate scopeguard;
 
 use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
-use std::{fs, io::Write, process::exit};
+use std::{
+  fs,
+  io::{stdout, Write},
+  process::exit,
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
+};
 
 // Defaults
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
@@ -61,7 +71,17 @@ fn main() {
   // `--tty` option with `docker create` [ref:tty]. So the user can kill the
   // container directly, and by ignoring SIGINT here we get a chance to clean
   // up afterward.
-  if let Err(e) = ctrlc::set_handler(move || {}) {
+  let running = Arc::new(AtomicBool::new(true));
+  let running_ref = running.clone();
+  if let Err(e) = ctrlc::set_handler(move || {
+    // Remember that the user wants to quit.
+    running_ref.store(false, Ordering::SeqCst);
+
+    // If the user interrupted the container, the container may have been in
+    // the middle of printing a line of output. Here we print a newline to
+    // prepare for further printing.
+    let _ = stdout().write(b"\n");
+  }) {
     error!("Error installing signal handler. Reason: {}", e);
     exit(1);
   }
@@ -144,6 +164,12 @@ fn main() {
   let mut from_image = bakefile.image.clone();
   let mut schedule_prefix = vec![];
   for task in &schedule {
+    // If the user wants to stop the job, quit now.
+    if !running.load(Ordering::SeqCst) {
+      info!("Terminating...");
+      exit(1);
+    }
+
     // Run the task.
     info!("Running task `{}`...", task);
     schedule_prefix.push(&bakefile.tasks[*task]);
@@ -151,7 +177,11 @@ fn main() {
     let to_image = format!("bake:{}", cache_key);
     if let Err(e) = runner::run(&bakefile.tasks[*task], &from_image, &to_image)
     {
-      error!("{}", e);
+      if running.load(Ordering::SeqCst) {
+        error!("{}", e);
+      } else {
+        error!("Interrupted.");
+      }
       exit(1);
     }
     from_image = to_image;
