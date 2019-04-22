@@ -13,6 +13,7 @@ scopeguard = "1"
 serde_yaml = "0.8"
 sha2 = "0.8"
 tempfile = "3"
+textwrap = "0.11"
 
 [dependencies.clap]
 version = "2"

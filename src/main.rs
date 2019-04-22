@@ -20,6 +20,7 @@ use std::{
     Arc,
   },
 };
+use textwrap::Wrapper;
 
 // Defaults
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
@@ -53,14 +54,16 @@ fn main() {
         style.set_color(Color::Blue);
       }
     }
+    let indent_size = record.level().to_string().len() + 3;
+    let indent = &" ".repeat(indent_size);
     writeln!(
       buf,
       "{} {}",
       style.value(format!("[{}]", record.level())),
-      record.args().to_string().replace(
-        "\n",
-        &format!("\n{}", " ".repeat(record.level().to_string().len() + 3))
-      )
+      &Wrapper::with_termwidth()
+        .initial_indent(indent)
+        .subsequent_indent(indent)
+        .fill(&record.args().to_string())[indent_size..]
     )
   })
   .init();
