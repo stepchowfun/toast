@@ -7,6 +7,7 @@ pub fn key(from_image: &str, schedule_prefix: &[&Task]) -> String {
 
   for task in schedule_prefix {
     cache_key = combine(&cache_key, &task.location);
+    cache_key = combine(&cache_key, &task.user);
     if let Some(c) = &task.command {
       cache_key = combine(&cache_key, &c);
     }
