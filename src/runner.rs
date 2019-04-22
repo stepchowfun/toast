@@ -149,6 +149,25 @@ pub fn run(
   Ok(())
 }
 
+// Query whether a Docker image exists locally.
+pub fn image_exists(image: &str) -> bool {
+  let mut inspect_command = Command::new("docker");
+  inspect_command.arg("inspect");
+  inspect_command.arg("--type");
+  inspect_command.arg("image");
+  inspect_command.arg(image);
+  run_command_quiet(inspect_command, "The image does not exist.").is_ok()
+}
+
+// Delete a Docker image.
+pub fn delete_image(image: &str) -> Result<(), String> {
+  let mut inspect_command = Command::new("docker");
+  inspect_command.arg("rmi");
+  inspect_command.arg("--force");
+  inspect_command.arg(image);
+  run_command_quiet(inspect_command, "Unable to delete image.").map(|_| ())
+}
+
 // Run a command and return its standard output or an error message.
 fn run_command_quiet(
   mut command: Command,

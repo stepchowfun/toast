@@ -30,9 +30,8 @@ const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
 const BAKEFILE_OPTION: &str = "file";
 const TASKS_ARGUMENT: &str = "tasks";
 
-// Let the fun begin!
-fn main() {
-  // Set up the logger.
+// Set up the logger.
+fn set_up_logging() {
   Builder::from_env(
     Env::default()
       .filter_or("LOG_LEVEL", "info")
@@ -68,7 +67,11 @@ fn main() {
     )
   })
   .init();
+}
 
+// Set up the signal handlers. Returns a reference to a Boolean indicating
+// whether the user requested graceful termination.
+fn set_up_signal_handlers() -> Arc<AtomicBool> {
   // Set up the SIGINT handler that ignores the signal. If the user presses
   // CTRL+C, all processes attached to the foreground process group receive
   // the signal, which includes processes in the container since we use the
@@ -89,6 +92,17 @@ fn main() {
     error!("Error installing signal handler. Reason: {}", e);
     exit(1);
   }
+
+  running
+}
+
+// Let the fun begin!
+fn main() {
+  // Set up the logger.
+  set_up_logging();
+
+  // Set up the signal handlers.
+  let running = set_up_signal_handlers();
 
   // Set up the command-line interface.
   let matches = App::new("Bake")
@@ -156,7 +170,7 @@ fn main() {
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);
   info!(
-    "Here's the schedule: {}.",
+    "The following tasks will be performed in the order given: {}.",
     (schedule
       .iter()
       .map(|task| format!("`{}`", task))
@@ -201,7 +215,10 @@ fn main() {
 
   // Execute the schedule.
   let mut from_image = bakefile.image.clone();
+  let mut from_image_cacheable = true;
   let mut schedule_prefix = vec![];
+  let mut can_use_cache = true;
+  let mut succeeded = true;
   for task in &schedule {
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
@@ -215,6 +232,17 @@ fn main() {
     let cache_key = cache::key(&bakefile.image, &schedule_prefix, &args);
     let to_image = format!("bake:{}", cache_key);
 
+    // Skip the task if it's cached.
+    if bakefile.tasks[*task].cache {
+      if can_use_cache && runner::image_exists(&to_image) {
+        info!("Task found in cache.");
+        continue;
+      }
+    } else {
+      can_use_cache = false;
+    }
+
+    // Run the task.
     // The indexing is safe due to [ref:tasks_valid].
     if let Err(e) =
       runner::run(&bakefile.tasks[*task], &from_image, &to_image, &args)
@@ -224,11 +252,38 @@ fn main() {
       } else {
         error!("Interrupted.");
       }
-      exit(1);
+
+      succeeded = false;
+      break;
     }
+
+    // Delete the previous image if it isn't cacheable.
+    if !from_image_cacheable {
+      if let Err(e) = runner::delete_image(&from_image) {
+        error!("{}", e);
+        succeeded = false;
+        break;
+      }
+    }
+
+    // Remember this image for the next task.
     from_image = to_image;
+    from_image_cacheable = can_use_cache;
   }
 
-  // Celebrate with the user.
-  info!("Successfully executed the schedule.");
+  // Celebrate with the user if we succeeded.
+  if succeeded {
+    // Delete the final image if it isn't cacheable.
+    if !from_image_cacheable {
+      if let Err(e) = runner::delete_image(&from_image) {
+        error!("{}", e);
+      }
+    }
+
+    // Tell the user the good news!
+    info!("Successfully executed the schedule.");
+  } else {
+    // Something went wrong.
+    exit(1);
+  }
 }

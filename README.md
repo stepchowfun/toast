@@ -47,9 +47,9 @@ dependencies: <names of dependencies (default: [])>
 cache: <whether a task can be cached (default: true)>
 args: <map from string to string or null (default: {})>
 paths: <paths to copy into the container (default: [])>
-location: <path in the container for running this task>
-user: <name of the user in the container for running this task>
-command: <shell command to run in the container>
+location: <path in the container for running this task (default: /scratch)>
+user: <name of the user in the container for running this task (default: root)>
+command: <shell command to run in the container (default: null)>
 ```
 
 The simplest bakefile has no tasks:
