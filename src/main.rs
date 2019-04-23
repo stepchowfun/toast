@@ -1,5 +1,6 @@
 mod bakefile;
 mod cache;
+mod count;
 mod runner;
 mod schedule;
 
@@ -170,7 +171,7 @@ fn main() {
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);
   info!(
-    "The following tasks will be performed in the order given: {}.",
+    "The following tasks will be executed in the order given: {}.",
     (schedule
       .iter()
       .map(|task| format!("`{}`", task))
@@ -222,12 +223,12 @@ fn main() {
   for task in &schedule {
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      info!("Terminating...");
-      exit(1);
+      error!("Interrupted.");
+      succeeded = false;
+      break;
     }
 
-    // Run the task.
-    info!("Running task `{}`...", task);
+    // Compute the cache key.
     schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
     let cache_key = cache::key(&bakefile.image, &schedule_prefix, &args);
     let to_image = format!("bake:{}", cache_key);
@@ -235,7 +236,12 @@ fn main() {
     // Skip the task if it's cached.
     if bakefile.tasks[*task].cache {
       if can_use_cache && runner::image_exists(&to_image) {
-        info!("Task found in cache.");
+        // Remember this image for the next task.
+        from_image = to_image;
+        from_image_cacheable = true;
+
+        // Skip to the next task.
+        info!("Task `{}` found in cache.", task);
         continue;
       }
     } else {
@@ -244,6 +250,7 @@ fn main() {
 
     // Run the task.
     // The indexing is safe due to [ref:tasks_valid].
+    info!("Running task `{}`...", task);
     if let Err(e) =
       runner::run(&bakefile.tasks[*task], &from_image, &to_image, &args)
     {
@@ -281,7 +288,10 @@ fn main() {
     }
 
     // Tell the user the good news!
-    info!("Successfully executed the schedule.");
+    info!(
+      "Successfully executed {}.",
+      count::count(schedule.len(), "task")
+    );
   } else {
     // Something went wrong.
     exit(1);
