@@ -42,7 +42,7 @@ pub fn run(
   let command = commands_to_run.join(" && ");
 
   // Create the container.
-  debug!("Creating container...");
+  debug!("Creating container from image `{}`...", from_image);
   let mut create_command = Command::new("docker");
   create_command.arg("create");
   create_command.arg("--tty"); // [tag:tty]
