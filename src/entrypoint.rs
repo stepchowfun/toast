@@ -2,7 +2,6 @@ use crate::{bakefile, cache, format, runner, schedule};
 use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
-use rayon::{prelude::*, ThreadPoolBuilder};
 use std::{
   cell::{Cell, RefCell},
   collections::HashMap,
@@ -25,9 +24,6 @@ const REMOTE_CACHE_ARG: &str = "remote-cache";
 const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
-
-// The maximum number of `docker pull` invocations we can run at a time.
-const MAX_CONCURRENT_IMAGE_PULLS: usize = 5;
 
 // Set up the logger.
 fn set_up_logging() {
@@ -289,51 +285,6 @@ fn run_tasks<'a>(
   env: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  // Eagerly try to pull all images that will be needed in parallel.
-  let mut images_to_pull = vec![];
-
-  if !runner::image_exists(&bakefile.image) {
-    images_to_pull.push(bakefile.image.clone());
-  }
-
-  if settings.remote_cache {
-    let mut schedule_prefix = vec![];
-
-    for task in schedule {
-      if !bakefile.tasks[*task].cache {
-        break;
-      }
-
-      schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
-
-      let image = format!(
-        "{}:{}",
-        settings.docker_repo,
-        cache::key(&bakefile.image, &schedule_prefix, &env)
-      );
-
-      if !runner::image_exists(&image) {
-        images_to_pull.push(image);
-      }
-    }
-  }
-
-  if !images_to_pull.is_empty() {
-    info!(
-      "Warming the cache by attempting to pull {}...",
-      format::number(images_to_pull.len(), "image")
-    );
-    ThreadPoolBuilder::new()
-      .num_threads(MAX_CONCURRENT_IMAGE_PULLS)
-      .build()
-      .unwrap() // If this fails, we're doomed.
-      .install(|| {
-        images_to_pull.par_iter().for_each(|image| {
-          let _ = runner::pull_image(image);
-        });
-      });
-  }
-
   // Run each task in sequence.
   let mut schedule_prefix = vec![];
   let from_image = RefCell::new(bakefile.image.clone());
@@ -375,6 +326,7 @@ fn run_tasks<'a>(
     // Skip the task if it's cached.
     if bakefile.tasks[*task].cache {
       if can_use_cache.get() {
+        info!("Attempting to fetch task `{}` from cache...", task);
         // Check the local cache.
         if runner::image_exists(&to_image.borrow()) {
           info!("Task `{}` found in local cache.", task);
@@ -394,6 +346,11 @@ fn run_tasks<'a>(
       can_use_cache.set(false);
     }
 
+    // If the user wants to stop the job, quit now.
+    if !running.load(Ordering::SeqCst) {
+      return Err("Interrupted.".to_owned());
+    }
+
     // Run the task.
     // The indexing is safe due to [ref:tasks_valid].
     info!("Running task `{}`...", task);
@@ -404,6 +361,11 @@ fn run_tasks<'a>(
       &env,
       running,
     )?;
+
+    // If the user wants to stop the job, quit now.
+    if !running.load(Ordering::SeqCst) {
+      return Err("Interrupted.".to_owned());
+    }
 
     // Push the image to a remote cache if applicable.
     if settings.remote_cache && can_use_cache.get() {
