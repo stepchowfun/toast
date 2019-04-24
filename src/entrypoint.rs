@@ -73,7 +73,8 @@ fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
   // the user sends an end-of-text (EOT) character to STDIN (e.g., by pressing
   // CTRL+C). The default behavior is to crash when this signal is received.
   // However, we would rather clean up resources before terminating, so we trap
-  // the signal here. See also [docker-tty].
+  // the signal here. We also trap SIGTERM, because we compile the `ctrlc`
+  // crate with the `termination` feature. See also [docker-tty].
   let running_ref = running.clone();
   if let Err(e) = ctrlc::set_handler(move || {
     // Remember that the user wants to quit.
