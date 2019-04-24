@@ -6,14 +6,14 @@ use std::collections::HashMap;
 pub fn key(
   from_image: &str,
   schedule_prefix: &[&Task],
-  args: &HashMap<String, String>,
+  env: &HashMap<String, String>,
 ) -> String {
   let mut cache_key = hash(from_image);
 
   for task in schedule_prefix {
-    for arg in task.args.keys() {
-      cache_key = combine(&cache_key, arg);
-      cache_key = combine(&cache_key, &args[arg]); // [ref:args_valid]
+    for var in task.env.keys() {
+      cache_key = combine(&cache_key, var);
+      cache_key = combine(&cache_key, &env[var]); // [ref:env_valid]
     }
     cache_key = combine(&cache_key, &task.location);
     cache_key = combine(&cache_key, &task.user);
@@ -45,23 +45,23 @@ mod tests {
   fn key_simple() {
     let from_image = "ubuntu:18.04";
     let schedule_prefix = vec![];
-    let all_args = HashMap::new();
+    let full_env = HashMap::new();
 
     assert_eq!(
-      key(from_image, &schedule_prefix, &all_args),
-      key(from_image, &schedule_prefix, &all_args)
+      key(from_image, &schedule_prefix, &full_env),
+      key(from_image, &schedule_prefix, &full_env)
     );
   }
 
   #[test]
   fn key_pure() {
-    let mut args: HashMap<String, Option<String>> = HashMap::new();
-    args.insert("foo".to_owned(), None);
+    let mut env: HashMap<String, Option<String>> = HashMap::new();
+    env.insert("foo".to_owned(), None);
 
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args,
+      env,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -70,27 +70,27 @@ mod tests {
 
     let from_image = "ubuntu:18.04";
     let schedule_prefix = vec![&task];
-    let mut all_args = HashMap::new();
-    all_args.insert("foo".to_owned(), "qux".to_owned());
+    let mut full_env = HashMap::new();
+    full_env.insert("foo".to_owned(), "qux".to_owned());
 
     assert_eq!(
-      key(from_image, &schedule_prefix, &all_args),
-      key(from_image, &schedule_prefix, &all_args)
+      key(from_image, &schedule_prefix, &full_env),
+      key(from_image, &schedule_prefix, &full_env)
     );
   }
 
   #[test]
-  fn key_args_keys() {
-    let mut args1: HashMap<String, Option<String>> = HashMap::new();
-    args1.insert("foo".to_owned(), None);
+  fn key_env_keys() {
+    let mut env1: HashMap<String, Option<String>> = HashMap::new();
+    env1.insert("foo".to_owned(), None);
 
-    let mut args2: HashMap<String, Option<String>> = HashMap::new();
-    args2.insert("bar".to_owned(), None);
+    let mut env2: HashMap<String, Option<String>> = HashMap::new();
+    env2.insert("bar".to_owned(), None);
 
     let task1 = Task {
       dependencies: vec![],
       cache: true,
-      args: args1,
+      env: env1,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -100,7 +100,7 @@ mod tests {
     let task2 = Task {
       dependencies: vec![],
       cache: true,
-      args: args2,
+      env: env2,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -110,25 +110,25 @@ mod tests {
     let from_image = "ubuntu:18.04";
     let schedule_prefix1 = vec![&task1];
     let schedule_prefix2 = vec![&task2];
-    let mut all_args = HashMap::new();
-    all_args.insert("foo".to_owned(), "qux".to_owned());
-    all_args.insert("bar".to_owned(), "fum".to_owned());
+    let mut full_env = HashMap::new();
+    full_env.insert("foo".to_owned(), "qux".to_owned());
+    full_env.insert("bar".to_owned(), "fum".to_owned());
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &all_args),
-      key(from_image, &schedule_prefix2, &all_args)
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
   #[test]
-  fn key_args_values() {
-    let mut args: HashMap<String, Option<String>> = HashMap::new();
-    args.insert("foo".to_owned(), None);
+  fn key_env_values() {
+    let mut env: HashMap<String, Option<String>> = HashMap::new();
+    env.insert("foo".to_owned(), None);
 
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args,
+      env,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -137,14 +137,14 @@ mod tests {
 
     let from_image = "ubuntu:18.04";
     let schedule_prefix = vec![&task];
-    let mut all_args1 = HashMap::new();
-    all_args1.insert("foo".to_owned(), "bar".to_owned());
-    let mut all_args2 = HashMap::new();
-    all_args2.insert("foo".to_owned(), "baz".to_owned());
+    let mut full_env1 = HashMap::new();
+    full_env1.insert("foo".to_owned(), "bar".to_owned());
+    let mut full_env2 = HashMap::new();
+    full_env2.insert("foo".to_owned(), "baz".to_owned());
 
     assert_ne!(
-      key(from_image, &schedule_prefix, &all_args1),
-      key(from_image, &schedule_prefix, &all_args2)
+      key(from_image, &schedule_prefix, &full_env1),
+      key(from_image, &schedule_prefix, &full_env2)
     );
   }
 
@@ -153,7 +153,7 @@ mod tests {
     let task1 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: "/foo".to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -163,7 +163,7 @@ mod tests {
     let task2 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: "/bar".to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -173,11 +173,11 @@ mod tests {
     let from_image = "ubuntu:18.04";
     let schedule_prefix1 = vec![&task1];
     let schedule_prefix2 = vec![&task2];
-    let all_args = HashMap::new();
+    let full_env = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &all_args),
-      key(from_image, &schedule_prefix2, &all_args)
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
@@ -186,7 +186,7 @@ mod tests {
     let task1 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: "foo".to_owned(),
@@ -196,7 +196,7 @@ mod tests {
     let task2 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: "bar".to_owned(),
@@ -206,11 +206,11 @@ mod tests {
     let from_image = "ubuntu:18.04";
     let schedule_prefix1 = vec![&task1];
     let schedule_prefix2 = vec![&task2];
-    let all_args = HashMap::new();
+    let full_env = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &all_args),
-      key(from_image, &schedule_prefix2, &all_args)
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
@@ -219,7 +219,7 @@ mod tests {
     let task1 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -229,7 +229,7 @@ mod tests {
     let task2 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -239,11 +239,11 @@ mod tests {
     let from_image = "ubuntu:18.04";
     let schedule_prefix1 = vec![&task1];
     let schedule_prefix2 = vec![&task2];
-    let all_args = HashMap::new();
+    let full_env = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &all_args),
-      key(from_image, &schedule_prefix2, &all_args)
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
@@ -252,7 +252,7 @@ mod tests {
     let task1 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -262,7 +262,7 @@ mod tests {
     let task2 = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -272,11 +272,11 @@ mod tests {
     let from_image = "ubuntu:18.04";
     let schedule_prefix1 = vec![&task1];
     let schedule_prefix2 = vec![&task2];
-    let all_args = HashMap::new();
+    let full_env = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &all_args),
-      key(from_image, &schedule_prefix2, &all_args)
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
