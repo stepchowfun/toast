@@ -33,10 +33,11 @@ ARGS:
 
 ## Bakefiles
 
-A *bakefile* is a YAML file (typically named `bake.yml`) that defines a directed acyclic graph of tasks and their dependencies. The schema contains two top-level keys:
+A *bakefile* is a YAML file (typically named `bake.yml`) that defines a directed acyclic graph of tasks and their dependencies. The schema contains three top-level keys:
 
 ```yaml
 image: <Docker image name>
+default: <name of default task to run (default behavior: run all tasks)>
 tasks: <map from task name to task>
 ```
 
@@ -65,6 +66,7 @@ Here is an example bakefile:
 
 ```
 image: ubuntu:18.04
+default: build
 tasks:
   rust_dependencies:
     command: |
@@ -90,4 +92,10 @@ tasks:
       - src
     user: user
     command: cargo build
+
+  test:
+    dependencies:
+      - build
+    user: user
+    command: cargo test
 ```

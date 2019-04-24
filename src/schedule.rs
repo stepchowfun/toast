@@ -69,10 +69,27 @@ mod tests {
   use crate::schedule::compute;
   use std::collections::HashMap;
 
+  fn task_with_dependencies(dependencies: Vec<String>) -> Task {
+    Task {
+      dependencies: dependencies,
+      cache: true,
+      env: HashMap::new(),
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: None,
+    }
+  }
+
+  fn empty_task() -> Task {
+    task_with_dependencies(vec![])
+  }
+
   #[test]
   fn schedule_empty() {
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks: HashMap::new(),
     };
 
@@ -85,21 +102,11 @@ mod tests {
   #[test]
   fn schedule_single() {
     let mut tasks = HashMap::new();
-    tasks.insert(
-      "foo".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
+    tasks.insert("foo".to_owned(), empty_task());
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
@@ -112,45 +119,19 @@ mod tests {
   #[test]
   fn schedule_linear() {
     let mut tasks = HashMap::new();
-    tasks.insert(
-      "foo".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
+    tasks.insert("foo".to_owned(), empty_task());
     tasks.insert(
       "bar".to_owned(),
-      Task {
-        dependencies: vec!["foo".to_owned()],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
+      task_with_dependencies(vec!["foo".to_owned()]),
     );
     tasks.insert(
       "baz".to_owned(),
-      Task {
-        dependencies: vec!["bar".to_owned()],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
+      task_with_dependencies(vec!["bar".to_owned()]),
     );
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
@@ -163,45 +144,19 @@ mod tests {
   #[test]
   fn schedule_duplicates() {
     let mut tasks = HashMap::new();
-    tasks.insert(
-      "foo".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
+    tasks.insert("foo".to_owned(), empty_task());
     tasks.insert(
       "bar".to_owned(),
-      Task {
-        dependencies: vec!["foo".to_owned()],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
+      task_with_dependencies(vec!["foo".to_owned()]),
     );
     tasks.insert(
       "baz".to_owned(),
-      Task {
-        dependencies: vec!["bar".to_owned()],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
+      task_with_dependencies(vec!["bar".to_owned()]),
     );
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
@@ -214,45 +169,13 @@ mod tests {
   #[test]
   fn schedule_tie_breaking() {
     let mut tasks = HashMap::new();
-    tasks.insert(
-      "foo".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
-    tasks.insert(
-      "bar".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
-    tasks.insert(
-      "baz".to_owned(),
-      Task {
-        dependencies: vec![],
-        cache: true,
-        env: HashMap::new(),
-        paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
-        user: DEFAULT_USER.to_owned(),
-        command: None,
-      },
-    );
+    tasks.insert("foo".to_owned(), empty_task());
+    tasks.insert("bar".to_owned(), empty_task());
+    tasks.insert("baz".to_owned(), empty_task());
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
