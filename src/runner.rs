@@ -192,7 +192,7 @@ fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
   Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-// Run a command and forward its standard input, output, and error.
+// Run a command and forward its standard input, output, and error streams.
 fn run_docker_loud(args: &[&str], error: &str) -> Result<(), String> {
   let status = docker_command(args)
     .status()
