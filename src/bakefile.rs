@@ -254,7 +254,9 @@ tasks:
     "#
     .trim();
 
-    assert!(parse(input).is_err());
+    let result = parse(input);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("test"));
   }
 
   #[test]
@@ -407,12 +409,11 @@ tasks:
       command: None,
     };
 
-    let mut expected = HashMap::new();
-    expected.insert("foo3".to_owned(), "bar".to_owned());
-
     env::remove_var("foo3");
     assert!(env::var("foo3").is_err());
-    assert!(environment(&task).is_err());
+    let result = environment(&task);
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err()[0].to_owned(), "foo3");
   }
 
   #[test]
@@ -497,6 +498,8 @@ tasks:
       tasks,
     };
 
-    assert!(check_dependencies(&bakefile).is_err());
+    let result = check_dependencies(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("do_thing"));
   }
 }

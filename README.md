@@ -57,14 +57,14 @@ command: <shell command to run in the container (default: null)>
 
 The simplest bakefile has no tasks:
 
-```
+```yaml
 image: alpine
 tasks: {}
 ```
 
 Here is an example bakefile:
 
-```
+```yaml
 image: ubuntu:18.04
 default: build
 tasks:
