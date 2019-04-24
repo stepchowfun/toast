@@ -146,15 +146,26 @@ pub fn run(
 pub fn image_exists(image: &str) -> bool {
   run_docker_quiet(
     &["inspect", "--type", "image", image],
-    "The image does not exist.",
+    &format!("The image `{}` does not exist.", image),
   )
   .is_ok()
 }
 
 // Delete a Docker image.
 pub fn delete_image(image: &str) -> Result<(), String> {
-  run_docker_quiet(&["rmi", "--force", image], "Unable to delete image.")
-    .map(|_| ())
+  run_docker_quiet(
+    &["rmi", "--force", image],
+    &format!("Unable to delete image `{}`.", image),
+  )
+  .map(|_| ())
+}
+
+// Run an interactive shell.
+pub fn run_shell(image: &str) -> Result<(), String> {
+  run_docker_loud(
+    &["run", "--rm", "--interactive", "--tty", image, "/bin/sh"],
+    "The shell exited with a failure.",
+  )
 }
 
 // Construct a Docker `Command` from an array of arguments.
@@ -181,7 +192,7 @@ fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
   Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-// Run a command and forward its standard input and output.
+// Run a command and forward its standard input, output, and error.
 fn run_docker_loud(args: &[&str], error: &str) -> Result<(), String> {
   let status = docker_command(args)
     .status()

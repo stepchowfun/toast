@@ -28,8 +28,9 @@ use textwrap::Wrapper;
 const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
 
 // Command-line argument and option names
-const BAKEFILE_OPTION: &str = "file";
-const TASKS_ARGUMENT: &str = "tasks";
+const BAKEFILE_ARG: &str = "file";
+const SHELL_ARG: &str = "shell";
+const TASKS_ARG: &str = "tasks";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -97,29 +98,23 @@ fn set_up_signal_handlers() -> Arc<AtomicBool> {
   running
 }
 
-// Let the fun begin!
-fn main() {
-  // Set up the logger.
-  set_up_logging();
+// This struct represents the command-line arguments.
+struct Settings {
+  bakefile_path: String,
+  shell: bool,
+  tasks: Option<Vec<String>>,
+}
 
-  // Set up the signal handlers.
-  let running = set_up_signal_handlers();
-
-  // Set up the command-line interface.
+// Parse the command-line arguments;
+fn settings() -> Settings {
   let matches = App::new("Bake")
     .version("0.1.0")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
     .arg(
-      Arg::with_name(TASKS_ARGUMENT)
-        .value_name("TASKS")
-        .multiple(true)
-        .help("Sets the tasks to run"),
-    )
-    .arg(
-      Arg::with_name(BAKEFILE_OPTION)
+      Arg::with_name(BAKEFILE_ARG)
         .short("f")
-        .long(BAKEFILE_OPTION)
+        .long(BAKEFILE_ARG)
         .value_name("PATH")
         .help(&format!(
           "Sets the path to the bakefile (default: {})",
@@ -127,64 +122,98 @@ fn main() {
         ))
         .takes_value(true),
     )
+    .arg(
+      Arg::with_name(SHELL_ARG)
+        .short("s")
+        .long(SHELL_ARG)
+        .help("Drops you into a shell after the tasks are complete"),
+    )
+    .arg(
+      Arg::with_name(TASKS_ARG)
+        .value_name("TASKS")
+        .multiple(true)
+        .help("Sets the tasks to run"),
+    )
     .get_matches();
 
-  // Parse the bakefile path.
-  let bakefile_file_path = matches
-    .value_of(BAKEFILE_OPTION)
-    .unwrap_or(JOB_FILE_DEFAULT_PATH);
+  // Parse the --shell flag.
+  let shell = matches.is_present(SHELL_ARG);
 
-  // Parse the bakefile.
-  let bakefile_data =
-    fs::read_to_string(bakefile_file_path).unwrap_or_else(|e| {
-      error!(
-        "Unable to read file `{}`. Reason: {}",
-        bakefile_file_path, e
-      );
-      exit(1);
-    });
-  let bakefile = bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
-    error!(
-      "Unable to parse file `{}`. Reason: {}",
-      bakefile_file_path, e
-    );
-    exit(1);
-  });
+  // Parse the bakefile path.
+  let bakefile_path = matches
+    .value_of(BAKEFILE_ARG)
+    .unwrap_or(JOB_FILE_DEFAULT_PATH)
+    .to_owned();
 
   // Parse the tasks.
-  let root_tasks: Vec<&str> = matches.values_of(TASKS_ARGUMENT).map_or_else(
-    || bakefile.tasks.keys().map(|key| &key[..]).collect(),
+  let tasks = matches.values_of(TASKS_ARG).map(|tasks| {
+    tasks
+      .map(std::borrow::ToOwned::to_owned)
+      .collect::<Vec<_>>()
+  });
+
+  Settings {
+    bakefile_path,
+    shell,
+    tasks,
+  }
+}
+
+// Determine which tasks the user wants to run.
+fn get_roots<'a>(
+  settings: &'a Settings,
+  bakefile: &'a bakefile::Bakefile,
+) -> Vec<&'a str> {
+  settings.tasks.as_ref().map_or_else(
+    || {
+      bakefile
+        .tasks
+        .keys()
+        .map(|key| &key[..])
+        .collect::<Vec<_>>()
+    },
     |tasks| {
       tasks
+        .iter()
         .map(|task| {
           if !bakefile.tasks.contains_key(task) {
             // [tag:tasks_valid]
-            error!("No task named `{}` in `{}`.", task, bakefile_file_path);
+            error!(
+              "No task named `{}` in `{}`.",
+              task, settings.bakefile_path
+            );
             exit(1);
           };
-          task
+          &task[..]
         })
         .collect()
     },
-  );
+  )
+}
 
-  // Compute a schedule of tasks to run.
-  let schedule = schedule::compute(&bakefile, &root_tasks);
-  info!(
-    "The following tasks will be executed in the order given: {}.",
-    format::series(
-      &schedule
-        .iter()
-        .map(|task| format!("`{}`", task))
-        .collect::<Vec<_>>()[..]
-    )
-  );
+// Parse a bakefile.
+fn parse_bakefile(bakefile_path: &str) -> bakefile::Bakefile {
+  let bakefile_data = fs::read_to_string(bakefile_path).unwrap_or_else(|e| {
+    error!("Unable to read file `{}`. Reason: {}", bakefile_path, e);
+    exit(1);
+  });
 
-  // Eagerly fetch all the args for all the tasks.
+  bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
+    error!("Unable to parse file `{}`. Reason: {}", bakefile_path, e);
+    exit(1);
+  })
+}
+
+// Fetch all the environment variables used by the tasks in the schedule.
+fn fetch_env(
+  schedule: &[&str],
+  tasks: &HashMap<String, bakefile::Task>,
+) -> HashMap<String, String> {
   let mut env = HashMap::new();
   let mut violations = HashMap::new();
-  for task in &schedule {
-    match bakefile::environment(&bakefile.tasks[*task]) {
+
+  for task in schedule {
+    match bakefile::environment(&tasks[*task]) {
       // [ref:tasks_valid]
       Ok(env_for_task) => {
         env.extend(env_for_task);
@@ -194,6 +223,7 @@ fn main() {
       }
     }
   }
+
   if !violations.is_empty() {
     // [tag:env_valid]
     error!(
@@ -216,6 +246,41 @@ fn main() {
     );
     exit(1);
   }
+
+  env
+}
+
+// Let the fun begin!
+fn main() {
+  // Set up the logger.
+  set_up_logging();
+
+  // Set up the signal handlers.
+  let running = set_up_signal_handlers();
+
+  // Parse the command-line arguments;
+  let settings = settings();
+
+  // Parse the bakefile.
+  let bakefile = parse_bakefile(&settings.bakefile_path);
+
+  // Determine which tasks the user wants to run.
+  let root_tasks = get_roots(&settings, &bakefile);
+
+  // Compute a schedule of tasks to run.
+  let schedule = schedule::compute(&bakefile, &root_tasks);
+  info!(
+    "The following tasks will be executed in the order given: {}.",
+    format::series(
+      &schedule
+        .iter()
+        .map(|task| format!("`{}`", task))
+        .collect::<Vec<_>>()[..]
+    )
+  );
+
+  // Fetch all the environment variables used by the tasks in the schedule.
+  let env = fetch_env(&schedule, &bakefile.tasks);
 
   // Execute the schedule.
   let mut from_image = bakefile.image.clone();
@@ -281,20 +346,27 @@ fn main() {
     from_image_cacheable = can_use_cache;
   }
 
-  // Celebrate with the user if we succeeded.
   if succeeded {
+    // Tell the user the good news!
+    info!(
+      "Successfully executed {}.",
+      format::number(schedule.len(), "task")
+    );
+
+    // Drop the user into a shell if requested.
+    if settings.shell {
+      info!("Here's a shell in the context of the tasks that were executed:");
+      if let Err(e) = runner::run_shell(&from_image) {
+        error!("{}", e);
+      }
+    }
+
     // Delete the final image if it isn't cacheable.
     if !from_image_cacheable {
       if let Err(e) = runner::delete_image(&from_image) {
         error!("{}", e);
       }
     }
-
-    // Tell the user the good news!
-    info!(
-      "Successfully executed {}.",
-      format::number(schedule.len(), "task")
-    );
   } else {
     // Something went wrong.
     exit(1);
