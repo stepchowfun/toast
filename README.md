@@ -16,10 +16,11 @@ To build all the tasks, just run `bake` with no arguments. Here are all the supp
 
 ```
 USAGE:
-    bake [OPTIONS] [TASKS]...
+    bake [FLAGS] [OPTIONS] [TASKS]...
 
 FLAGS:
     -h, --help       Prints help information
+    -s, --shell      Drops you into a shell after the tasks are complete
     -V, --version    Prints version information
 
 OPTIONS:

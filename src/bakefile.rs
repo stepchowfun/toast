@@ -62,9 +62,9 @@ pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
 }
 
 // Fetch the variables for a task from the environment.
-pub fn environment(
-  task: &Task,
-) -> Result<HashMap<String, String>, Vec<String>> {
+pub fn environment<'a>(
+  task: &'a Task,
+) -> Result<HashMap<String, String>, Vec<&'a str>> {
   let mut violations = vec![];
   let mut result = HashMap::new();
   for (arg, default) in &task.env {
@@ -75,7 +75,7 @@ pub fn environment(
     } else if let Ok(var) = maybe_var {
       result.insert(arg.clone(), var);
     } else {
-      violations.push(arg.clone());
+      violations.push(&arg[..]);
     }
   }
 
