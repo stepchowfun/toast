@@ -1,3 +1,4 @@
+use crate::format;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 
@@ -104,19 +105,21 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
   if !violations.is_empty() {
     return Err(format!(
       "The following dependencies are invalid: {}.",
-      violations
-        .iter()
-        .map(|(task, dependencies)| format!(
-          "`{}` ({})",
-          task,
-          dependencies
-            .iter()
-            .map(|task| format!("`{}`", task))
-            .collect::<Vec<_>>()
-            .join(", ")
-        ))
-        .collect::<Vec<_>>()
-        .join(", ")
+      format::series(
+        &violations
+          .iter()
+          .map(|(task, dependencies)| format!(
+            "`{}` ({})",
+            task,
+            format::series(
+              &dependencies
+                .iter()
+                .map(|task| format!("`{}`", task))
+                .collect::<Vec<_>>()[..]
+            )
+          ))
+          .collect::<Vec<_>>()[..]
+      )
     ));
   }
 
