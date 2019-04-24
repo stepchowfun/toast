@@ -1,5 +1,13 @@
 use crate::bakefile::Task;
-use std::{collections::HashMap, path::Path, process::Command};
+use std::{
+  collections::HashMap,
+  path::Path,
+  process::Command,
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
+};
 use tempfile::TempDir;
 
 // Run a task and return the ID of the resulting Docker image.
@@ -8,6 +16,7 @@ pub fn run(
   from_image: &str,
   to_image: &str,
   env: &HashMap<String, String>,
+  running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   // Construct the command to run inside the container.
   let mut commands_to_run = vec![];
@@ -129,7 +138,14 @@ pub fn run(
   if let Some(command) = &task.command {
     info!("{}", command);
   }
-  run_docker_loud(&["start", "--attach", &container_id], "Task failed.")?;
+  run_docker_loud(&["start", "--attach", &container_id], "Task failed.")
+    .map_err(|e| {
+      if running.load(Ordering::SeqCst) {
+        e
+      } else {
+        "Interrupted.".to_owned()
+      }
+    })?;
 
   // Create an image from the container.
   debug!("Creating image...");
