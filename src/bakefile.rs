@@ -104,7 +104,7 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
 
   if !violations.is_empty() {
     return Err(format!(
-      "The following dependencies are invalid: {}.",
+      "The following tasks have invalid dependencies: {}.",
       format::series(
         &violations
           .iter()

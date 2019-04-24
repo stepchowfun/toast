@@ -180,6 +180,7 @@ fn get_roots<'a>(
 ) -> Vec<&'a str> {
   settings.tasks.as_ref().map_or_else(
     || {
+      // The user didn't provide any tasks. Run all of them.
       bakefile
         .tasks
         .keys()
@@ -187,6 +188,7 @@ fn get_roots<'a>(
         .collect::<Vec<_>>()
     },
     |tasks| {
+      // The user provided some tasks. Check that they exist, and run them.
       tasks
         .iter()
         .map(|task| {
