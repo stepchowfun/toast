@@ -136,14 +136,14 @@ fn settings() -> Settings {
     )
     .get_matches();
 
-  // Parse the --shell flag.
-  let shell = matches.is_present(SHELL_ARG);
-
   // Parse the bakefile path.
   let bakefile_path = matches
     .value_of(BAKEFILE_ARG)
     .unwrap_or(JOB_FILE_DEFAULT_PATH)
     .to_owned();
+
+  // Parse the --shell flag.
+  let shell = matches.is_present(SHELL_ARG);
 
   // Parse the tasks.
   let tasks = matches.values_of(TASKS_ARG).map(|tasks| {
@@ -157,6 +157,19 @@ fn settings() -> Settings {
     shell,
     tasks,
   }
+}
+
+// Parse a bakefile.
+fn parse_bakefile(bakefile_path: &str) -> bakefile::Bakefile {
+  let bakefile_data = fs::read_to_string(bakefile_path).unwrap_or_else(|e| {
+    error!("Unable to read file `{}`. Reason: {}", bakefile_path, e);
+    exit(1);
+  });
+
+  bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
+    error!("Unable to parse file `{}`. Reason: {}", bakefile_path, e);
+    exit(1);
+  })
 }
 
 // Determine which tasks the user wants to run.
@@ -189,19 +202,6 @@ fn get_roots<'a>(
         .collect()
     },
   )
-}
-
-// Parse a bakefile.
-fn parse_bakefile(bakefile_path: &str) -> bakefile::Bakefile {
-  let bakefile_data = fs::read_to_string(bakefile_path).unwrap_or_else(|e| {
-    error!("Unable to read file `{}`. Reason: {}", bakefile_path, e);
-    exit(1);
-  });
-
-  bakefile::parse(&bakefile_data).unwrap_or_else(|e| {
-    error!("Unable to parse file `{}`. Reason: {}", bakefile_path, e);
-    exit(1);
-  })
 }
 
 // Fetch all the environment variables used by the tasks in the schedule.
