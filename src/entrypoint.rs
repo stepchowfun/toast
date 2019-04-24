@@ -20,6 +20,7 @@ const REPO_DEFAULT: &str = "bake";
 
 // Command-line argument and option names
 const BAKEFILE_ARG: &str = "file";
+const NO_LOCAL_CACHE_ARG: &str = "no-local-cache";
 const REMOTE_CACHE_ARG: &str = "remote-cache";
 const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
@@ -95,6 +96,7 @@ fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
 struct Settings {
   bakefile_path: String,
   docker_repo: String,
+  local_cache: bool,
   remote_cache: bool,
   spawn_shell: bool,
   tasks: Option<Vec<String>>,
@@ -117,6 +119,12 @@ fn settings() -> Settings {
           BAKEFILE_DEFAULT,
         ))
         .takes_value(true),
+    )
+    .arg(
+      Arg::with_name(NO_LOCAL_CACHE_ARG)
+        .short("n")
+        .long(NO_LOCAL_CACHE_ARG)
+        .help("Disables local caching"),
     )
     .arg(
       Arg::with_name(REMOTE_CACHE_ARG)
@@ -155,6 +163,9 @@ fn settings() -> Settings {
     .unwrap_or(BAKEFILE_DEFAULT)
     .to_owned();
 
+  // Parse the local caching switch.
+  let local_cache = !matches.is_present(NO_LOCAL_CACHE_ARG);
+
   // Parse the remote caching switch.
   let remote_cache = matches.is_present(REMOTE_CACHE_ARG);
 
@@ -176,6 +187,7 @@ fn settings() -> Settings {
 
   Settings {
     bakefile_path,
+    local_cache,
     remote_cache,
     docker_repo,
     spawn_shell,
@@ -286,15 +298,28 @@ fn run_tasks<'a>(
   env: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
+  // Pull the base image. Docker will do this automatically when we run the
+  // first task, but we do it explicitly here so the user knows what's
+  // happening and when it's done.
+  let base_image_already_existed = runner::image_exists(&bakefile.image);
+  if !base_image_already_existed {
+    info!("Pulling image `{}`...", bakefile.image);
+    runner::pull_image(&bakefile.image)?;
+  }
+
   // Run each task in sequence.
   let mut schedule_prefix = vec![];
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
-  let can_use_cache = Cell::new(true);
   for task in schedule {
     // At the end of this iteration, delete the image from the previous step if
     // it isn't cacheable.
-    let image_to_delete = if from_image_cacheable.get() {
+    let image_to_delete = if (schedule_prefix.is_empty()
+      && (settings.local_cache || base_image_already_existed))
+      || (!schedule_prefix.is_empty()
+        && settings.local_cache
+        && from_image_cacheable.get())
+    {
       None
     } else {
       Some(from_image.borrow().to_owned())
@@ -319,32 +344,31 @@ fn run_tasks<'a>(
       RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
 
     // Remember this image for the next task.
+    let this_task_cacheable =
+      bakefile.tasks[*task].cache && from_image_cacheable.get();
     defer! {{
       from_image.replace(to_image.borrow().clone());
-      from_image_cacheable.set(can_use_cache.get());
+      from_image_cacheable.set(this_task_cacheable);
     }}
 
     // Skip the task if it's cached.
-    if bakefile.tasks[*task].cache {
-      if can_use_cache.get() {
-        info!("Attempting to fetch task `{}` from cache...", task);
-        // Check the local cache.
-        if runner::image_exists(&to_image.borrow()) {
-          info!("Task `{}` found in local cache.", task);
-          continue;
-        }
+    if this_task_cacheable {
+      info!("Attempting to fetch task `{}` from cache...", task);
 
-        // Check the remote cache if applicable.
-        if settings.remote_cache
-          && runner::pull_image(&to_image.borrow()).is_ok()
-        {
-          // Skip to the next task.
-          info!("Task `{}` found in remote cache.", task);
-          continue;
-        }
+      // Check the local cache.
+      if settings.local_cache && runner::image_exists(&to_image.borrow()) {
+        info!("Task `{}` found in local cache.", task);
+        continue;
       }
-    } else {
-      can_use_cache.set(false);
+
+      // Check the remote cache if applicable.
+      if settings.remote_cache
+        && runner::pull_image(&to_image.borrow()).is_ok()
+      {
+        // Skip to the next task.
+        info!("Task `{}` found in remote cache.", task);
+        continue;
+      }
     }
 
     // If the user wants to stop the job, quit now.
@@ -369,7 +393,7 @@ fn run_tasks<'a>(
     }
 
     // Push the image to a remote cache if applicable.
-    if settings.remote_cache && can_use_cache.get() {
+    if settings.remote_cache && this_task_cacheable {
       info!("Writing to cache...");
       match runner::push_image(&to_image.borrow()) {
         Ok(()) => info!("Task `{}` maybe pushed to remote cache.", task),
@@ -380,7 +404,7 @@ fn run_tasks<'a>(
 
   // Delete the final image if it isn't cacheable.
   defer! {{
-    if !from_image_cacheable.get() {
+    if !settings.local_cache || !from_image_cacheable.get() {
       if let Err(e) = runner::delete_image(&from_image.borrow()) {
         error!("{}", e);
       }
