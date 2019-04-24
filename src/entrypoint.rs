@@ -318,19 +318,21 @@ fn run_tasks<'a>(
     }
   }
 
-  info!(
-    "Warming the cache by attempting to pull {}...",
-    format::number(images_to_pull.len(), "image")
-  );
-  ThreadPoolBuilder::new()
-    .num_threads(MAX_CONCURRENT_IMAGE_PULLS)
-    .build()
-    .unwrap() // If this fails, we're doomed.
-    .install(|| {
-      images_to_pull.par_iter().for_each(|image| {
-        let _ = runner::pull_image(image);
+  if !images_to_pull.is_empty() {
+    info!(
+      "Warming the cache by attempting to pull {}...",
+      format::number(images_to_pull.len(), "image")
+    );
+    ThreadPoolBuilder::new()
+      .num_threads(MAX_CONCURRENT_IMAGE_PULLS)
+      .build()
+      .unwrap() // If this fails, we're doomed.
+      .install(|| {
+        images_to_pull.par_iter().for_each(|image| {
+          let _ = runner::pull_image(image);
+        });
       });
-    });
+  }
 
   // Run each task in sequence.
   let mut schedule_prefix = vec![];
