@@ -7,27 +7,31 @@ pub fn run(
   task: &Task,
   from_image: &str,
   to_image: &str,
-  args: &HashMap<String, String>,
+  env: &HashMap<String, String>,
 ) -> Result<(), String> {
   // Construct the command to run inside the container.
   let mut commands_to_run = vec![];
 
+  // Ensure the task's location exists within the container and that the user
+  // can access it.
   commands_to_run.push(format!("mkdir -p '{}'", task.location));
   commands_to_run.push(format!("chmod 777 '{}'", task.location));
 
+  // Construct a small script to execute the task's command in the task's
+  // location as the task's user with the task's environment variables.
   if let Some(command) = &task.command {
     commands_to_run.push(format!(
       "su -l -c {} {}",
       shell_escape(&format!(
         "{} set -eu; cd {}; {}",
         task
-          .args
+          .env
           .keys()
-          .map(|arg| {
+          .map(|var| {
             format!(
               "export {}={};",
-              shell_escape(&arg),
-              shell_escape(&args[arg]) // [ref:args_valid]
+              shell_escape(&var),
+              shell_escape(&env[var]) // [ref:env_valid]
             )
           })
           .collect::<Vec<_>>()
@@ -39,32 +43,28 @@ pub fn run(
     ));
   }
 
-  let command = commands_to_run.join(" && ");
-
   // Create the container.
   debug!("Creating container from image `{}`...", from_image);
-  let mut create_command = Command::new("docker");
-  create_command.arg("create");
-  create_command.arg("--tty"); // [tag:tty]
-  create_command.arg(from_image);
-  create_command.arg("/bin/sh");
-  create_command.arg("-c");
-  create_command.arg(command);
-  let container_id =
-    run_command_quiet(create_command, "Unable to create container.")?
-      .trim()
-      .to_owned();
+  let container_id = run_docker_quiet(
+    &[
+      "create",
+      "--tty", // [tag:tty]
+      from_image,
+      "/bin/sh",
+      "-c",
+      &commands_to_run.join(" && "),
+    ],
+    "Unable to create container.",
+  )?
+  .trim()
+  .to_owned();
   debug!("Created container `{}`.", container_id);
 
   // Delete the container when this function returns.
   defer! {{
     debug!("Deleting container...");
-    let mut delete_command = Command::new("docker");
-    delete_command.arg("rm");
-    delete_command.arg("--force");
-    delete_command.arg(&container_id);
-    if let Err(e) = run_command_quiet(
-      delete_command,
+    if let Err(e) = run_docker_quiet(
+      &["rm", "--force", &container_id],
       "Unable to delete container."
     ) {
       error!("{}", e);
@@ -93,12 +93,12 @@ pub fn run(
     {
       let ancestor_str = ancestor.to_string_lossy();
       debug!("Creating directory `{}` in container...", ancestor_str);
-      let mut copy_command = Command::new("docker");
-      copy_command.arg("cp");
-      copy_command.arg(empty_dir.path().join("."));
-      copy_command.arg(format!("{}:{}", container_id, ancestor_str));
-      run_command_quiet(
-        copy_command,
+      run_docker_quiet(
+        &[
+          "cp",
+          &empty_dir.path().join(".").to_string_lossy(),
+          &format!("{}:{}", container_id, ancestor_str),
+        ],
         &format!(
           "Unable to copy `{}` into container at `{}`.",
           path, destination_str
@@ -111,12 +111,12 @@ pub fn run(
       "Copying `{}` into container at `{}`...",
       path, destination_str
     );
-    let mut copy_command = Command::new("docker");
-    copy_command.arg("cp");
-    copy_command.arg(path);
-    copy_command.arg(format!("{}:{}", container_id, destination_str));
-    run_command_quiet(
-      copy_command,
+    run_docker_quiet(
+      &[
+        "cp",
+        &path,
+        &format!("{}:{}", container_id, destination_str),
+      ],
       &format!(
         "Unable to copy `{}` into container at `{}`.",
         path, destination_str
@@ -129,21 +129,14 @@ pub fn run(
   if let Some(command) = &task.command {
     info!("{}", command);
   }
-
-  let mut start_command = Command::new("docker");
-  start_command
-    .arg("start")
-    .arg("--attach")
-    .arg(&container_id);
-  run_command_loud(start_command, "Task failed.")?;
+  run_docker_loud(&["start", "--attach", &container_id], "Task failed.")?;
 
   // Create an image from the container.
   debug!("Creating image...");
-  let mut commit_command = Command::new("docker");
-  commit_command.arg("commit");
-  commit_command.arg(&container_id);
-  commit_command.arg(to_image);
-  run_command_quiet(commit_command, "Unable to create image.")?;
+  run_docker_quiet(
+    &["commit", &container_id, to_image],
+    "Unable to create image.",
+  )?;
   debug!("Created image `{}`.", to_image);
 
   Ok(())
@@ -151,34 +144,36 @@ pub fn run(
 
 // Query whether a Docker image exists locally.
 pub fn image_exists(image: &str) -> bool {
-  let mut inspect_command = Command::new("docker");
-  inspect_command.arg("inspect");
-  inspect_command.arg("--type");
-  inspect_command.arg("image");
-  inspect_command.arg(image);
-  run_command_quiet(inspect_command, "The image does not exist.").is_ok()
+  run_docker_quiet(
+    &["inspect", "--type", "image", image],
+    "The image does not exist.",
+  )
+  .is_ok()
 }
 
 // Delete a Docker image.
 pub fn delete_image(image: &str) -> Result<(), String> {
-  let mut inspect_command = Command::new("docker");
-  inspect_command.arg("rmi");
-  inspect_command.arg("--force");
-  inspect_command.arg(image);
-  run_command_quiet(inspect_command, "Unable to delete image.").map(|_| ())
+  run_docker_quiet(&["rmi", "--force", image], "Unable to delete image.")
+    .map(|_| ())
+}
+
+// Construct a Docker `Command` from an array of arguments.
+fn docker_command(args: &[&str]) -> Command {
+  let mut command = Command::new("docker");
+  for arg in args {
+    command.arg(arg);
+  }
+  command
 }
 
 // Run a command and return its standard output or an error message.
-fn run_command_quiet(
-  mut command: Command,
-  error: &str,
-) -> Result<String, String> {
-  let output = command
+fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
+  let output = docker_command(args)
     .output()
-    .map_err(|e| format!("{} Details: {}", error, e))?;
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
   if !output.status.success() {
     return Err(format!(
-      "{} Details: {}",
+      "{}\nDetails: {}",
       error,
       String::from_utf8_lossy(&output.stderr)
     ));
@@ -187,10 +182,10 @@ fn run_command_quiet(
 }
 
 // Run a command and forward its standard input and output.
-fn run_command_loud(mut command: Command, error: &str) -> Result<(), String> {
-  let status = command
+fn run_docker_loud(args: &[&str], error: &str) -> Result<(), String> {
+  let status = docker_command(args)
     .status()
-    .map_err(|e| format!("{} Details: {}", error, e))?;
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
   if !status.success() {
     return Err(error.to_owned());
   }

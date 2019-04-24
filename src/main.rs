@@ -180,31 +180,31 @@ fn main() {
   );
 
   // Eagerly fetch all the args for all the tasks.
-  let mut args = HashMap::new();
+  let mut env = HashMap::new();
   let mut violations = HashMap::new();
   for task in &schedule {
-    match bakefile::args(&bakefile.tasks[*task]) {
+    match bakefile::environment(&bakefile.tasks[*task]) {
       // [ref:tasks_valid]
-      Ok(args_for_task) => {
-        args.extend(args_for_task);
+      Ok(env_for_task) => {
+        env.extend(env_for_task);
       }
-      Err(e) => {
-        violations.insert((*task).to_owned(), e);
+      Err(vars) => {
+        violations.insert((*task).to_owned(), vars);
       }
     }
   }
   if !violations.is_empty() {
-    // [tag:args_valid]
+    // [tag:env_valid]
     error!(
-      "The following tasks are missing args from the environment: {}.",
+      "The following tasks are missing variables from the environment: {}.",
       violations
         .iter()
-        .map(|(task, args)| format!(
+        .map(|(task, vars)| format!(
           "`{}` ({})",
           task,
-          args
+          vars
             .iter()
-            .map(|arg| format!("`{}`", arg))
+            .map(|var| format!("`{}`", var))
             .collect::<Vec<_>>()
             .join(", ")
         ))
@@ -230,7 +230,7 @@ fn main() {
 
     // Compute the cache key.
     schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
-    let cache_key = cache::key(&bakefile.image, &schedule_prefix, &args);
+    let cache_key = cache::key(&bakefile.image, &schedule_prefix, &env);
     let to_image = format!("bake:{}", cache_key);
 
     // Skip the task if it's cached.
@@ -252,7 +252,7 @@ fn main() {
     // The indexing is safe due to [ref:tasks_valid].
     info!("Running task `{}`...", task);
     if let Err(e) =
-      runner::run(&bakefile.tasks[*task], &from_image, &to_image, &args)
+      runner::run(&bakefile.tasks[*task], &from_image, &to_image, &env)
     {
       if running.load(Ordering::SeqCst) {
         error!("{}", e);

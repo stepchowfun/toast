@@ -18,7 +18,7 @@ pub struct Task {
   pub cache: bool,
 
   #[serde(default)]
-  pub args: HashMap<String, Option<String>>,
+  pub env: HashMap<String, Option<String>>,
 
   #[serde(default)]
   pub paths: Vec<String>,
@@ -60,11 +60,13 @@ pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
   Ok(bakefile)
 }
 
-// Fetch the args for a task from the environment.
-pub fn args(task: &Task) -> Result<HashMap<String, String>, Vec<String>> {
+// Fetch the variables for a task from the environment.
+pub fn environment(
+  task: &Task,
+) -> Result<HashMap<String, String>, Vec<String>> {
   let mut violations = vec![];
   let mut result = HashMap::new();
-  for (arg, default) in &task.args {
+  for (arg, default) in &task.env {
     let maybe_var = env::var(arg);
     if let Some(default) = default {
       result
@@ -124,7 +126,7 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
   use crate::bakefile::{
-    args, check_dependencies, parse, Bakefile, Task, DEFAULT_LOCATION,
+    check_dependencies, environment, parse, Bakefile, Task, DEFAULT_LOCATION,
     DEFAULT_USER,
   };
   use std::{collections::HashMap, env};
@@ -160,7 +162,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -186,7 +188,7 @@ tasks:
     dependencies:
       - install_rust
     cache: true
-    args:
+    env:
       AWS_ACCESS_KEY_ID: null
       AWS_DEFAULT_REGION: null
       AWS_SECRET_ACCESS_KEY: null
@@ -200,10 +202,10 @@ tasks:
     "#
     .trim();
 
-    let mut args = HashMap::new();
-    args.insert("AWS_ACCESS_KEY_ID".to_owned(), None);
-    args.insert("AWS_DEFAULT_REGION".to_owned(), None);
-    args.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
+    let mut env = HashMap::new();
+    env.insert("AWS_ACCESS_KEY_ID".to_owned(), None);
+    env.insert("AWS_DEFAULT_REGION".to_owned(), None);
+    env.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
 
     let mut tasks = HashMap::new();
     tasks.insert(
@@ -211,7 +213,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -223,7 +225,7 @@ tasks:
       Task {
         dependencies: vec!["install_rust".to_owned()],
         cache: true,
-        args,
+        env,
         paths: vec![
           "Cargo.lock".to_owned(),
           "Cargo.toml".to_owned(),
@@ -244,31 +246,31 @@ tasks:
   }
 
   #[test]
-  fn args_empty() {
+  fn environment_empty() {
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args: HashMap::new(),
+      env: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
 
-    assert_eq!(args(&task), Ok(HashMap::new()));
+    assert_eq!(environment(&task), Ok(HashMap::new()));
   }
 
   #[test]
-  fn args_default_overridden() {
+  fn environment_default_overridden() {
     // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
     // parallel tests clobbering environment variables used by other threads.
-    let mut args_map = HashMap::new();
-    args_map.insert("foo1".to_owned(), Some("bar".to_owned()));
+    let mut env_map = HashMap::new();
+    env_map.insert("foo1".to_owned(), Some("bar".to_owned()));
 
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args: args_map,
+      env: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -280,20 +282,20 @@ tasks:
 
     env::set_var("foo1", "baz");
     assert_eq!(env::var("foo1"), Ok("baz".to_owned()));
-    assert_eq!(args(&task), Ok(expected));
+    assert_eq!(environment(&task), Ok(expected));
   }
 
   #[test]
-  fn args_default_not_overridden() {
+  fn environment_default_not_overridden() {
     // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
     // parallel tests clobbering environment variables used by other threads.
-    let mut args_map = HashMap::new();
-    args_map.insert("foo2".to_owned(), Some("bar".to_owned()));
+    let mut env_map = HashMap::new();
+    env_map.insert("foo2".to_owned(), Some("bar".to_owned()));
 
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args: args_map,
+      env: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -305,20 +307,20 @@ tasks:
 
     env::remove_var("foo2");
     assert!(env::var("foo2").is_err());
-    assert_eq!(args(&task), Ok(expected));
+    assert_eq!(environment(&task), Ok(expected));
   }
 
   #[test]
-  fn args_missing() {
+  fn environment_missing() {
     // NOTE: We add an index to the test arg (foo1, foo2, ...) to avoid having
     // parallel tests clobbering environment variables used by other threads.
-    let mut args_map = HashMap::new();
-    args_map.insert("foo3".to_owned(), None);
+    let mut env_map = HashMap::new();
+    env_map.insert("foo3".to_owned(), None);
 
     let task = Task {
       dependencies: vec![],
       cache: true,
-      args: args_map,
+      env: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -330,7 +332,7 @@ tasks:
 
     env::remove_var("foo3");
     assert!(env::var("foo3").is_err());
-    assert!(args(&task).is_err());
+    assert!(environment(&task).is_err());
   }
 
   #[test]
@@ -351,7 +353,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -363,7 +365,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -387,7 +389,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -399,7 +401,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned(), "do_thing".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),

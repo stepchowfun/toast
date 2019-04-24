@@ -90,7 +90,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -117,7 +117,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -129,7 +129,7 @@ mod tests {
       Task {
         dependencies: vec!["foo".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -141,7 +141,7 @@ mod tests {
       Task {
         dependencies: vec!["bar".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -168,7 +168,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -180,7 +180,7 @@ mod tests {
       Task {
         dependencies: vec!["foo".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -192,7 +192,7 @@ mod tests {
       Task {
         dependencies: vec!["bar".to_owned()],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -219,7 +219,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -231,7 +231,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -243,7 +243,7 @@ mod tests {
       Task {
         dependencies: vec![],
         cache: true,
-        args: HashMap::new(),
+        env: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
