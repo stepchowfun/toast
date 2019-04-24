@@ -13,6 +13,7 @@ use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
 use std::{
+  cell::{Cell, RefCell},
   collections::HashMap,
   fs,
   io::{stdout, Write},
@@ -25,10 +26,13 @@ use std::{
 use textwrap::Wrapper;
 
 // Defaults
-const JOB_FILE_DEFAULT_PATH: &str = "bake.yml";
+const BAKEFILE_DEFAULT: &str = "bake.yml";
+const REPO_DEFAULT: &str = "bake";
 
 // Command-line argument and option names
 const BAKEFILE_ARG: &str = "file";
+const REMOTE_CACHE_ARG: &str = "remote-cache";
+const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
 
@@ -100,7 +104,9 @@ fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
 // This struct represents the command-line arguments.
 struct Settings {
   bakefile_path: String,
-  shell: bool,
+  docker_repo: String,
+  remote_cache: bool,
+  spawn_shell: bool,
   tasks: Option<Vec<String>>,
 }
 
@@ -118,7 +124,24 @@ fn settings() -> Settings {
         .value_name("PATH")
         .help(&format!(
           "Sets the path to the bakefile (default: {})",
-          JOB_FILE_DEFAULT_PATH,
+          BAKEFILE_DEFAULT,
+        ))
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name(REMOTE_CACHE_ARG)
+        .short("c")
+        .long(REMOTE_CACHE_ARG)
+        .help("Enables remote caching"),
+    )
+    .arg(
+      Arg::with_name(REPO_ARG)
+        .short("r")
+        .long(REPO_ARG)
+        .value_name("DOCKER REPO")
+        .help(&format!(
+          "Sets the Docker repository (default: {})",
+          REPO_DEFAULT,
         ))
         .takes_value(true),
     )
@@ -139,11 +162,20 @@ fn settings() -> Settings {
   // Parse the bakefile path.
   let bakefile_path = matches
     .value_of(BAKEFILE_ARG)
-    .unwrap_or(JOB_FILE_DEFAULT_PATH)
+    .unwrap_or(BAKEFILE_DEFAULT)
     .to_owned();
 
-  // Parse the --shell flag.
-  let shell = matches.is_present(SHELL_ARG);
+  // Parse the remote caching switch.
+  let remote_cache = matches.is_present(REMOTE_CACHE_ARG);
+
+  // Parse the Docker repo.
+  let docker_repo = matches
+    .value_of(REPO_ARG)
+    .unwrap_or(REPO_DEFAULT)
+    .to_owned();
+
+  // Parse the shell switch.
+  let spawn_shell = matches.is_present(SHELL_ARG);
 
   // Parse the tasks.
   let tasks = matches.values_of(TASKS_ARG).map(|tasks| {
@@ -154,7 +186,9 @@ fn settings() -> Settings {
 
   Settings {
     bakefile_path,
-    shell,
+    remote_cache,
+    docker_repo,
+    spawn_shell,
     tasks,
   }
 }
@@ -262,17 +296,24 @@ fn run_tasks<'a>(
   env: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  let mut from_image = bakefile.image.clone();
-  let mut from_image_cacheable = true;
+  // Pull the image if necessary.
+  if !runner::image_exists(&bakefile.image) {
+    info!("Pulling image {}...", bakefile.image);
+    runner::pull_image(&bakefile.image)?;
+  }
+
+  // Run each task in sequence.
+  let from_image = RefCell::new(bakefile.image.clone());
+  let from_image_cacheable = Cell::new(true);
+  let can_use_cache = Cell::new(true);
   let mut schedule_prefix = vec![];
-  let mut can_use_cache = true;
   for task in schedule {
     // At the end of this iteration, delete the image from the previous step if
     // it isn't cacheable.
-    let image_to_delete = if from_image_cacheable {
+    let image_to_delete = if from_image_cacheable.get() {
       None
     } else {
-      Some(from_image.to_owned())
+      Some(from_image.borrow().to_owned())
     };
     defer! {{
       if let Some(image) = image_to_delete {
@@ -290,21 +331,36 @@ fn run_tasks<'a>(
     // Compute the cache key.
     schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
     let cache_key = cache::key(&bakefile.image, &schedule_prefix, &env);
-    let to_image = format!("bake:{}", cache_key);
+    let to_image =
+      RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
+
+    // Remember this image for the next task.
+    defer! {{
+      from_image.replace(to_image.borrow().clone());
+      from_image_cacheable.set(can_use_cache.get());
+    }}
 
     // Skip the task if it's cached.
+    info!("Checking cache for task `{}`...", task);
     if bakefile.tasks[*task].cache {
-      if can_use_cache && runner::image_exists(&to_image) {
-        // Remember this image for the next task.
-        from_image = to_image;
-        from_image_cacheable = true;
+      if can_use_cache.get() {
+        // Check the local cache.
+        if runner::image_exists(&to_image.borrow()) {
+          info!("Task `{}` found in local cache.", task);
+          continue;
+        }
 
-        // Skip to the next task.
-        info!("Task `{}` found in cache.", task);
-        continue;
+        // Check the remote cache if applicable.
+        if settings.remote_cache
+          && runner::pull_image(&to_image.borrow()).is_ok()
+        {
+          // Skip to the next task.
+          info!("Task `{}` found in remote cache.", task);
+          continue;
+        }
       }
     } else {
-      can_use_cache = false;
+      can_use_cache.set(false);
     }
 
     // Run the task.
@@ -312,21 +368,26 @@ fn run_tasks<'a>(
     info!("Running task `{}`...", task);
     runner::run(
       &bakefile.tasks[*task],
-      &from_image,
-      &to_image,
+      &from_image.borrow(),
+      &to_image.borrow(),
       &env,
       running,
     )?;
 
-    // Remember this image for the next task.
-    from_image = to_image;
-    from_image_cacheable = can_use_cache;
+    // Push the image to a remote cache if applicable.
+    if settings.remote_cache && can_use_cache.get() {
+      info!("Writing task `{}` to cache...", task);
+      match runner::push_image(&to_image.borrow()) {
+        Ok(()) => info!("Task `{}` maybe pushed to remote cache.", task),
+        Err(e) => warn!("{}", e),
+      };
+    }
   }
 
   // Delete the final image if it isn't cacheable.
   defer! {{
-    if !from_image_cacheable {
-      if let Err(e) = runner::delete_image(&from_image) {
+    if !from_image_cacheable.get() {
+      if let Err(e) = runner::delete_image(&from_image.borrow()) {
         error!("{}", e);
       }
     }
@@ -339,9 +400,9 @@ fn run_tasks<'a>(
   );
 
   // Drop the user into a shell if requested.
-  if settings.shell {
+  if settings.spawn_shell {
     info!("Here's a shell in the context of the tasks that were executed:");
-    runner::run_shell(&from_image)?;
+    runner::spawn_shell(&from_image.borrow())?;
   }
 
   // Everything succeeded.

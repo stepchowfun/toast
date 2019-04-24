@@ -19,13 +19,14 @@ USAGE:
     bake [FLAGS] [OPTIONS] [TASKS]...
 
 FLAGS:
-    -h, --help       Prints help information
-    -s, --shell      Drops you into a shell after the tasks are complete
-    -v, --version    Prints version information
+    -h, --help            Prints help information
+    -c, --remote-cache    Enables remote caching
+    -s, --shell           Drops you into a shell after the tasks are complete
+    -v, --version         Prints version information
 
 OPTIONS:
-    -f, --file <PATH>    Sets the path to the bakefile (default:
-                         bake.yml)
+    -f, --file <PATH>           Sets the path to the bakefile (default: bake.yml)
+    -r, --repo <DOCKER REPO>    Sets the Docker repository (default: bake)
 
 ARGS:
     <TASKS>...    Sets the tasks to run
