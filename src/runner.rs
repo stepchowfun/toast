@@ -160,6 +160,7 @@ pub fn run(
 
 // Query whether a Docker image exists locally.
 pub fn image_exists(image: &str) -> bool {
+  debug!("Checking existence of image `{}`...", image);
   run_docker_quiet(
     &["inspect", "--type", "image", image],
     &format!("The image `{}` does not exist.", image),
@@ -167,8 +168,29 @@ pub fn image_exists(image: &str) -> bool {
   .is_ok()
 }
 
+// Push a Docker image.
+pub fn push_image(image: &str) -> Result<(), String> {
+  debug!("Pushing image `{}`...", image);
+  run_docker_quiet(
+    &["push", image],
+    &format!("Unable to push image `{}`.", image),
+  )
+  .map(|_| ())
+}
+
+// Pull a Docker image.
+pub fn pull_image(image: &str) -> Result<(), String> {
+  debug!("Pulling image `{}`...", image);
+  run_docker_quiet(
+    &["pull", image],
+    &format!("Unable to pull image `{}`.", image),
+  )
+  .map(|_| ())
+}
+
 // Delete a Docker image.
 pub fn delete_image(image: &str) -> Result<(), String> {
+  debug!("Deleting image `{}`...", image);
   run_docker_quiet(
     &["rmi", "--force", image],
     &format!("Unable to delete image `{}`.", image),
@@ -176,8 +198,8 @@ pub fn delete_image(image: &str) -> Result<(), String> {
   .map(|_| ())
 }
 
-// Run an interactive shell.
-pub fn run_shell(image: &str) -> Result<(), String> {
+// Run an interactive shell and block until it exits.
+pub fn spawn_shell(image: &str) -> Result<(), String> {
   run_docker_loud(
     &["run", "--rm", "--interactive", "--tty", image, "/bin/sh"],
     "The shell exited with a failure.",
