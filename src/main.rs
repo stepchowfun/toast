@@ -180,12 +180,18 @@ fn get_roots<'a>(
 ) -> Vec<&'a str> {
   settings.tasks.as_ref().map_or_else(
     || {
-      // The user didn't provide any tasks. Run all of them.
-      bakefile
-        .tasks
-        .keys()
-        .map(|key| &key[..])
-        .collect::<Vec<_>>()
+      // The user didn't provide any tasks. Check if there is a default task.
+      if let Some(default) = &bakefile.default {
+        // There is a default; use it.
+        vec![&default[..]]
+      } else {
+        // There is no default. Run all the tasks.
+        bakefile
+          .tasks
+          .keys()
+          .map(|key| &key[..])
+          .collect::<Vec<_>>()
+      }
     },
     |tasks| {
       // The user provided some tasks. Check that they exist, and run them.

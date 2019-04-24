@@ -50,6 +50,7 @@ fn default_task_user() -> String {
 #[serde(deny_unknown_fields)]
 pub struct Bakefile {
   pub image: String,
+  pub default: Option<String>,
   pub tasks: HashMap<String, Task>,
 }
 
@@ -88,8 +89,16 @@ pub fn environment<'a>(
 
 // Check that all dependencies exist.
 fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
+  // Check the default task. [tag:valid_default]
+  let valid_default = bakefile
+    .default
+    .as_ref()
+    .map_or(true, |default| bakefile.tasks.contains_key(default));
+
+  // Map from task to vector of invalid dependencies.
   let mut violations: HashMap<String, Vec<String>> = HashMap::new();
-  // [tag:task_valid]
+
+  // Scan for invalid dependencies. [tag:task_valid]
   for task in bakefile.tasks.keys() {
     // [ref:task_valid]
     for dependency in &bakefile.tasks[task].dependencies {
@@ -102,13 +111,13 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
     }
   }
 
+  // If there were any invalid dependencies, report them.
   if !violations.is_empty() {
-    return Err(format!(
-      "The following tasks have invalid dependencies: {}.",
-      format::series(
-        &violations
-          .iter()
-          .map(|(task, dependencies)| format!(
+    let violations_series = format::series(
+      &violations
+        .iter()
+        .map(|(task, dependencies)| {
+          format!(
             "`{}` ({})",
             task,
             format::series(
@@ -117,12 +126,31 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
                 .map(|task| format!("`{}`", task))
                 .collect::<Vec<_>>()[..]
             )
-          ))
-          .collect::<Vec<_>>()[..]
-      )
+          )
+        })
+        .collect::<Vec<_>>()[..],
+    );
+
+    if valid_default {
+      return Err(format!(
+        "The following tasks have invalid dependencies: {}.",
+        violations_series
+      ));
+    } else {
+      return Err(format!(
+        "The default task `{}` does not exist, and the following tasks have invalid dependencies: {}.",
+        bakefile.default.as_ref().unwrap(), // [ref:valid_default]
+        violations_series
+      ));
+    }
+  } else if !valid_default {
+    return Err(format!(
+      "The default task `{}` does not exist.",
+      bakefile.default.as_ref().unwrap() // [ref:valid_default]
     ));
   }
 
+  // No violations
   Ok(())
 }
 
@@ -144,6 +172,7 @@ tasks: {}
 
     let bakefile = Ok(Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks: HashMap::new(),
     });
 
@@ -175,10 +204,57 @@ tasks:
 
     let bakefile = Ok(Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     });
 
     assert_eq!(parse(input), bakefile);
+  }
+
+  #[test]
+  fn parse_valid_default() {
+    let input = r#"
+image: ubuntu:18.04
+default: build
+tasks:
+  build: {}
+    "#
+    .trim();
+
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Ok(Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: Some("build".to_owned()),
+      tasks,
+    });
+
+    assert_eq!(parse(input), bakefile);
+  }
+
+  #[test]
+  fn parse_invalid_default() {
+    let input = r#"
+image: ubuntu:18.04
+default: test
+tasks:
+  build: {}
+    "#
+    .trim();
+
+    assert!(parse(input).is_err());
   }
 
   #[test]
@@ -242,6 +318,7 @@ tasks:
 
     let bakefile = Ok(Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     });
 
@@ -342,6 +419,7 @@ tasks:
   fn check_dependencies_empty() {
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks: HashMap::new(),
     };
 
@@ -378,6 +456,7 @@ tasks:
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
@@ -414,6 +493,7 @@ tasks:
 
     let bakefile = Bakefile {
       image: "ubuntu:18.04".to_owned(),
+      default: None,
       tasks,
     };
 
