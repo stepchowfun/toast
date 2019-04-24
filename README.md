@@ -21,10 +21,11 @@ USAGE:
 FLAGS:
     -h, --help       Prints help information
     -s, --shell      Drops you into a shell after the tasks are complete
-    -V, --version    Prints version information
+    -v, --version    Prints version information
 
 OPTIONS:
-    -f, --file <PATH>    Sets the path to the bakefile (default: bake.yml)
+    -f, --file <PATH>    Sets the path to the bakefile (default:
+                         bake.yml)
 
 ARGS:
     <TASKS>...    Sets the tasks to run

@@ -109,6 +109,7 @@ struct Settings {
 fn settings() -> Settings {
   let matches = App::new("Bake")
     .version("0.1.0")
+    .version_short("v")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
     .arg(
