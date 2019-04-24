@@ -1,6 +1,6 @@
 mod bakefile;
 mod cache;
-mod count;
+mod format;
 mod runner;
 mod schedule;
 
@@ -172,11 +172,12 @@ fn main() {
   let schedule = schedule::compute(&bakefile, &root_tasks);
   info!(
     "The following tasks will be executed in the order given: {}.",
-    (schedule
-      .iter()
-      .map(|task| format!("`{}`", task))
-      .collect::<Vec<_>>())
-    .join(", ")
+    format::series(
+      &schedule
+        .iter()
+        .map(|task| format!("`{}`", task))
+        .collect::<Vec<_>>()[..]
+    )
   );
 
   // Eagerly fetch all the args for all the tasks.
@@ -197,19 +198,21 @@ fn main() {
     // [tag:env_valid]
     error!(
       "The following tasks are missing variables from the environment: {}.",
-      violations
-        .iter()
-        .map(|(task, vars)| format!(
-          "`{}` ({})",
-          task,
-          vars
-            .iter()
-            .map(|var| format!("`{}`", var))
-            .collect::<Vec<_>>()
-            .join(", ")
-        ))
-        .collect::<Vec<_>>()
-        .join(", ")
+      format::series(
+        &violations
+          .iter()
+          .map(|(task, vars)| format!(
+            "`{}` ({})",
+            task,
+            format::series(
+              &vars
+                .iter()
+                .map(|var| format!("`{}`", var))
+                .collect::<Vec<_>>()[..]
+            )
+          ))
+          .collect::<Vec<_>>()[..]
+      )
     );
     exit(1);
   }
@@ -290,7 +293,7 @@ fn main() {
     // Tell the user the good news!
     info!(
       "Successfully executed {}.",
-      count::count(schedule.len(), "task")
+      format::number(schedule.len(), "task")
     );
   } else {
     // Something went wrong.
