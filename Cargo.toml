@@ -5,6 +5,7 @@ authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 edition = "2018"
 
 [dependencies]
+atty = "0.2"
 ctrlc = "3"
 env_logger = "0.6"
 hex = "0.3"

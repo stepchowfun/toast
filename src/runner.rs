@@ -1,4 +1,5 @@
 use crate::bakefile::Task;
+use atty::Stream;
 use std::{
   collections::HashMap,
   path::Path,
@@ -54,19 +55,27 @@ pub fn run(
 
   // Create the container.
   debug!("Creating container from image `{}`...", from_image);
-  let container_id = run_docker_quiet(
-    &[
-      "create",
-      "--tty", // [tag:tty]
-      from_image,
-      "/bin/sh",
-      "-c",
-      &commands_to_run.join(" && "),
-    ],
-    "Unable to create container.",
-  )?
-  .trim()
-  .to_owned();
+  let command_str = commands_to_run.join(" && ");
+  let mut create_command = vec!["create"];
+  if atty::is(Stream::Stdout) {
+    // [tag:docker-tty] If STDOUT is a terminal, tell the Docker client to
+    // behave like a TTY for the container. That means it will, for example,
+    // send a SIGINT signal to the container's foreground process group when it
+    // receives the end-of-text (^C) character on STDIN. This allows the user
+    // to kill the container with CTRL+C. If STDOUT is not a terminal, then
+    // we don't have the container behave as if it were attached to one. Some
+    // programs (this one included) query whether they are attached to a
+    // terminal and exhibit different behavior in that case (e.g., printing
+    // with color), and we want to make sure those programs behave correctly.
+    // See also [ref:bake-tty].
+    create_command.push("--tty");
+  }
+  create_command
+    .extend([from_image, "/bin/sh", "-c", &command_str[..]].iter());
+  let container_id =
+    run_docker_quiet(&create_command[..], "Unable to create container.")?
+      .trim()
+      .to_owned();
   debug!("Created container `{}`.", container_id);
 
   // Delete the container when this function returns.

@@ -67,13 +67,13 @@ fn set_up_logging() {
 // Set up the signal handlers. Returns a reference to a Boolean indicating
 // whether the user requested graceful termination.
 fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
-  // Set up the SIGINT handler that ignores the signal. If the user presses
-  // CTRL+C, all processes attached to the foreground process group receive
-  // the signal, which includes processes in the container since we use the
-  // `--tty` option with `docker create` [ref:tty]. So the user can kill the
-  // container directly, and by ignoring SIGINT here we get a chance to clean
-  // up afterward.
   let running = Arc::new(AtomicBool::new(true));
+
+  // [tag:bake-tty] If STDOUT is a TTY, the process will receive a SIGINT when
+  // the user sends an end-of-text (EOT) character to STDIN (e.g., by pressing
+  // CTRL+C). The default behavior is to crash when this signal is received.
+  // However, we would rather clean up resources before terminating, so we trap
+  // the signal here. See also [docker-tty].
   let running_ref = running.clone();
   if let Err(e) = ctrlc::set_handler(move || {
     // Remember that the user wants to quit.
