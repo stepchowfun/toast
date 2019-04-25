@@ -1,4 +1,4 @@
-use crate::{bakefile, cache, format, runner, schedule};
+use crate::{bakefile, cache, config, format, runner, schedule};
 use clap::{App, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
@@ -7,6 +7,7 @@ use std::{
   collections::HashMap,
   fs,
   io::{stdout, Write},
+  path::PathBuf,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -16,11 +17,12 @@ use textwrap::Wrapper;
 
 // Defaults
 const BAKEFILE_DEFAULT: &str = "bake.yml";
-const REPO_DEFAULT: &str = "bake";
+const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
 
 // Command-line argument and option names
+const CONFIG_FILE_ARG: &str = "config-file";
 const BAKEFILE_ARG: &str = "file";
-const NO_LOCAL_CACHE_ARG: &str = "no-local-cache";
+const LOCAL_CACHE_ARG: &str = "no-local-cache";
 const REMOTE_CACHE_ARG: &str = "remote-cache";
 const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
@@ -103,7 +105,7 @@ struct Settings {
 }
 
 // Parse the command-line arguments;
-fn settings() -> Settings {
+fn settings() -> Result<Settings, String> {
   let matches = App::new("Bake")
     .version("0.1.0")
     .version_short("v")
@@ -121,25 +123,37 @@ fn settings() -> Settings {
         .takes_value(true),
     )
     .arg(
-      Arg::with_name(NO_LOCAL_CACHE_ARG)
-        .short("n")
-        .long(NO_LOCAL_CACHE_ARG)
-        .help("Disables local caching"),
+      Arg::with_name(CONFIG_FILE_ARG)
+        .short("c")
+        .long(CONFIG_FILE_ARG)
+        .value_name("PATH")
+        .help("Sets the path of the config file (default: depends on the OS)")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name(LOCAL_CACHE_ARG)
+        .short("l")
+        .long(LOCAL_CACHE_ARG)
+        .value_name("BOOL")
+        .help("Sets whether local caching is enabled (default: true)")
+        .takes_value(true),
     )
     .arg(
       Arg::with_name(REMOTE_CACHE_ARG)
-        .short("c")
+        .short("r")
         .long(REMOTE_CACHE_ARG)
-        .help("Enables remote caching"),
+        .value_name("BOOL")
+        .help("Sets whether remote caching is enabled (default: false)")
+        .takes_value(true),
     )
     .arg(
       Arg::with_name(REPO_ARG)
-        .short("r")
+        .short("d")
         .long(REPO_ARG)
-        .value_name("DOCKER REPO")
+        .value_name("REPO")
         .help(&format!(
           "Sets the Docker repository (default: {})",
-          REPO_DEFAULT,
+          config::REPO_DEFAULT,
         ))
         .takes_value(true),
     )
@@ -163,16 +177,55 @@ fn settings() -> Settings {
     .unwrap_or(BAKEFILE_DEFAULT)
     .to_owned();
 
+  // Parse the config file path.
+  let default_config_file_path =
+    dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
+  let config_file_path = matches.value_of(CONFIG_FILE_ARG).map_or_else(
+    || default_config_file_path,
+    |path| Some(PathBuf::from(path)),
+  );
+
+  // Parse the config file.
+  let config_data = config_file_path
+    .as_ref()
+    .and_then(|path| {
+      debug!("Loading configuration file `{}`...", path.to_string_lossy());
+      fs::read_to_string(path).ok()
+    })
+    .map_or_else(
+      || {
+        debug!(
+          "Configuration file not found. Using the default configuration."
+        );
+        config::EMPTY_CONFIG.to_owned()
+      },
+      |data| {
+        debug!("Found it.");
+        data
+      },
+    );
+  let config = config::parse(&config_data).map_err(|e| {
+    format!(
+      "Unable to parse file `{}`. Reason: {}.",
+      config_file_path.as_ref().unwrap().to_string_lossy(), // Manually verified safe
+      e
+    )
+  })?;
+
   // Parse the local caching switch.
-  let local_cache = !matches.is_present(NO_LOCAL_CACHE_ARG);
+  let local_cache = matches
+    .value_of(LOCAL_CACHE_ARG)
+    .map_or(config.local_cache, |s| s.trim().to_lowercase() == "true");
 
   // Parse the remote caching switch.
-  let remote_cache = matches.is_present(REMOTE_CACHE_ARG);
+  let remote_cache = matches
+    .value_of(REMOTE_CACHE_ARG)
+    .map_or(config.remote_cache, |s| s.trim().to_lowercase() == "true");
 
   // Parse the Docker repo.
   let docker_repo = matches
     .value_of(REPO_ARG)
-    .unwrap_or(REPO_DEFAULT)
+    .unwrap_or(&config.docker_repo)
     .to_owned();
 
   // Parse the shell switch.
@@ -185,14 +238,14 @@ fn settings() -> Settings {
       .collect::<Vec<_>>()
   });
 
-  Settings {
+  Ok(Settings {
     bakefile_path,
     local_cache,
     remote_cache,
     docker_repo,
     spawn_shell,
     tasks,
-  }
+  })
 }
 
 // Parse a bakefile.
@@ -436,7 +489,7 @@ pub fn entry() -> Result<(), String> {
   let running = set_up_signal_handlers()?;
 
   // Parse the command-line arguments;
-  let settings = settings();
+  let settings = settings()?;
 
   // Parse the bakefile.
   let bakefile = parse_bakefile(&settings.bakefile_path)?;
