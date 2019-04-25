@@ -1,5 +1,6 @@
 mod bakefile;
 mod cache;
+mod config;
 mod entrypoint;
 mod format;
 mod runner;
