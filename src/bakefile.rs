@@ -9,7 +9,7 @@ pub const DEFAULT_LOCATION: &str = "/scratch";
 pub const DEFAULT_USER: &str = "root";
 
 // This struct represents a task.
-#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
   #[serde(default)]
@@ -33,6 +33,14 @@ pub struct Task {
   pub command: Option<String>,
 }
 
+// This struct represents a task.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+enum RawTask {
+  Short(String),
+  Long(Task),
+}
+
 fn default_task_cache() -> bool {
   true
 }
@@ -46,7 +54,16 @@ fn default_task_user() -> String {
 }
 
 // This struct represents a bakefile.
-#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct RawBakefile {
+  pub image: String,
+  pub default: Option<String>,
+  pub tasks: HashMap<String, RawTask>,
+}
+
+// This struct represents a bakefile after converting `RawTasks` into `Tasks`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bakefile {
   pub image: String,
@@ -55,9 +72,34 @@ pub struct Bakefile {
 }
 
 // Parse config data.
-pub fn parse(bakefile: &str) -> Result<Bakefile, String> {
-  let bakefile =
-    serde_yaml::from_str(bakefile).map_err(|e| format!("{}", e))?;
+pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
+  let raw_bakefile: RawBakefile =
+    serde_yaml::from_str(bakefile_data).map_err(|e| format!("{}", e))?;
+  let bakefile = Bakefile {
+    image: raw_bakefile.image,
+    default: raw_bakefile.default,
+    tasks: raw_bakefile
+      .tasks
+      .iter()
+      .map(|(k, v)| {
+        (
+          k.to_owned(),
+          match v {
+            RawTask::Short(command) => Task {
+              dependencies: vec![],
+              cache: true,
+              env: HashMap::new(),
+              paths: vec![],
+              location: DEFAULT_LOCATION.to_owned(),
+              user: DEFAULT_USER.to_owned(),
+              command: Some(command.to_owned()),
+            },
+            RawTask::Long(task) => (*task).clone(),
+          },
+        )
+      })
+      .collect(),
+  };
   check_dependencies(&bakefile)?;
   Ok(bakefile)
 }
@@ -174,6 +216,38 @@ tasks: {}
       image: "ubuntu:18.04".to_owned(),
       default: None,
       tasks: HashMap::new(),
+    });
+
+    assert_eq!(parse(input), bakefile);
+  }
+
+  #[test]
+  fn parse_shorthand_task() {
+    let input = r#"
+image: ubuntu:18.04
+tasks:
+  build: cargo build
+    "#
+    .trim();
+
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: Some("cargo build".to_owned()),
+      },
+    );
+
+    let bakefile = Ok(Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: None,
+      tasks,
     });
 
     assert_eq!(parse(input), bakefile);
