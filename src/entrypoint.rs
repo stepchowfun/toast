@@ -1,5 +1,5 @@
 use crate::{bakefile, cache, config, format, runner, schedule};
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
 use std::{
@@ -111,6 +111,9 @@ fn settings() -> Result<Settings, String> {
     .version_short("v")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
+    .setting(AppSettings::ColoredHelp)
+    .setting(AppSettings::NextLineHelp)
+    .setting(AppSettings::UnifiedHelpMessage)
     .arg(
       Arg::with_name(BAKEFILE_ARG)
         .short("f")

@@ -16,12 +16,7 @@ To build all the tasks, just run `bake` with no arguments. Here are all the supp
 
 ```
 USAGE:
-    bake [FLAGS] [OPTIONS] [TASKS]...
-
-FLAGS:
-    -h, --help       Prints help information
-    -s, --shell      Drops you into a shell after the tasks are complete
-    -v, --version    Prints version information
+    bake [OPTIONS] [TASKS]...
 
 OPTIONS:
     -c, --config-file <PATH>
@@ -29,6 +24,9 @@ OPTIONS:
 
     -f, --file <PATH>
             Sets the path to the bakefile (default: bake.yml)
+
+    -h, --help
+            Prints help information
 
     -l, --no-local-cache <BOOL>
             Sets whether local caching is enabled (default: true)
@@ -39,9 +37,16 @@ OPTIONS:
     -d, --repo <REPO>
             Sets the Docker repository (default: bake)
 
+    -s, --shell
+            Drops you into a shell after the tasks are complete
+
+    -v, --version
+            Prints version information
+
 
 ARGS:
-    <TASKS>...    Sets the tasks to run
+    <TASKS>...
+            Sets the tasks to run
 ```
 
 ## Bakefiles
