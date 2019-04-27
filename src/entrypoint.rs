@@ -20,9 +20,9 @@ const BAKEFILE_DEFAULT: &str = "bake.yml";
 const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
 
 // Command-line argument and option names
-const CONFIG_FILE_ARG: &str = "config-file";
 const BAKEFILE_ARG: &str = "file";
-const LOCAL_CACHE_ARG: &str = "no-local-cache";
+const CONFIG_FILE_ARG: &str = "config-file";
+const LOCAL_CACHE_ARG: &str = "local-cache";
 const REMOTE_CACHE_ARG: &str = "remote-cache";
 const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
@@ -92,6 +92,16 @@ fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
   }
 
   Ok(running)
+}
+
+// Convert a string (from a command-line argument) into a Boolean.
+fn parse_bool(s: &str) -> Result<bool, String> {
+  let normalized = s.trim().to_lowercase();
+  match normalized.as_ref() {
+    "true" | "yes" => Ok(true),
+    "false" | "no" => Ok(false),
+    _ => Err(format!("{} is not a Boolean.", s)),
+  }
 }
 
 // This struct represents the command-line arguments.
@@ -218,12 +228,12 @@ fn settings() -> Result<Settings, String> {
   // Parse the local caching switch.
   let local_cache = matches
     .value_of(LOCAL_CACHE_ARG)
-    .map_or(config.local_cache, |s| s.trim().to_lowercase() == "true");
+    .map_or(Ok(config.local_cache), |s| parse_bool(s))?;
 
   // Parse the remote caching switch.
   let remote_cache = matches
     .value_of(REMOTE_CACHE_ARG)
-    .map_or(config.remote_cache, |s| s.trim().to_lowercase() == "true");
+    .map_or(Ok(config.remote_cache), |s| parse_bool(s))?;
 
   // Parse the Docker repo.
   let docker_repo = matches
