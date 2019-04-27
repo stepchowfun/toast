@@ -28,7 +28,7 @@ OPTIONS:
     -h, --help
             Prints help information
 
-    -l, --no-local-cache <BOOL>
+    -l, --local-cache <BOOL>
             Sets whether local caching is enabled (default: true)
 
     -r, --remote-cache <BOOL>
