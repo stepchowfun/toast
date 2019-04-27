@@ -3,7 +3,7 @@ use atty::Stream;
 use std::{
   collections::HashMap,
   path::Path,
-  process::Command,
+  process::{Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -209,7 +209,7 @@ pub fn delete_image(image: &str) -> Result<(), String> {
 
 // Run an interactive shell and block until it exits.
 pub fn spawn_shell(image: &str) -> Result<(), String> {
-  run_docker_loud(
+  run_docker_attach(
     &["run", "--rm", "--interactive", "--tty", image, "/bin/sh"],
     "The shell exited with a failure.",
   )
@@ -227,6 +227,7 @@ fn docker_command(args: &[&str]) -> Command {
 // Run a command and return its standard output or an error message.
 fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
   let output = docker_command(args)
+    .stdin(Stdio::null())
     .output()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
   if !output.status.success() {
@@ -239,8 +240,20 @@ fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
   Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-// Run a command and forward its standard input, output, and error streams.
+// Run a command and forward its standard output and error streams.
 fn run_docker_loud(args: &[&str], error: &str) -> Result<(), String> {
+  let status = docker_command(args)
+    .stdin(Stdio::null())
+    .status()
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  if !status.success() {
+    return Err(error.to_owned());
+  }
+  Ok(())
+}
+
+// Run a command and forward its standard input, output, and error streams.
+fn run_docker_attach(args: &[&str], error: &str) -> Result<(), String> {
   let status = docker_command(args)
     .status()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
