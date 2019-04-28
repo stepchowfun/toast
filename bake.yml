@@ -23,10 +23,12 @@ tasks:
       . $HOME/.cargo/env
       rustup component add clippy
       rustup component add rustfmt
+      rm -rf "$(dirname "$(rustup which rustc)")/../share"
 
   build:
     dependencies:
       - rust
+    cache: false
     paths:
       - .
     user: user
@@ -35,6 +37,7 @@ tasks:
   test:
     dependencies:
       - build
+    cache: false
     user: user
     command: cargo test
 
@@ -42,6 +45,7 @@ tasks:
     dependencies:
       - build
       - tagref
+    cache: false
     paths:
       - rustfmt.toml
     user: user
