@@ -2,6 +2,7 @@ mod bakefile;
 mod cache;
 mod config;
 mod entrypoint;
+mod filesystem;
 mod format;
 mod runner;
 mod schedule;

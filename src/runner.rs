@@ -2,21 +2,22 @@ use crate::bakefile::Task;
 use atty::Stream;
 use std::{
   collections::HashMap,
-  path::Path,
-  process::{Command, Stdio},
+  io,
+  io::Read,
+  process::{ChildStdin, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
   },
 };
-use tempfile::TempDir;
 
 // Run a task and return the ID of the resulting Docker image.
-pub fn run(
+pub fn run<R: Read>(
   task: &Task,
   from_image: &str,
   to_image: &str,
   env: &HashMap<String, String>,
+  mut tar: R,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   // Construct the command to run inside the container.
@@ -100,59 +101,26 @@ pub fn run(
     }
   }};
 
-  // Create a temporary directory for creating ancestor directories in the
-  // container via `docker cp`.
-  let empty_dir = TempDir::new().map_err(|e| {
-    format!("Unable to create temporary directory. Reason: {}", e)
-  })?;
-
   // Copy files into the container, if applicable.
-  for path in &task.paths {
-    let destination = Path::new(&task.location)
-      .join(path)
-      .components()
-      .as_path()
-      .to_owned();
-    let destination_str = destination.to_string_lossy().to_string();
+  if !task.paths.is_empty() {
+    run_docker_quiet_stdin(
+      &["container", "cp", "-", &format!("{}:{}", container_id, "/")],
+      "Unable to copy files into the container.",
+      |mut stdin| {
+        io::copy(&mut tar, &mut stdin).map_err(|e| {
+          format!("Unable to copy files into the container.. Details: {}", e)
+        })?;
 
-    // Create ancestor directories in the container.
-    for ancestor in destination.ancestors().collect::<Vec<_>>()[1..]
-      .iter()
-      .rev()
-    {
-      let ancestor_str = ancestor.to_string_lossy();
-      debug!("Creating directory `{}` in container...", ancestor_str);
-      run_docker_quiet(
-        &[
-          "container",
-          "cp",
-          &empty_dir.path().join(".").to_string_lossy(),
-          &format!("{}:{}", container_id, ancestor_str),
-        ],
-        &format!(
-          "Unable to copy `{}` into container at `{}`.",
-          path, destination_str
-        ),
-      )?;
-    }
-
-    // Copy the target into the container.
-    info!(
-      "Copying `{}` into container at `{}`...",
-      path, destination_str
-    );
-    run_docker_quiet(
-      &[
-        "container",
-        "cp",
-        &path,
-        &format!("{}:{}", container_id, destination_str),
-      ],
-      &format!(
-        "Unable to copy `{}` into container at `{}`.",
-        path, destination_str
-      ),
-    )?;
+        Ok(())
+      },
+    )
+    .map_err(|e| {
+      if running.load(Ordering::SeqCst) {
+        e
+      } else {
+        "Interrupted.".to_owned()
+      }
+    })?;
   }
 
   // Start the container.
@@ -196,7 +164,7 @@ pub fn image_exists(image: &str) -> bool {
 // Push a Docker image.
 pub fn push_image(image: &str) -> Result<(), String> {
   debug!("Pushing image `{}`...", image);
-  run_docker_quiet(
+  run_docker_loud(
     &["image", "push", image],
     &format!("Unable to push image `{}`.", image),
   )
@@ -206,7 +174,7 @@ pub fn push_image(image: &str) -> Result<(), String> {
 // Pull a Docker image.
 pub fn pull_image(image: &str) -> Result<(), String> {
   debug!("Pulling image `{}`...", image);
-  run_docker_quiet(
+  run_docker_loud(
     &["image", "pull", image],
     &format!("Unable to pull image `{}`.", image),
   )
@@ -247,6 +215,33 @@ fn docker_command(args: &[&str]) -> Command {
     command.arg(arg);
   }
   command
+}
+
+// Run a command and return its standard output or an error message. Accepts a
+// closure which receives a pipe to the STDIN of the child process.
+fn run_docker_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
+  args: &[&str],
+  error: &str,
+  writer: W,
+) -> Result<String, String> {
+  let mut child = docker_command(args)
+    .stdin(Stdio::piped()) // [tag:stdin_piped]
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  writer(child.stdin.as_mut().unwrap())?; // [ref:stdin_piped]
+  let output = child
+    .wait_with_output()
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  if !output.status.success() {
+    return Err(format!(
+      "{}\nDetails: {}",
+      error,
+      String::from_utf8_lossy(&output.stderr)
+    ));
+  }
+  Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 // Run a command and return its standard output or an error message.

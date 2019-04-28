@@ -1,20 +1,21 @@
 use crate::bakefile::Task;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::{collections::HashMap, io, io::Read};
 
 // Determine the cache ID of a prefix of a schedule.
 pub fn key(
   from_image: &str,
-  schedule_prefix: &[&Task],
+  schedule_prefix: &[(&Task, String)],
   env: &HashMap<String, String>,
 ) -> String {
   let mut cache_key = hash(from_image);
 
-  for task in schedule_prefix {
+  for (task, files_hash) in schedule_prefix {
     for var in task.env.keys() {
       cache_key = combine(&cache_key, var);
       cache_key = combine(&cache_key, &env[var]); // [ref:env_valid]
     }
+    cache_key = combine(&cache_key, &files_hash);
     cache_key = combine(&cache_key, &task.location);
     cache_key = combine(&cache_key, &task.user);
     if let Some(c) = &task.command {
@@ -25,11 +26,21 @@ pub fn key(
   cache_key[..48].to_owned()
 }
 
-fn hash(input: &str) -> String {
+// Compute the hash of a string.
+pub fn hash(input: &str) -> String {
   hex::encode(Sha256::digest(input.as_bytes()))
 }
 
-fn combine(x: &str, y: &str) -> String {
+// Compute the hash of a readable object.
+pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
+  let mut hasher = Sha256::new();
+  io::copy(input, &mut hasher)
+    .map_err(|e| format!("Unable to compute hash. Details: {}", e))?;
+  Ok(hex::encode(hasher.result()))
+}
+
+// Combine two hashes.
+pub fn combine(x: &str, y: &str) -> String {
   hash(&format!("{}{}", x, y))
 }
 
@@ -69,7 +80,7 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix = vec![&task];
+    let schedule_prefix = vec![(&task, "foo".to_owned())];
     let mut full_env = HashMap::new();
     full_env.insert("foo".to_owned(), "qux".to_owned());
 
@@ -108,8 +119,8 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![&task1];
-    let schedule_prefix2 = vec![&task2];
+    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
     let mut full_env = HashMap::new();
     full_env.insert("foo".to_owned(), "qux".to_owned());
     full_env.insert("bar".to_owned(), "fum".to_owned());
@@ -136,7 +147,7 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix = vec![&task];
+    let schedule_prefix = vec![(&task, "foo".to_owned())];
     let mut full_env1 = HashMap::new();
     full_env1.insert("foo".to_owned(), "bar".to_owned());
     let mut full_env2 = HashMap::new();
@@ -145,6 +156,29 @@ mod tests {
     assert_ne!(
       key(from_image, &schedule_prefix, &full_env1),
       key(from_image, &schedule_prefix, &full_env2)
+    );
+  }
+
+  #[test]
+  fn key_files_hash() {
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      env: HashMap::new(),
+      paths: vec![],
+      location: DEFAULT_LOCATION.to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: Some("echo wibble".to_owned()),
+    };
+
+    let from_image = "ubuntu:18.04";
+    let schedule_prefix1 = vec![(&task, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task, "bar".to_owned())];
+    let full_env = HashMap::new();
+
+    assert_ne!(
+      key(from_image, &schedule_prefix1, &full_env),
+      key(from_image, &schedule_prefix2, &full_env)
     );
   }
 
@@ -171,8 +205,8 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![&task1];
-    let schedule_prefix2 = vec![&task2];
+    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
     let full_env = HashMap::new();
 
     assert_ne!(
@@ -204,8 +238,8 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![&task1];
-    let schedule_prefix2 = vec![&task2];
+    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
     let full_env = HashMap::new();
 
     assert_ne!(
@@ -237,8 +271,8 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![&task1];
-    let schedule_prefix2 = vec![&task2];
+    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
     let full_env = HashMap::new();
 
     assert_ne!(
@@ -270,8 +304,8 @@ mod tests {
     };
 
     let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![&task1];
-    let schedule_prefix2 = vec![&task2];
+    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
+    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
     let full_env = HashMap::new();
 
     assert_ne!(

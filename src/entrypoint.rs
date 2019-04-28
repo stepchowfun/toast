@@ -1,4 +1,4 @@
-use crate::{bakefile, cache, config, format, runner, schedule};
+use crate::{bakefile, cache, config, filesystem, format, runner, schedule};
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
@@ -6,13 +6,14 @@ use std::{
   cell::{Cell, RefCell},
   collections::HashMap,
   fs,
-  io::{stdout, Write},
+  io::{stdout, Seek, SeekFrom, Write},
   path::PathBuf,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
   },
 };
+use tempfile::tempfile;
 use textwrap::Wrapper;
 
 // Defaults
@@ -378,6 +379,8 @@ fn run_tasks<'a>(
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
+    let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
+
     // At the end of this iteration, delete the image from the previous step if
     // it isn't cacheable.
     let image_to_delete = if (schedule_prefix.is_empty()
@@ -403,15 +406,24 @@ fn run_tasks<'a>(
       return Err("Interrupted.".to_owned());
     }
 
+    // Tar up the files to be copied into the container.
+    let tar_file = tempfile().map_err(|e| {
+      format!("Unable to create temporary file. Details: {}", e)
+    })?;
+    let (mut tar_file, files_hash) =
+      filesystem::tar(&task_data.paths, &task_data.location, tar_file)?;
+    tar_file
+      .seek(SeekFrom::Start(0))
+      .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
+
     // Compute the cache key.
-    schedule_prefix.push(&bakefile.tasks[*task]); // [ref:tasks_valid]
+    schedule_prefix.push((task_data, files_hash));
     let cache_key = cache::key(&bakefile.image, &schedule_prefix, &env);
     let to_image =
       RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
 
     // Remember this image for the next task.
-    let this_task_cacheable =
-      bakefile.tasks[*task].cache && from_image_cacheable.get();
+    let this_task_cacheable = task_data.cache && from_image_cacheable.get();
     defer! {{
       from_image.replace(to_image.borrow().clone());
       from_image_cacheable.set(this_task_cacheable);
@@ -419,8 +431,6 @@ fn run_tasks<'a>(
 
     // Skip the task if it's cached.
     if this_task_cacheable {
-      info!("Attempting to fetch task `{}` from cache...", task);
-
       // Check the local cache.
       if settings.local_cache && runner::image_exists(&to_image.borrow()) {
         info!("Task `{}` found in local cache.", task);
@@ -428,12 +438,14 @@ fn run_tasks<'a>(
       }
 
       // Check the remote cache if applicable.
-      if settings.remote_cache
-        && runner::pull_image(&to_image.borrow()).is_ok()
-      {
-        // Skip to the next task.
-        info!("Task `{}` found in remote cache.", task);
-        continue;
+      if settings.remote_cache {
+        info!("Attempting to fetch task `{}` from remote cache...", task);
+        if runner::pull_image(&to_image.borrow()).is_ok() {
+          // Skip to the next task.
+          info!("Task `{}` fetched from remote cache.", task);
+          continue;
+        }
+        info!("Task `{}` not found in remote cache.", task);
       }
     }
 
@@ -443,13 +455,13 @@ fn run_tasks<'a>(
     }
 
     // Run the task.
-    // The indexing is safe due to [ref:tasks_valid].
     info!("Running task `{}`...", task);
     runner::run(
-      &bakefile.tasks[*task],
+      task_data,
       &from_image.borrow(),
       &to_image.borrow(),
       &env,
+      tar_file,
       running,
     )?;
 
