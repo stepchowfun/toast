@@ -1,6 +1,9 @@
 use crate::format;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env};
+use std::{
+  collections::{HashMap, HashSet},
+  env,
+};
 
 // The default location for commands and paths.
 pub const DEFAULT_LOCATION: &str = "/scratch";
@@ -129,8 +132,8 @@ pub fn environment<'a>(
   Ok(result)
 }
 
-// Check that all dependencies exist.
-fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
+// Check that all dependencies exist and form a DAG (no cycles).
+fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
   // Check the default task. [tag:valid_default]
   let valid_default = bakefile
     .default
@@ -190,6 +193,57 @@ fn check_dependencies(bakefile: &Bakefile) -> Result<(), String> {
       "The default task `{}` does not exist.",
       bakefile.default.as_ref().unwrap() // [ref:valid_default]
     ));
+  }
+
+  // Check that the dependencies aren't cyclic.
+  let mut visited: HashSet<&'a str> = HashSet::new();
+  for task in bakefile.tasks.keys() {
+    let mut frontier: Vec<(&'a str, usize)> = vec![(task, 0)];
+    let mut ancestors_set: HashSet<&'a str> = HashSet::new();
+    let mut ancestors_stack: Vec<&'a str> = vec![];
+
+    // [tag:bakefile_frontier_nonempty]
+    while !frontier.is_empty() {
+      // [ref:bakefile_frontier_nonempty]
+      let (task, task_depth) = frontier.pop().unwrap();
+
+      for _ in 0..ancestors_stack.len() - task_depth {
+        // The `unwrap` is safe because `ancestors_stack.len()` is positive in
+        // every iteration of this loop.
+        let task_to_remove = ancestors_stack.pop().unwrap();
+        ancestors_set.remove(task_to_remove);
+      }
+
+      if ancestors_set.contains(task) {
+        let mut cycle_iter = ancestors_stack.iter();
+        cycle_iter.find(|&&x| x == task);
+        let mut cycle = cycle_iter.collect::<Vec<_>>();
+        cycle.push(&task); // [tag:cycle_nonempty]
+        let mut cycle_dependencies = cycle[1..].to_owned();
+        cycle_dependencies.push(cycle[0]); // [ref:cycle_nonempty]
+        return Err(format!(
+          "The dependencies are cyclic. {}.",
+          format::series(
+            &cycle
+              .iter()
+              .zip(cycle_dependencies)
+              .map(|(x, y)| format!("`{}` depends on `{}`", x, y))
+              .collect::<Vec<_>>()[..]
+          )
+        ));
+      }
+
+      if !visited.contains(task) {
+        visited.insert(task);
+
+        ancestors_set.insert(task);
+        ancestors_stack.push(task);
+
+        for dependency in &bakefile.tasks[task].dependencies {
+          frontier.push((dependency, task_depth + 1));
+        }
+      }
+    }
   }
 
   // No violations
@@ -578,5 +632,122 @@ tasks:
     let result = check_dependencies(&bakefile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("do_thing"));
+  }
+
+  #[test]
+  fn check_dependencies_cycle_1() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec!["build".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_dependencies(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("cyclic"));
+  }
+
+  #[test]
+  fn check_dependencies_cycle_2() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec!["test".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
+      "test".to_owned(),
+      Task {
+        dependencies: vec!["build".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_dependencies(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("cyclic"));
+  }
+
+  #[test]
+  fn check_dependencies_cycle_3() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec!["publish".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
+      "test".to_owned(),
+      Task {
+        dependencies: vec!["build".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+    tasks.insert(
+      "publish".to_owned(),
+      Task {
+        dependencies: vec!["test".to_owned()],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_dependencies(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("cyclic"));
   }
 }
