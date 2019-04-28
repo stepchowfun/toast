@@ -56,7 +56,18 @@ pub fn run(
   // Create the container.
   debug!("Creating container from image `{}`...", from_image);
   let command_str = commands_to_run.join(" && ");
-  let mut create_command = vec!["create"];
+
+  // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
+  // otherwise they can accumulate. Bash does this, but we run `/bin/sh` in the
+  // container, which may or may not be Bash. So `--init` runs Tini
+  // (https://github.com/krallin/tini) as PID 1, which properly reaps orphaned
+  // zombies. (2) PID 1 also does not exhibit the default behavior (crashing)
+  // for signals like SIGINT and SIGTERM. However, PID 1 can still handle these
+  // signals by explicitly trapping them. Tini traps these signals and forwards
+  // them to the child process. Then the default signal handling behavior of
+  // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
+  let mut create_command = vec!["container", "create", "--init"];
+
   if atty::is(Stream::Stdout) {
     // [tag:docker-tty] If STDOUT is a terminal, tell the Docker client to
     // behave like a TTY for the container. That means it will, for example,
@@ -82,7 +93,7 @@ pub fn run(
   defer! {{
     debug!("Deleting container...");
     if let Err(e) = run_docker_quiet(
-      &["rm", "--force", &container_id],
+      &["container", "rm", "--force", &container_id],
       "Unable to delete container."
     ) {
       error!("{}", e);
@@ -113,6 +124,7 @@ pub fn run(
       debug!("Creating directory `{}` in container...", ancestor_str);
       run_docker_quiet(
         &[
+          "container",
           "cp",
           &empty_dir.path().join(".").to_string_lossy(),
           &format!("{}:{}", container_id, ancestor_str),
@@ -131,6 +143,7 @@ pub fn run(
     );
     run_docker_quiet(
       &[
+        "container",
         "cp",
         &path,
         &format!("{}:{}", container_id, destination_str),
@@ -147,19 +160,22 @@ pub fn run(
   if let Some(command) = &task.command {
     info!("{}", command);
   }
-  run_docker_loud(&["start", "--attach", &container_id], "Task failed.")
-    .map_err(|e| {
-      if running.load(Ordering::SeqCst) {
-        e
-      } else {
-        "Interrupted.".to_owned()
-      }
-    })?;
+  run_docker_loud(
+    &["container", "start", "--attach", &container_id],
+    "Task failed.",
+  )
+  .map_err(|e| {
+    if running.load(Ordering::SeqCst) {
+      e
+    } else {
+      "Interrupted.".to_owned()
+    }
+  })?;
 
   // Create an image from the container.
   debug!("Creating image...");
   run_docker_quiet(
-    &["commit", &container_id, to_image],
+    &["container", "commit", &container_id, to_image],
     "Unable to create image.",
   )?;
   debug!("Created image `{}`.", to_image);
@@ -171,7 +187,7 @@ pub fn run(
 pub fn image_exists(image: &str) -> bool {
   debug!("Checking existence of image `{}`...", image);
   run_docker_quiet(
-    &["inspect", "--type", "image", image],
+    &["image", "inspect", "--type", "image", image],
     &format!("The image `{}` does not exist.", image),
   )
   .is_ok()
@@ -181,7 +197,7 @@ pub fn image_exists(image: &str) -> bool {
 pub fn push_image(image: &str) -> Result<(), String> {
   debug!("Pushing image `{}`...", image);
   run_docker_quiet(
-    &["push", image],
+    &["image", "push", image],
     &format!("Unable to push image `{}`.", image),
   )
   .map(|_| ())
@@ -191,7 +207,7 @@ pub fn push_image(image: &str) -> Result<(), String> {
 pub fn pull_image(image: &str) -> Result<(), String> {
   debug!("Pulling image `{}`...", image);
   run_docker_quiet(
-    &["pull", image],
+    &["image", "pull", image],
     &format!("Unable to pull image `{}`.", image),
   )
   .map(|_| ())
@@ -201,7 +217,7 @@ pub fn pull_image(image: &str) -> Result<(), String> {
 pub fn delete_image(image: &str) -> Result<(), String> {
   debug!("Deleting image `{}`...", image);
   run_docker_quiet(
-    &["rmi", "--force", image],
+    &["image", "rm", "--force", image],
     &format!("Unable to delete image `{}`.", image),
   )
   .map(|_| ())
@@ -210,7 +226,16 @@ pub fn delete_image(image: &str) -> Result<(), String> {
 // Run an interactive shell and block until it exits.
 pub fn spawn_shell(image: &str) -> Result<(), String> {
   run_docker_attach(
-    &["run", "--rm", "--interactive", "--tty", image, "/bin/sh"],
+    &[
+      "container",
+      "run",
+      "--rm",
+      "--interactive",
+      "--tty",
+      "--init", // [ref:--init]
+      image,
+      "/bin/sh",
+    ],
     "The shell exited with a failure.",
   )
 }

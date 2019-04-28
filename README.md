@@ -117,3 +117,7 @@ tasks:
     user: user
     command: cargo test
 ```
+
+## Dependencies
+
+Bake requires Docker Engine 17.03.0 or later.
