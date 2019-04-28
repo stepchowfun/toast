@@ -19,14 +19,6 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   // For each root, compute its transitive reflexive closure, topsort it, and
   // add it to the schedule.
   for root in roots {
-    // If we have already scheduled this root task, skip to the next one.
-    if visited.contains(root) {
-      continue;
-    }
-
-    // Mark this task as seen so we don't process it again.
-    visited.insert(root);
-
     // The frontier is a stack, which means we are doing a depth-first
     // traversal.
     let mut frontier: Vec<&'a str> = vec![root];
@@ -37,8 +29,18 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
     // Keep processing nodes on the frontier until there aren't any more left.
     // [tag:schedule_frontier_nonempty]
     while !frontier.is_empty() {
-      // Pop a task from the frontier and schedule it.
+      // Pop a task from the frontier.
       let task = frontier.pop().unwrap(); // [ref:schedule_frontier_nonempty]
+
+      // If we have already scheduled this root task, skip to the next one.
+      if visited.contains(task) {
+        continue;
+      }
+
+      // Mark this task as seen so we don't process it again.
+      visited.insert(task);
+
+      // Schedule the task.
       topological_sort.push(task);
 
       // Add the task's dependencies to the frontier. We sort the dependencies
@@ -50,10 +52,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
       }
       dependencies.sort();
       for dependency in dependencies {
-        if !visited.contains(dependency) {
-          visited.insert(dependency);
-          frontier.push(dependency);
-        }
+        frontier.push(dependency);
       }
     }
 
