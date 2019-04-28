@@ -2,10 +2,10 @@ mod bakefile;
 mod cache;
 mod config;
 mod entrypoint;
-mod filesystem;
 mod format;
 mod runner;
 mod schedule;
+mod tar;
 
 use std::process::exit;
 
