@@ -187,7 +187,7 @@ pub fn run(
 pub fn image_exists(image: &str) -> bool {
   debug!("Checking existence of image `{}`...", image);
   run_docker_quiet(
-    &["image", "inspect", "--type", "image", image],
+    &["image", "inspect", image],
     &format!("The image `{}` does not exist.", image),
   )
   .is_ok()
