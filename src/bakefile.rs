@@ -219,18 +219,25 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         cycle_iter.find(|&&x| x == task);
         let mut cycle = cycle_iter.collect::<Vec<_>>();
         cycle.push(&task); // [tag:cycle_nonempty]
-        let mut cycle_dependencies = cycle[1..].to_owned();
-        cycle_dependencies.push(cycle[0]); // [ref:cycle_nonempty]
-        return Err(format!(
-          "The dependencies are cyclic. {}.",
-          format::series(
-            &cycle
-              .iter()
-              .zip(cycle_dependencies)
-              .map(|(x, y)| format!("`{}` depends on `{}`", x, y))
-              .collect::<Vec<_>>()[..]
+        let error_message = if cycle.len() == 1 {
+          format!("`{}` depends on itself.", cycle[0])
+        } else if cycle.len() == 2 {
+          format!("`{}` and `{}` depend on each other.", cycle[0], cycle[1])
+        } else {
+          let mut cycle_dependencies = cycle[1..].to_owned();
+          cycle_dependencies.push(cycle[0]); // [ref:cycle_nonempty]
+          format!(
+            "{}.",
+            format::series(
+              &cycle
+                .iter()
+                .zip(cycle_dependencies)
+                .map(|(x, y)| format!("`{}` depends on `{}`", x, y))
+                .collect::<Vec<_>>()[..],
+            )
           )
-        ));
+        };
+        return Err(format!("The dependencies are cyclic. {}", error_message));
       }
 
       if !visited.contains(task) {
@@ -553,6 +560,31 @@ tasks:
       image: "ubuntu:18.04".to_owned(),
       default: None,
       tasks: HashMap::new(),
+    };
+
+    assert!(check_dependencies(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn check_dependencies_single() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "build".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        env: HashMap::new(),
+        paths: vec![],
+        location: DEFAULT_LOCATION.to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "ubuntu:18.04".to_owned(),
+      default: None,
+      tasks,
     };
 
     assert!(check_dependencies(&bakefile).is_ok());
