@@ -100,7 +100,7 @@ fn parse_bool(s: &str) -> Result<bool, String> {
   match normalized.as_ref() {
     "true" | "yes" => Ok(true),
     "false" | "no" => Ok(false),
-    _ => Err(format!("{} is not a Boolean.", s)),
+    _ => Err(format!("`{}` is not a Boolean.", s)),
   }
 }
 

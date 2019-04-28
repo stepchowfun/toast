@@ -3,8 +3,9 @@ use std::collections::HashSet;
 
 // Compute a topological sort of the transitive reflexive closure of a set of
 // tasks. The resulting schedule does not depend on the order of the inputs.
+// We assume that the tasks form a DAG (no cycles).
 pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
-  // Sort the input tasks to ensure that the given order doesn't matter.
+  // Sort the input tasks to ensure the given order doesn't matter.
   let mut roots: Vec<&'a str> = tasks.to_vec();
   roots.sort();
 
@@ -34,19 +35,24 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
     let mut topological_sort: Vec<&'a str> = vec![];
 
     // Keep processing nodes on the frontier until there aren't any more left.
-    // [tag:frontier_nonempty]
+    // [tag:schedule_frontier_nonempty]
     while !frontier.is_empty() {
       // Pop a task from the frontier and schedule it.
-      let task = frontier.pop().unwrap(); // [ref:frontier_nonempty]
+      let task = frontier.pop().unwrap(); // [ref:schedule_frontier_nonempty]
       topological_sort.push(task);
 
-      // Add the task's dependencies to the frontier.
+      // Add the task's dependencies to the frontier. We sort the dependencies
+      // first to ensure their original order doesn't matter.
       // The indexing is safe due to [ref:tasks_valid].
+      let mut dependencies: Vec<&'a str> = vec![];
       for dependency in &bakefile.tasks[task].dependencies {
-        let dep: &'a str = &dependency;
-        if !visited.contains(dep) {
-          visited.insert(dep);
-          frontier.push(dep);
+        dependencies.push(dependency);
+      }
+      dependencies.sort();
+      for dependency in dependencies {
+        if !visited.contains(dependency) {
+          visited.insert(dependency);
+          frontier.push(dependency);
         }
       }
     }
