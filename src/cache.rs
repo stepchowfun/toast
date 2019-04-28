@@ -12,14 +12,14 @@ pub fn key(
 
   for (task, files_hash) in schedule_prefix {
     for var in task.env.keys() {
-      cache_key = combine(&cache_key, var);
-      cache_key = combine(&cache_key, &env[var]); // [ref:env_valid]
+      cache_key = extend(&cache_key, var);
+      cache_key = extend(&cache_key, &env[var]); // [ref:env_valid]
     }
-    cache_key = combine(&cache_key, &files_hash);
-    cache_key = combine(&cache_key, &task.location);
-    cache_key = combine(&cache_key, &task.user);
+    cache_key = extend(&cache_key, &files_hash);
+    cache_key = extend(&cache_key, &task.location);
+    cache_key = extend(&cache_key, &task.user);
     if let Some(c) = &task.command {
-      cache_key = combine(&cache_key, &c);
+      cache_key = extend(&cache_key, &c);
     }
   }
 
@@ -39,8 +39,8 @@ pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
   Ok(hex::encode(hasher.result()))
 }
 
-// Combine two hashes.
-pub fn combine(x: &str, y: &str) -> String {
+// Combine a hash with another string to form a new hash.
+pub fn extend(x: &str, y: &str) -> String {
   hash(&format!("{}{}", x, y))
 }
 
@@ -48,7 +48,7 @@ pub fn combine(x: &str, y: &str) -> String {
 mod tests {
   use crate::{
     bakefile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
-    cache::{combine, hash, key},
+    cache::{extend, hash, key},
   };
   use std::collections::HashMap;
 
@@ -325,13 +325,13 @@ mod tests {
   }
 
   #[test]
-  fn combine_pure() {
-    assert_eq!(combine("foo", "bar"), combine("foo", "bar"));
+  fn extend_pure() {
+    assert_eq!(extend("foo", "bar"), extend("foo", "bar"));
   }
 
   #[test]
-  fn combine_not_constant() {
-    assert_ne!(combine("foo", "bar"), combine("foo", "baz"));
-    assert_ne!(combine("foo", "bar"), combine("baz", "bar"));
+  fn extend_not_constant() {
+    assert_ne!(extend("foo", "bar"), extend("foo", "baz"));
+    assert_ne!(extend("foo", "bar"), extend("baz", "bar"));
   }
 }

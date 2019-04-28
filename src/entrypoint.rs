@@ -1,4 +1,4 @@
-use crate::{bakefile, cache, config, filesystem, format, runner, schedule};
+use crate::{bakefile, cache, config, format, runner, schedule, tar};
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
@@ -411,7 +411,7 @@ fn run_tasks<'a>(
       format!("Unable to create temporary file. Details: {}", e)
     })?;
     let (mut tar_file, files_hash) =
-      filesystem::tar(&task_data.paths, &task_data.location, tar_file)?;
+      tar::create(&task_data.paths, &task_data.location, tar_file)?;
     tar_file
       .seek(SeekFrom::Start(0))
       .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
