@@ -217,22 +217,22 @@ USAGE:
 
 OPTIONS:
     -c, --config-file <PATH>
-            Sets the path of the config file (default: depends on the OS)
+            Sets the path of the config file
 
     -f, --file <PATH>
-            Sets the path to the bakefile (default: bake.yml)
+            Sets the path to the bakefile
 
     -h, --help
             Prints help information
 
         --read-local-cache <BOOL>
-            Sets whether local cache reading is enabled (default: true)
+            Sets whether local cache reading is enabled
 
         --read-remote-cache <BOOL>
-            Sets whether remote cache reading is enabled (default: false)
+            Sets whether remote cache reading is enabled
 
     -r, --repo <REPO>
-            Sets the Docker repository (default: bake)
+            Sets the Docker repository
 
     -s, --shell
             Drops you into a shell after the tasks are complete
@@ -241,15 +241,10 @@ OPTIONS:
             Prints version information
 
         --write-local-cache <BOOL>
-            Sets whether local cache writing is enabled (default: true)
+            Sets whether local cache writing is enabled
 
         --write-remote-cache <BOOL>
-            Sets whether remote cache writing is enabled (default: false)
-
-
-ARGS:
-    <TASKS>...
-            Sets the tasks to run
+            Sets whether remote cache writing is enabled
 ```
 
 ## Requirements

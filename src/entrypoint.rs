@@ -134,10 +134,7 @@ fn settings() -> Result<Settings, String> {
         .short("f")
         .long(BAKEFILE_ARG)
         .value_name("PATH")
-        .help(&format!(
-          "Sets the path to the bakefile (default: {})",
-          BAKEFILE_DEFAULT,
-        ))
+        .help("Sets the path to the bakefile")
         .takes_value(true),
     )
     .arg(
@@ -145,35 +142,35 @@ fn settings() -> Result<Settings, String> {
         .short("c")
         .long(CONFIG_FILE_ARG)
         .value_name("PATH")
-        .help("Sets the path of the config file (default: depends on the OS)")
+        .help("Sets the path of the config file")
         .takes_value(true),
     )
     .arg(
       Arg::with_name(READ_LOCAL_CACHE_ARG)
         .long(READ_LOCAL_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether local cache reading is enabled (default: true)")
+        .help("Sets whether local cache reading is enabled")
         .takes_value(true),
     )
     .arg(
       Arg::with_name(WRITE_LOCAL_CACHE_ARG)
         .long(WRITE_LOCAL_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether local cache writing is enabled (default: true)")
+        .help("Sets whether local cache writing is enabled")
         .takes_value(true),
     )
     .arg(
       Arg::with_name(READ_REMOTE_CACHE_ARG)
         .long(READ_REMOTE_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether remote cache reading is enabled (default: false)")
+        .help("Sets whether remote cache reading is enabled")
         .takes_value(true),
     )
     .arg(
       Arg::with_name(WRITE_REMOTE_CACHE_ARG)
         .long(WRITE_REMOTE_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether remote cache writing is enabled (default: false)")
+        .help("Sets whether remote cache writing is enabled")
         .takes_value(true),
     )
     .arg(
@@ -181,10 +178,7 @@ fn settings() -> Result<Settings, String> {
         .short("r")
         .long(REPO_ARG)
         .value_name("REPO")
-        .help(&format!(
-          "Sets the Docker repository (default: {})",
-          config::REPO_DEFAULT,
-        ))
+        .help("Sets the Docker repository")
         .takes_value(true),
     )
     .arg(
