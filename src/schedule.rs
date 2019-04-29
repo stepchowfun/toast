@@ -85,7 +85,7 @@ mod tests {
     Task {
       dependencies,
       cache: true,
-      env: HashMap::new(),
+      environment: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),

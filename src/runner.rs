@@ -16,7 +16,7 @@ pub fn run<R: Read>(
   task: &Task,
   from_image: &str,
   to_image: &str,
-  env: &HashMap<String, String>,
+  environment: &HashMap<String, String>,
   mut tar: R,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -36,13 +36,13 @@ pub fn run<R: Read>(
       shell_escape(&format!(
         "{} set -eu; cd {}; {}",
         task
-          .env
+          .environment
           .keys()
           .map(|var| {
             format!(
               "export {}={};",
               shell_escape(&var),
-              shell_escape(&env[var]) // [ref:env_valid]
+              shell_escape(&environment[var]) // [ref:environment_valid]
             )
           })
           .collect::<Vec<_>>()

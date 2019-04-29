@@ -357,7 +357,7 @@ fn fetch_env(
   }
 
   if !violations.is_empty() {
-    // [tag:env_valid]
+    // [tag:environment_valid]
     return Err(format!(
       "The following tasks are missing variables from the environment: {}.",
       format::series(
