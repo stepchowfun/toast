@@ -472,7 +472,7 @@ fn run_tasks<'a>(
 
     // Push the image to a remote cache if applicable.
     if settings.remote_cache && this_task_cacheable {
-      info!("Writing to cache...");
+      info!("Writing to remote cache...");
       match runner::push_image(&to_image.borrow()) {
         Ok(()) => info!("Task `{}` maybe pushed to remote cache.", task),
         Err(e) => warn!("{}", e),
