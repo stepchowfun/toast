@@ -39,7 +39,7 @@ Hello, World!
 
 ### Adding a dependency
 
-Let's make the greeting more fun with a program called `cowsay`. We will add a task to install `cowsay` and make it a dependency for the `greet` task:
+Let's make the greeting more fun with a program called `cowsay`. We'll add a task to install `cowsay`, and we'll change the `greet` task to depend on it:
 
 ```yaml
 image: ubuntu
@@ -90,7 +90,7 @@ int main(void) {
 
 Update `bake.yml` to compile and run the program:
 
-```yml
+```yaml
 image: ubuntu
 tasks:
   gcc: |
@@ -114,8 +114,7 @@ If you run `bake`, you will see this:
 
 ```sh
 $ bake
-[INFO] The following tasks will be executed in the order given: `gcc`, `build`, and
-       `greet`.
+[INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `greet`.
 [INFO] Running task `gcc`...
 [INFO] apt-get update
        apt-get install -y gcc
@@ -140,26 +139,57 @@ tasks: <map from task name to task>
 
 The following formats are supported for `image`: `name`, `name:tag`, or `name@digest`. You can also refer to an image in a custom registry, for example `myregistry.com:5000/testing/test-image`.
 
-Tasks have the following schema:
+Tasks have the following schema and defaults:
 
 ```yaml
-dependencies: <names of dependencies (default: [])>
-cache: <whether a task can be cached (default: true)>
-environment: <map from string to string or null (default: {})>
-paths: <paths to copy into the container (default: [])>
-location: <path in the container for running this task (default: /scratch)>
-user: <name of the user in the container for running this task (default: root)>
-command: <shell command to run in the container (default: null)>
+dependencies: []   # Names of dependencies
+cache: true        # Whether a task can be cached
+environment: {}    # Map from environment variable to optional default
+paths: []          # Paths to copy into the container
+location: /scratch # Path in the container for running this task
+user: root         # Name of the user in the container for running this task
+command: null      # Shell command to run in the container
 ```
 
-The simplest valid bakefile has no tasks:
+For convenience, a task can also be represented by a string rather than an object. The resulting task uses that string as its `command`, with the other fields set to their defaults. So the following two bakefiles are equivalent:
 
 ```yaml
 image: alpine
-tasks: {}
+tasks:
+  greet: echo 'Hello, World!'
+```
+
+```yaml
+image: alpine
+tasks:
+  greet:
+    command: echo 'Hello, World!'
 ```
 
 The [bakefile](https://github.com/stepchowfun/bake/blob/master/bake.yml) for Bake itself is a comprehensive example.
+
+## Cache configuration
+
+Bake supports local and remote caching. By default, only local caching is enabled. Remote caching requires that the Docker Engine is logged into a Docker registry (e.g., via `docker login`).
+
+The caching behavior can be customized with a configuration file. The default location of the configuration file depends on the operating system:
+
+- For macOS, the default location is `~/Library/Preferences/bake/bake.yml`.
+- For other platforms, Bake follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `~/.config/bake/bake.yml` unless overridden by the `XDG_CONFIG_HOME` environment variable.
+
+The configuration file has the following schema and defaults:
+
+```yaml
+docker_repo: bake         # Docker repository
+read_local_cache: true    # Whether Bake should read from local cache
+write_local_cache: true   # Whether Bake should write to local cache
+read_remote_cache: false  # Whether Bake should read from remote cache
+write_remote_cache: false # Whether Bake should write to remote cache
+```
+
+A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes.
+
+All of these options can be overridden via command-line options (see below).
 
 ## Usage
 
@@ -218,4 +248,4 @@ Bake requires Docker Engine 17.03.0 or later.
 
 ## Acknowledgements
 
-The inspiration for Bake came from a similar tool used at Airbnb for continuous integration jobs.
+The inspiration for Bake came from a similar tool used at Airbnb for continuous integration (CI) jobs. Bake was not designed under the same constraints as Airbnb's CI tool, so it makes somewhat different tradeoffs.
