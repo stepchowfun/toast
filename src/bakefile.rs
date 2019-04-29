@@ -22,7 +22,7 @@ pub struct Task {
   pub cache: bool,
 
   #[serde(default)]
-  pub env: HashMap<String, Option<String>>,
+  pub environment: HashMap<String, Option<String>>,
 
   #[serde(default)]
   pub paths: Vec<String>,
@@ -91,7 +91,7 @@ pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
             RawTask::Short(command) => Task {
               dependencies: vec![],
               cache: true,
-              env: HashMap::new(),
+              environment: HashMap::new(),
               paths: vec![],
               location: DEFAULT_LOCATION.to_owned(),
               user: DEFAULT_USER.to_owned(),
@@ -113,7 +113,7 @@ pub fn environment<'a>(
 ) -> Result<HashMap<String, String>, Vec<&'a str>> {
   let mut violations = vec![];
   let mut result = HashMap::new();
-  for (arg, default) in &task.env {
+  for (arg, default) in &task.environment {
     let maybe_var = env::var(arg);
     if let Some(default) = default {
       result
@@ -297,7 +297,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -329,7 +329,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -362,7 +362,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -404,7 +404,7 @@ tasks:
     dependencies:
       - install_rust
     cache: true
-    env:
+    environment:
       AWS_ACCESS_KEY_ID: null
       AWS_DEFAULT_REGION: null
       AWS_SECRET_ACCESS_KEY: null
@@ -418,10 +418,10 @@ tasks:
     "#
     .trim();
 
-    let mut env = HashMap::new();
-    env.insert("AWS_ACCESS_KEY_ID".to_owned(), None);
-    env.insert("AWS_DEFAULT_REGION".to_owned(), None);
-    env.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
+    let mut environment = HashMap::new();
+    environment.insert("AWS_ACCESS_KEY_ID".to_owned(), None);
+    environment.insert("AWS_DEFAULT_REGION".to_owned(), None);
+    environment.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
 
     let mut tasks = HashMap::new();
     tasks.insert(
@@ -429,7 +429,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -441,7 +441,7 @@ tasks:
       Task {
         dependencies: vec!["install_rust".to_owned()],
         cache: true,
-        env,
+        environment,
         paths: vec![
           "Cargo.lock".to_owned(),
           "Cargo.toml".to_owned(),
@@ -467,7 +467,7 @@ tasks:
     let task = Task {
       dependencies: vec![],
       cache: true,
-      env: HashMap::new(),
+      environment: HashMap::new(),
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -488,7 +488,7 @@ tasks:
     let task = Task {
       dependencies: vec![],
       cache: true,
-      env: env_map,
+      environment: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -514,7 +514,7 @@ tasks:
     let task = Task {
       dependencies: vec![],
       cache: true,
-      env: env_map,
+      environment: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -540,7 +540,7 @@ tasks:
     let task = Task {
       dependencies: vec![],
       cache: true,
-      env: env_map,
+      environment: env_map,
       paths: vec![],
       location: DEFAULT_LOCATION.to_owned(),
       user: DEFAULT_USER.to_owned(),
@@ -573,7 +573,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -598,7 +598,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -610,7 +610,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -635,7 +635,7 @@ tasks:
       Task {
         dependencies: vec![],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -647,7 +647,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned(), "do_thing".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -674,7 +674,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -701,7 +701,7 @@ tasks:
       Task {
         dependencies: vec!["test".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -713,7 +713,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -740,7 +740,7 @@ tasks:
       Task {
         dependencies: vec!["publish".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -752,7 +752,7 @@ tasks:
       Task {
         dependencies: vec!["build".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
@@ -764,7 +764,7 @@ tasks:
       Task {
         dependencies: vec!["test".to_owned()],
         cache: true,
-        env: HashMap::new(),
+        environment: HashMap::new(),
         paths: vec![],
         location: DEFAULT_LOCATION.to_owned(),
         user: DEFAULT_USER.to_owned(),
