@@ -10,15 +10,17 @@ use std::{
 use tar::{Builder, Header};
 
 // Add a file to a tar archive.
-fn add_file<P: AsRef<Path>, Q: AsRef<Path>, W: Write>(
+fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   builder: &mut Builder<W>,
   metadata: &Metadata,
   path: P,
-  destination: Q,
+  source_dir: Q,
+  destination_dir: R,
   file_hashes: &mut Vec<String>,
 ) -> Result<(), String> {
-  // Determine where to put this file in the archive.
-  let mut destination = destination.as_ref().join(&path);
+  // Compute the source and destination paths.
+  let source = source_dir.as_ref().join(&path);
+  let mut destination = destination_dir.as_ref().join(&path);
 
   // Tar archives must contain only relative paths. But for our purposes, the
   // paths will be relative to the filesystem root. [tag:destination_absolute]
@@ -37,10 +39,10 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, W: Write>(
   header.set_size(metadata.len());
 
   // Open the file so we can compute the hash of its contents.
-  let mut file = File::open(&path).map_err(|e| {
+  let mut file = File::open(&source).map_err(|e| {
     format!(
       "Unable to open file `{}`. Details: {}",
-      path.as_ref().to_string_lossy(),
+      &source.to_string_lossy(),
       e
     )
   })?;
@@ -48,7 +50,7 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, W: Write>(
   // Compute the hash of the file contents and metadata.
   file_hashes.push(cache::extend(
     &cache::extend(
-      &cache::hash(&destination.to_string_lossy().to_string()),
+      &cache::hash(&path.as_ref().to_string_lossy().to_string()),
       &cache::hash_read(&mut file)?,
     ),
     if executable { "+x" } else { "-x" },
@@ -58,7 +60,7 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, W: Write>(
   file.seek(SeekFrom::Start(0)).map_err(|e| {
     format!(
       "Unable to seek file `{}`. Details: {}",
-      path.as_ref().to_string_lossy(),
+      &source.to_string_lossy(),
       e
     )
   })?;
@@ -68,11 +70,13 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, W: Write>(
   Ok(())
 }
 
-// Construct a tar archive and return a hash of its contents.
-pub fn create<W: Write>(
-  paths: &[String],
-  destination: &str,
+// Construct a tar archive and return a hash of its contents. The `source_dir`
+// and `destination_dir` are expected to be absolute paths [tag:src_dest_abs].
+pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
   writer: W,
+  paths: &[P],
+  source_dir: Q,
+  destination_dir: R,
 ) -> Result<(W, String), String> {
   // This vector will store all the hashes of the contents and metadata of all
   // the files in the archive. In the end, we will sort this vector and then
@@ -85,26 +89,35 @@ pub fn create<W: Write>(
 
   // Add each path to the archive.
   for path in paths {
+    // Compute the source path.
+    let source_path = source_dir.as_ref().join(path);
+
     // Fetch the filesystem metadata for this path.
-    let metadata = fs::metadata(path).map_err(|e| {
+    let metadata = fs::metadata(&source_path).map_err(|e| {
       format!(
         "Unable to fetch filesystem metadata for `{}`. Details: {}",
-        path, e
+        &source_path.to_string_lossy(),
+        e
       )
     })?;
 
     // Check if the path is a directory.
     if metadata.is_dir() {
       // The path is a directory, so we need to traverse it.
-      for entry in Walk::new(path) {
+      for entry in Walk::new(&source_path) {
         // Fetch the filesystem metadata for this entry.
         let entry = entry.map_err(|e| {
-          format!("Unable to traverse directory `{}`. Details: {}", path, e)
+          format!(
+            "Unable to traverse directory `{}`. Details: {}",
+            &source_path.to_string_lossy(),
+            e
+          )
         })?;
         let entry_metadata = entry.metadata().map_err(|e| {
           format!(
             "Unable to fetch filesystem metadata for `{}`. Details: {}",
-            path, e
+            &source_path.to_string_lossy(),
+            e
           )
         })?;
 
@@ -116,15 +129,41 @@ pub fn create<W: Write>(
           add_file(
             &mut builder,
             &entry_metadata,
-            entry.path(),
-            destination,
+            entry
+              .path()
+              .canonicalize()
+              .map_err(|e| {
+                format!(
+                  "Unable to canonicalize path `{}`. Details: {}",
+                  &entry.path().to_string_lossy(),
+                  e
+                )
+              })?
+              .strip_prefix(source_dir.as_ref())
+              .map_err(|e| {
+                format!(
+                  "Unable to relativize path `{}` with respect to `{}`. Details: {}",
+                  &entry.path().to_string_lossy(),
+                  &source_dir.as_ref().to_string_lossy(),
+                  e
+                )
+              })?,
+            &source_dir,
+            &destination_dir,
             &mut file_hashes,
           )?;
         }
       }
     } else {
       // The path is a file. Add it to the archive.
-      add_file(&mut builder, &metadata, path, destination, &mut file_hashes)?;
+      add_file(
+        &mut builder,
+        &metadata,
+        path,
+        &source_dir,
+        &destination_dir,
+        &mut file_hashes,
+      )?;
     }
   }
 

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
   collections::{HashMap, HashSet},
   env,
+  path::{Path, PathBuf},
 };
 
 // The default location for commands and paths.
@@ -25,10 +26,10 @@ pub struct Task {
   pub environment: HashMap<String, Option<String>>,
 
   #[serde(default)]
-  pub paths: Vec<String>,
+  pub paths: Vec<PathBuf>,
 
   #[serde(default = "default_task_location")]
-  pub location: String,
+  pub location: PathBuf,
 
   #[serde(default = "default_task_user")]
   pub user: String,
@@ -48,8 +49,8 @@ fn default_task_cache() -> bool {
   true
 }
 
-fn default_task_location() -> String {
-  DEFAULT_LOCATION.to_owned()
+fn default_task_location() -> PathBuf {
+  Path::new(DEFAULT_LOCATION).to_owned()
 }
 
 fn default_task_user() -> String {
@@ -76,8 +77,11 @@ pub struct Bakefile {
 
 // Parse config data.
 pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
+  // Deserialize the data.
   let raw_bakefile: RawBakefile =
     serde_yaml::from_str(bakefile_data).map_err(|e| format!("{}", e))?;
+
+  // Convert the raw bakefile into a bakefile suitable for further use.
   let bakefile = Bakefile {
     image: raw_bakefile.image,
     default: raw_bakefile.default,
@@ -93,7 +97,7 @@ pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
               cache: true,
               environment: HashMap::new(),
               paths: vec![],
-              location: DEFAULT_LOCATION.to_owned(),
+              location: Path::new(DEFAULT_LOCATION).to_owned(),
               user: DEFAULT_USER.to_owned(),
               command: Some(command.to_owned()),
             },
@@ -103,7 +107,11 @@ pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
       })
       .collect(),
   };
+
+  // Make sure the dependencies are valid.
   check_dependencies(&bakefile)?;
+
+  // Return the bakefile.
   Ok(bakefile)
 }
 
@@ -113,6 +121,7 @@ pub fn environment<'a>(
 ) -> Result<HashMap<String, String>, Vec<&'a str>> {
   let mut violations = vec![];
   let mut result = HashMap::new();
+
   for (arg, default) in &task.environment {
     let maybe_var = env::var(arg);
     if let Some(default) = default {
@@ -263,7 +272,7 @@ mod tests {
     check_dependencies, environment, parse, Bakefile, Task, DEFAULT_LOCATION,
     DEFAULT_USER,
   };
-  use std::{collections::HashMap, env};
+  use std::{collections::HashMap, env, path::Path};
 
   #[test]
   fn parse_empty() {
@@ -299,7 +308,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: Some("cargo build".to_owned()),
       },
@@ -331,7 +340,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -364,7 +373,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -431,7 +440,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -443,11 +452,11 @@ tasks:
         cache: true,
         environment,
         paths: vec![
-          "Cargo.lock".to_owned(),
-          "Cargo.toml".to_owned(),
-          "src/*".to_owned(),
+          Path::new("Cargo.lock").to_owned(),
+          Path::new("Cargo.toml").to_owned(),
+          Path::new("src/*").to_owned(),
         ],
-        location: "/code".to_owned(),
+        location: Path::new("/code").to_owned(),
         user: "foo".to_owned(),
         command: Some("cargo build".to_owned()),
       },
@@ -469,7 +478,7 @@ tasks:
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
@@ -490,7 +499,7 @@ tasks:
       cache: true,
       environment: env_map,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
@@ -516,7 +525,7 @@ tasks:
       cache: true,
       environment: env_map,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
@@ -542,7 +551,7 @@ tasks:
       cache: true,
       environment: env_map,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
@@ -575,7 +584,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -600,7 +609,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -612,7 +621,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -637,7 +646,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -649,7 +658,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -676,7 +685,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -703,7 +712,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -715,7 +724,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -742,7 +751,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -754,7 +763,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },
@@ -766,7 +775,7 @@ tasks:
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
-        location: DEFAULT_LOCATION.to_owned(),
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
       },

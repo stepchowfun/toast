@@ -16,7 +16,7 @@ pub fn key(
       cache_key = extend(&cache_key, &environment[var]); // [ref:environment_valid]
     }
     cache_key = extend(&cache_key, &files_hash);
-    cache_key = extend(&cache_key, &task.location);
+    cache_key = extend(&cache_key, &task.location.to_string_lossy());
     cache_key = extend(&cache_key, &task.user);
     if let Some(c) = &task.command {
       cache_key = extend(&cache_key, &c);
@@ -50,7 +50,7 @@ mod tests {
     bakefile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
     cache::{extend, hash, key},
   };
-  use std::collections::HashMap;
+  use std::{collections::HashMap, path::Path};
 
   #[test]
   fn key_simple() {
@@ -74,7 +74,7 @@ mod tests {
       cache: true,
       environment,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -103,7 +103,7 @@ mod tests {
       cache: true,
       environment: environment1,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -113,7 +113,7 @@ mod tests {
       cache: true,
       environment: environment2,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -141,7 +141,7 @@ mod tests {
       cache: true,
       environment,
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -166,7 +166,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -189,7 +189,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: "/foo".to_owned(),
+      location: Path::new("/foo").to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -199,7 +199,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: "/bar".to_owned(),
+      location: Path::new("/bar").to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -222,7 +222,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: "foo".to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -232,7 +232,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: "bar".to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -255,7 +255,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -265,7 +265,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wobble".to_owned()),
     };
@@ -288,7 +288,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
@@ -298,7 +298,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };

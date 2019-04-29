@@ -79,7 +79,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
 mod tests {
   use crate::bakefile::{Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER};
   use crate::schedule::compute;
-  use std::collections::HashMap;
+  use std::{collections::HashMap, path::Path};
 
   fn task_with_dependencies(dependencies: Vec<String>) -> Task {
     Task {
@@ -87,7 +87,7 @@ mod tests {
       cache: true,
       environment: HashMap::new(),
       paths: vec![],
-      location: DEFAULT_LOCATION.to_owned(),
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     }
