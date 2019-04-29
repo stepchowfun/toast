@@ -28,7 +28,6 @@ tasks:
   build:
     dependencies:
       - rust
-    cache: false
     paths:
       - .
     user: user
@@ -37,7 +36,6 @@ tasks:
   test:
     dependencies:
       - build
-    cache: false
     user: user
     command: cargo test
 
@@ -45,7 +43,6 @@ tasks:
     dependencies:
       - build
       - tagref
-    cache: false
     paths:
       - rustfmt.toml
     user: user

@@ -23,8 +23,10 @@ const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
 // Command-line argument and option names
 const BAKEFILE_ARG: &str = "file";
 const CONFIG_FILE_ARG: &str = "config-file";
-const LOCAL_CACHE_ARG: &str = "local-cache";
-const REMOTE_CACHE_ARG: &str = "remote-cache";
+const READ_LOCAL_CACHE_ARG: &str = "read-local-cache";
+const WRITE_LOCAL_CACHE_ARG: &str = "write-local-cache";
+const READ_REMOTE_CACHE_ARG: &str = "read-remote-cache";
+const WRITE_REMOTE_CACHE_ARG: &str = "write-remote-cache";
 const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
@@ -109,8 +111,10 @@ fn parse_bool(s: &str) -> Result<bool, String> {
 struct Settings {
   bakefile_path: String,
   docker_repo: String,
-  local_cache: bool,
-  remote_cache: bool,
+  read_local_cache: bool,
+  write_local_cache: bool,
+  read_remote_cache: bool,
+  write_remote_cache: bool,
   spawn_shell: bool,
   tasks: Option<Vec<String>>,
 }
@@ -145,24 +149,36 @@ fn settings() -> Result<Settings, String> {
         .takes_value(true),
     )
     .arg(
-      Arg::with_name(LOCAL_CACHE_ARG)
-        .short("l")
-        .long(LOCAL_CACHE_ARG)
+      Arg::with_name(READ_LOCAL_CACHE_ARG)
+        .long(READ_LOCAL_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether local caching is enabled (default: true)")
+        .help("Sets whether local cache reading is enabled (default: true)")
         .takes_value(true),
     )
     .arg(
-      Arg::with_name(REMOTE_CACHE_ARG)
-        .short("r")
-        .long(REMOTE_CACHE_ARG)
+      Arg::with_name(WRITE_LOCAL_CACHE_ARG)
+        .long(WRITE_LOCAL_CACHE_ARG)
         .value_name("BOOL")
-        .help("Sets whether remote caching is enabled (default: false)")
+        .help("Sets whether local cache writing is enabled (default: true)")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name(READ_REMOTE_CACHE_ARG)
+        .long(READ_REMOTE_CACHE_ARG)
+        .value_name("BOOL")
+        .help("Sets whether remote cache reading is enabled (default: false)")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name(WRITE_REMOTE_CACHE_ARG)
+        .long(WRITE_REMOTE_CACHE_ARG)
+        .value_name("BOOL")
+        .help("Sets whether remote cache writing is enabled (default: false)")
         .takes_value(true),
     )
     .arg(
       Arg::with_name(REPO_ARG)
-        .short("d")
+        .short("r")
         .long(REPO_ARG)
         .value_name("REPO")
         .help(&format!(
@@ -226,15 +242,21 @@ fn settings() -> Result<Settings, String> {
     )
   })?;
 
-  // Parse the local caching switch.
-  let local_cache = matches
-    .value_of(LOCAL_CACHE_ARG)
-    .map_or(Ok(config.local_cache), |s| parse_bool(s))?;
+  // Parse the local caching switches.
+  let read_local_cache = matches
+    .value_of(READ_LOCAL_CACHE_ARG)
+    .map_or(Ok(config.read_local_cache), |s| parse_bool(s))?;
+  let write_local_cache = matches
+    .value_of(WRITE_LOCAL_CACHE_ARG)
+    .map_or(Ok(config.write_local_cache), |s| parse_bool(s))?;
 
-  // Parse the remote caching switch.
-  let remote_cache = matches
-    .value_of(REMOTE_CACHE_ARG)
-    .map_or(Ok(config.remote_cache), |s| parse_bool(s))?;
+  // Parse the remote caching switches.
+  let read_remote_cache = matches
+    .value_of(READ_REMOTE_CACHE_ARG)
+    .map_or(Ok(config.read_remote_cache), |s| parse_bool(s))?;
+  let write_remote_cache = matches
+    .value_of(WRITE_REMOTE_CACHE_ARG)
+    .map_or(Ok(config.write_remote_cache), |s| parse_bool(s))?;
 
   // Parse the Docker repo.
   let docker_repo = matches
@@ -254,8 +276,10 @@ fn settings() -> Result<Settings, String> {
 
   Ok(Settings {
     bakefile_path,
-    local_cache,
-    remote_cache,
+    read_local_cache,
+    write_local_cache,
+    read_remote_cache,
+    write_remote_cache,
     docker_repo,
     spawn_shell,
     tasks,
@@ -384,9 +408,9 @@ fn run_tasks<'a>(
     // At the end of this iteration, delete the image from the previous step if
     // it isn't cacheable.
     let image_to_delete = if (schedule_prefix.is_empty()
-      && (settings.local_cache || base_image_already_existed))
+      && (settings.write_local_cache || base_image_already_existed))
       || (!schedule_prefix.is_empty()
-        && settings.local_cache
+        && settings.write_local_cache
         && from_image_cacheable.get())
     {
       None
@@ -432,13 +456,14 @@ fn run_tasks<'a>(
     // Skip the task if it's cached.
     if this_task_cacheable {
       // Check the local cache.
-      if settings.local_cache && runner::image_exists(&to_image.borrow()) {
+      if settings.read_local_cache && runner::image_exists(&to_image.borrow())
+      {
         info!("Task `{}` found in local cache.", task);
         continue;
       }
 
       // Check the remote cache if applicable.
-      if settings.remote_cache {
+      if settings.read_remote_cache {
         info!("Attempting to fetch task `{}` from remote cache...", task);
         if runner::pull_image(&to_image.borrow()).is_ok() {
           // Skip to the next task.
@@ -471,7 +496,7 @@ fn run_tasks<'a>(
     }
 
     // Push the image to a remote cache if applicable.
-    if settings.remote_cache && this_task_cacheable {
+    if settings.write_remote_cache && this_task_cacheable {
       info!("Writing to remote cache...");
       match runner::push_image(&to_image.borrow()) {
         Ok(()) => info!("Task `{}` maybe pushed to remote cache.", task),
@@ -482,7 +507,7 @@ fn run_tasks<'a>(
 
   // Delete the final image if it isn't cacheable.
   defer! {{
-    if !settings.local_cache || !from_image_cacheable.get() {
+    if !settings.write_local_cache || !from_image_cacheable.get() {
       if let Err(e) = runner::delete_image(&from_image.borrow()) {
         error!("{}", e);
       }
