@@ -28,13 +28,13 @@ OPTIONS:
     -h, --help
             Prints help information
 
-    -l, --local-cache <BOOL>
-            Sets whether local caching is enabled (default: true)
+        --read-local-cache <BOOL>
+            Sets whether local cache reading is enabled (default: true)
 
-    -r, --remote-cache <BOOL>
-            Sets whether remote caching is enabled (default: false)
+        --read-remote-cache <BOOL>
+            Sets whether remote cache reading is enabled (default: false)
 
-    -d, --repo <REPO>
+    -r, --repo <REPO>
             Sets the Docker repository (default: bake)
 
     -s, --shell
@@ -42,6 +42,12 @@ OPTIONS:
 
     -v, --version
             Prints version information
+
+        --write-local-cache <BOOL>
+            Sets whether local cache writing is enabled (default: true)
+
+        --write-remote-cache <BOOL>
+            Sets whether remote cache writing is enabled (default: false)
 
 
 ARGS:
