@@ -2,15 +2,17 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/bake.svg?branch=master)](https://travis-ci.org/stepchowfun/bake)
 
-*Bake* is a containerized build system. You define tasks and their dependencies in a *bakefile*, and Bake runs them in Docker containers based on an image of your choosing. Bake supports remote caching to avoid doing redundant work.
+*Bake* is a containerized build system. You define tasks and their dependencies in a *bakefile*, and Bake runs them in a Dockerized environment based on an image of your choosing. Bake supports local and remote caching to avoid repeating work.
 
 Running tasks in containers helps with reproducibility. If a Bake task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
 Here are some reasons to use Bake on top of vanilla Docker:
 
-- Bake supports *remote caching* of intermediate tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a Bake task which installs those things, and let Bake take care of distributing the resulting image and rebuilding it when necessary.
-- Bake supports *non-cacheable* tasks, such as publishing a library or deploying an application. You can invoke these tasks with secrets such as API keys without worrying about them being persisted.
-- Bake allows you to define an arbitrary directed acyclic graph (DAG) of tasks and dependencies. Dockerfiles only support sequential tasks.
+- Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**.
+- Bake supports **remote caching** of intermediate tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a Bake task which installs those things, and let Bake take care of distributing the resulting image and rebuilding it when necessary.
+- Bake supports **non-cacheable tasks**, such as publishing a library or deploying an application. You can invoke these tasks with secrets like API keys without worrying about them being persisted or shared.
+
+Bake has no knowledge of specific programming languages or frameworks. You might use Bake with another build system like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
 ## Tutorial
 
@@ -78,7 +80,7 @@ Now that's better!
 
 ### Using files from the host
 
-Here's a more realistic example. Suppose you want to compile and run a C program. Create a simple C file called `main.c`:
+Here's a more realistic example. Suppose you want to compile and run a simple C program. Create a file called `main.c`:
 
 ```c
 #include <stdio.h>
@@ -102,30 +104,40 @@ tasks:
     paths:
       - main.c
     command: gcc main.c
-  greet:
+  run:
     dependencies:
       - build
     command: ./a.out
 ```
 
-Notice the `paths` array in the `build` task. Here we are copying a single file into the container, but we could copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
+Notice the `paths` array in the `build` task. Here we are copying a single file into the container, but we could instead copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
 
 If you run `bake`, you will see this:
 
 ```sh
 $ bake
-[INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `greet`.
+[INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `run`.
 [INFO] Running task `gcc`...
 [INFO] apt-get update
        apt-get install -y gcc
        <...>
 [INFO] Running task `build`...
 [INFO] gcc main.c
-[INFO] Running task `greet`...
+[INFO] Running task `run`...
 [INFO] ./a.out
 Hello, World!
 [INFO] Successfully executed 3 tasks.
 ```
+
+## How Bake works
+
+Given a set of tasks to run, Bake computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker does not support combining two images into one, Bake does not run tasks in parallel and must instead determine a sequential execution schedule. You are free to use parallelism within tasks, of course.
+
+The topological sort of an arbitrary DAG is not necessarily unique. Bake uses [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. This algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `bake foo bar` and `bake bar foo` are guaranteed to produce identical schedules.
+
+Bake builds a Docker image for each task and uses it for the next task in the schedule. Each image is tagged with a cache key that incorporates the shell command, the contents of the files copied into the container, and other inputs. If local caching is enabled, these Docker images remain on disk for subsequent executions. If remote caching is enabled, the images will be synchronized with a remote Docker registry.
+
+If a task is marked as non-cacheable, the Docker images for that task and any subsequent tasks in the schedule will not be persisted or uploaded.
 
 ## Bakefiles
 
@@ -136,8 +148,6 @@ image: <Docker image name>
 default: <name of default task to run (default behavior: run all tasks)>
 tasks: <map from task name to task>
 ```
-
-The following formats are supported for `image`: `name`, `name:tag`, or `name@digest`. You can also refer to an image in a custom registry, for example `myregistry.com:5000/testing/test-image`.
 
 Tasks have the following schema and defaults:
 
@@ -151,7 +161,7 @@ user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container
 ```
 
-For convenience, a task can also be represented by a string rather than an object. The resulting task uses that string as its `command`, with the other fields set to their defaults. So the following two bakefiles are equivalent:
+For convenience, a task can be a string rather than an object. The resulting task uses that string as its `command`, with the other fields set to their defaults. So the following two bakefiles are equivalent:
 
 ```yaml
 image: alpine
@@ -166,7 +176,7 @@ tasks:
     command: echo 'Hello, World!'
 ```
 
-The [bakefile](https://github.com/stepchowfun/bake/blob/master/bake.yml) for Bake itself is a comprehensive example.
+The [bakefile](https://github.com/stepchowfun/bake/blob/master/bake.yml) for Bake itself is a comprehensive real-world example.
 
 ## Cache configuration
 
@@ -189,9 +199,9 @@ write_remote_cache: false # Whether Bake should write to remote cache
 
 A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes.
 
-All of these options can be overridden via command-line options (see below).
+Each of these options can be overridden via command-line options (see below).
 
-## Usage
+## Command-line options
 
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
@@ -242,9 +252,10 @@ ARGS:
             Sets the tasks to run
 ```
 
-## Dependencies
+## Requirements
 
-Bake requires Docker Engine 17.03.0 or later.
+- Bake requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.03.0 or later.
+- Only Linux-based Docker images are supported. Bake can run on any platform capable of running such images, e.g., macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ## Acknowledgements
 
