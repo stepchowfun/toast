@@ -21,7 +21,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   for root in roots {
     // The frontier is a stack, which means we are doing a depth-first
     // traversal.
-    let mut frontier: Vec<&'a str> = vec![root];
+    let mut frontier: Vec<(&'a str, bool)> = vec![(root, true)];
 
     // This vector will accumulate the topsorted tasks.
     let mut topological_sort: Vec<&'a str> = vec![];
@@ -29,36 +29,43 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
     // Keep processing nodes on the frontier until there aren't any more left.
     // [tag:schedule_frontier_nonempty]
     while !frontier.is_empty() {
-      // Pop a task from the frontier.
-      let task = frontier.pop().unwrap(); // [ref:schedule_frontier_nonempty]
+      // Pop a task from the frontier. [ref:schedule_frontier_nonempty]
+      let (task, new) = frontier.pop().unwrap();
 
-      // If we have already scheduled this root task, skip to the next one.
-      if visited.contains(task) {
-        continue;
-      }
+      // Check if this is a new task or one that we are coming back to because
+      // we finished processing its dependencies.
+      if new {
+        // If we have already scheduled this root task, skip to the next one.
+        if visited.contains(task) {
+          continue;
+        }
 
-      // Mark this task as seen so we don't process it again.
-      visited.insert(task);
+        // Mark this task as seen so we don't process it again.
+        visited.insert(task);
 
-      // Schedule the task.
-      topological_sort.push(task);
+        // Come back to this task once all its dependencies have been processed.
+        frontier.push((task, false));
 
-      // Add the task's dependencies to the frontier. We sort the dependencies
-      // first to ensure their original order doesn't matter.
-      // The indexing is safe due to [ref:tasks_valid].
-      let mut dependencies: Vec<&'a str> = vec![];
-      for dependency in &bakefile.tasks[task].dependencies {
-        dependencies.push(dependency);
-      }
-      dependencies.sort();
-      for dependency in dependencies {
-        frontier.push(dependency);
+        // Add the task's dependencies to the frontier. We sort the
+        // dependencies first to ensure their original order doesn't matter.
+        // The indexing is safe due to [ref:tasks_valid].
+        let mut dependencies: Vec<&'a str> = bakefile.tasks[task]
+          .dependencies
+          .iter()
+          .map(|dependency| &dependency[..])
+          .collect();
+        dependencies.sort();
+        dependencies.reverse();
+        frontier.extend(
+          dependencies
+            .into_iter()
+            .map(|dependency| (dependency, true)),
+        );
+      } else {
+        // Now that the task's dependencies have been processed, schedule it.
+        topological_sort.push(task);
       }
     }
-
-    // The DFS algorithm pushes tasks before their dependencies. Here we
-    // reverse the order so dependencies are scheduled first.
-    topological_sort.reverse();
 
     // Add the topsorted tasks to the schedule.
     schedule.extend(topological_sort);
