@@ -1,5 +1,4 @@
 image: ubuntu:18.04
-default: build
 tasks:
   packages: |
     apt-get --yes update
