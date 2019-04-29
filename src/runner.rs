@@ -25,8 +25,10 @@ pub fn run<R: Read>(
 
   // Ensure the task's location exists within the container and that the user
   // can access it.
-  commands_to_run.push(format!("mkdir -p '{}'", task.location));
-  commands_to_run.push(format!("chmod 777 '{}'", task.location));
+  commands_to_run
+    .push(format!("mkdir -p '{}'", task.location.to_string_lossy()));
+  commands_to_run
+    .push(format!("chmod 777 '{}'", task.location.to_string_lossy()));
 
   // Construct a small script to execute the task's command in the task's
   // location as the task's user with the task's environment variables.
@@ -47,7 +49,7 @@ pub fn run<R: Read>(
           })
           .collect::<Vec<_>>()
           .join(" "),
-        shell_escape(&task.location),
+        shell_escape(&task.location.to_string_lossy()),
         command,
       )),
       shell_escape(&task.user)
