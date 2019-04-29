@@ -1,14 +1,7 @@
-language: rust
-rust:
-  - stable
+language: generic
+services: docker
 install:
-  - rustup component add clippy
-  - rustup component add rustfmt
-  - curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
+  - echo "$DOCKER_HUB_PASSWORD" | docker login --username stephanmisc --password-stdin
+  - curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
 script:
-  - cargo clean
-  - cargo fmt --all -- --check
-  - cargo clippy -- --deny clippy::pedantic
-  - cargo test
-  - cargo run -- --version
-  - tagref
+  - bake --repo stephanmisc/bake --read-remote-cache true --write-remote-cache true
