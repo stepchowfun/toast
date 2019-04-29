@@ -2,6 +2,12 @@
 name = "bake"
 version = "0.1.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
+description = "A containerized build system."
+license = "MIT"
+documentation = "https://github.com/stepchowfun/bake"
+homepage = "https://github.com/stepchowfun/bake"
+repository = "https://github.com/stepchowfun/bake"
+readme = "README.md"
 edition = "2018"
 
 [dependencies]
