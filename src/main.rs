@@ -543,7 +543,7 @@ fn run_tasks<'a>(
     if settings.write_remote_cache && this_task_cacheable {
       info!("Writing to remote cache...");
       match runner::push_image(&to_image.borrow()) {
-        Ok(()) => info!("Task `{}` maybe pushed to remote cache.", task),
+        Ok(()) => info!("Task `{}` pushed to remote cache.", task),
         Err(e) => warn!("{}", e),
       };
     }
