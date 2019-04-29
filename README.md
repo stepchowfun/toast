@@ -112,7 +112,7 @@ tasks:
 
 Notice the `paths` array in the `build` task. Here we are copying a single file into the container, but we could instead copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
 
-If you run `bake`, you will see this:
+Now if you run `bake`, you'll see this:
 
 ```sh
 $ bake
@@ -131,7 +131,7 @@ Hello, World!
 
 ## How Bake works
 
-Given a set of tasks to run, Bake computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker does not support combining two images into one, Bake does not run tasks in parallel and must instead determine a sequential execution schedule. You are free to use parallelism within tasks, of course.
+Given a set of tasks to run, Bake computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker does not support combining two images into one, Bake does not run tasks in parallel and must instead determine a sequential execution schedule. You are free to use parallelism within individual tasks, of course.
 
 The topological sort of an arbitrary DAG is not necessarily unique. Bake uses [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. This algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `bake foo bar` and `bake bar foo` are guaranteed to produce identical schedules.
 
@@ -247,6 +247,31 @@ OPTIONS:
             Sets whether remote cache writing is enabled
 ```
 
+## Installation
+
+### Default installation
+
+If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Bake with this command:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
+```
+
+The same command can be used to update Bake to the latest version.
+
+### Custom installation
+
+The installation script supports the following environment variables:
+
+- `VERSION=x.y.z` (defaults to the latest version)
+- `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
+
+For example, the following will install Bake into the current directory:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | PREFIX=. sh
+```
+
 ## Requirements
 
 - Bake requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.03.0 or later.
@@ -254,4 +279,4 @@ OPTIONS:
 
 ## Acknowledgements
 
-The inspiration for Bake came from a similar tool used at Airbnb for continuous integration (CI) jobs. Bake was not designed under the same constraints as Airbnb's CI tool, so it makes somewhat different tradeoffs.
+The inspiration for Bake came from a similar tool used at Airbnb for CI jobs.
