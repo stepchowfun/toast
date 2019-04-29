@@ -4,25 +4,22 @@ use std::{collections::HashMap, io, io::Read};
 
 // Determine the cache ID of a prefix of a schedule.
 pub fn key(
-  from_image: &str,
-  schedule_prefix: &[(&Task, String)],
+  previous_key: &str,
+  task: &Task,
+  files_hash: &str,
   environment: &HashMap<String, String>,
 ) -> String {
-  let mut cache_key = hash(from_image);
-
-  for (task, files_hash) in schedule_prefix {
-    for var in task.environment.keys() {
-      cache_key = extend(&cache_key, var);
-      cache_key = extend(&cache_key, &environment[var]); // [ref:environment_valid]
-    }
-    cache_key = extend(&cache_key, &files_hash);
-    cache_key = extend(&cache_key, &task.location.to_string_lossy());
-    cache_key = extend(&cache_key, &task.user);
-    if let Some(c) = &task.command {
-      cache_key = extend(&cache_key, &c);
-    }
+  let mut cache_key = previous_key.to_owned();
+  for var in task.environment.keys() {
+    cache_key = extend(&cache_key, var);
+    cache_key = extend(&cache_key, &environment[var]); // [ref:environment_valid]
   }
-
+  cache_key = extend(&cache_key, &files_hash);
+  cache_key = extend(&cache_key, &task.location.to_string_lossy());
+  cache_key = extend(&cache_key, &task.user);
+  if let Some(c) = &task.command {
+    cache_key = extend(&cache_key, &c);
+  }
   cache_key[..48].to_owned()
 }
 
@@ -53,21 +50,11 @@ mod tests {
   use std::{collections::HashMap, path::Path};
 
   #[test]
-  fn key_simple() {
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix = vec![];
-    let full_environment = HashMap::new();
-
-    assert_eq!(
-      key(from_image, &schedule_prefix, &full_environment),
-      key(from_image, &schedule_prefix, &full_environment)
-    );
-  }
-
-  #[test]
   fn key_pure() {
     let mut environment: HashMap<String, Option<String>> = HashMap::new();
     environment.insert("foo".to_owned(), None);
+
+    let previous_key = "foo";
 
     let task = Task {
       dependencies: vec![],
@@ -79,14 +66,14 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix = vec![(&task, "foo".to_owned())];
+    let files_hash = "bar";
+
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
 
     assert_eq!(
-      key(from_image, &schedule_prefix, &full_environment),
-      key(from_image, &schedule_prefix, &full_environment)
+      key(previous_key, &task, files_hash, &full_environment),
+      key(previous_key, &task, files_hash, &full_environment)
     );
   }
 
@@ -97,6 +84,8 @@ mod tests {
 
     let mut environment2: HashMap<String, Option<String>> = HashMap::new();
     environment2.insert("bar".to_owned(), None);
+
+    let previous_key = "foo";
 
     let task1 = Task {
       dependencies: vec![],
@@ -118,16 +107,15 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
+    let files_hash = "bar";
+
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
     full_environment.insert("bar".to_owned(), "fum".to_owned());
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
     );
   }
 
@@ -135,6 +123,8 @@ mod tests {
   fn key_environment_values() {
     let mut environment: HashMap<String, Option<String>> = HashMap::new();
     environment.insert("foo".to_owned(), None);
+
+    let previous_key = "foo";
 
     let task = Task {
       dependencies: vec![],
@@ -146,21 +136,23 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix = vec![(&task, "foo".to_owned())];
+    let files_hash = "bar";
+
     let mut full_environment1 = HashMap::new();
     full_environment1.insert("foo".to_owned(), "bar".to_owned());
     let mut full_environment2 = HashMap::new();
     full_environment2.insert("foo".to_owned(), "baz".to_owned());
 
     assert_ne!(
-      key(from_image, &schedule_prefix, &full_environment1),
-      key(from_image, &schedule_prefix, &full_environment2)
+      key(previous_key, &task, files_hash, &full_environment1),
+      key(previous_key, &task, files_hash, &full_environment2)
     );
   }
 
   #[test]
   fn key_files_hash() {
+    let previous_key = "foo";
+
     let task = Task {
       dependencies: vec![],
       cache: true,
@@ -171,19 +163,21 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task, "bar".to_owned())];
+    let files_hash1 = "foo";
+    let files_hash2 = "bar";
+
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
+      key(previous_key, &task, files_hash1, &full_environment),
+      key(previous_key, &task, files_hash2, &full_environment)
     );
   }
 
   #[test]
   fn key_location() {
+    let previous_key = "foo";
+
     let task1 = Task {
       dependencies: vec![],
       cache: true,
@@ -204,19 +198,20 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
+    let files_hash = "bar";
+
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
     );
   }
 
   #[test]
   fn key_user() {
+    let previous_key = "foo";
+
     let task1 = Task {
       dependencies: vec![],
       cache: true,
@@ -237,19 +232,20 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
+    let files_hash = "bar";
+
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
     );
   }
 
   #[test]
   fn key_command_different() {
+    let previous_key = "foo";
+
     let task1 = Task {
       dependencies: vec![],
       cache: true,
@@ -270,19 +266,20 @@ mod tests {
       command: Some("echo wobble".to_owned()),
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
+    let files_hash = "bar";
+
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
     );
   }
 
   #[test]
   fn key_command_some_none() {
+    let previous_key = "foo";
+
     let task1 = Task {
       dependencies: vec![],
       cache: true,
@@ -303,15 +300,14 @@ mod tests {
       command: None,
     };
 
-    let from_image = "ubuntu:18.04";
-    let schedule_prefix1 = vec![(&task1, "foo".to_owned())];
-    let schedule_prefix2 = vec![(&task2, "foo".to_owned())];
+    let files_hash = "bar";
+
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(from_image, &schedule_prefix1, &full_environment),
-      key(from_image, &schedule_prefix2, &full_environment)
-    );
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
+    )
   }
 
   #[test]

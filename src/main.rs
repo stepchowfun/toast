@@ -438,7 +438,8 @@ fn run_tasks<'a>(
   }
 
   // Run each task in sequence.
-  let mut schedule_prefix = vec![];
+  let mut cache_key = cache::hash(&bakefile.image);
+  let mut first_task = true;
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
@@ -446,11 +447,9 @@ fn run_tasks<'a>(
 
     // At the end of this iteration, delete the image from the previous step if
     // it isn't cacheable.
-    let image_to_delete = if (schedule_prefix.is_empty()
-      && (settings.write_local_cache || base_image_already_existed))
-      || (!schedule_prefix.is_empty()
-        && settings.write_local_cache
-        && from_image_cacheable.get())
+    let image_to_delete = if (settings.write_local_cache
+      && from_image_cacheable.get())
+      || (first_task && base_image_already_existed)
     {
       None
     } else {
@@ -463,6 +462,7 @@ fn run_tasks<'a>(
         }
       }
     }}
+    first_task = false;
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
@@ -486,8 +486,7 @@ fn run_tasks<'a>(
       .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
 
     // Compute the cache key.
-    schedule_prefix.push((task_data, files_hash));
-    let cache_key = cache::key(&bakefile.image, &schedule_prefix, &env);
+    cache_key = cache::key(&cache_key, &task_data, &files_hash, &env);
     let to_image =
       RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
 
