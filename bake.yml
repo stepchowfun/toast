@@ -29,7 +29,9 @@ tasks:
     dependencies:
       - rust
     paths:
-      - .
+      - Cargo.lock
+      - Cargo.toml
+      - src
     user: user
     command: cargo build
 
