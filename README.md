@@ -25,7 +25,7 @@ tasks:
   greet: echo 'Hello, World!'
 ```
 
-Now run `bake`. You should see something like the following:
+Now run `bake`. You should see the following:
 
 ```
 $ bake
@@ -308,7 +308,7 @@ By default, Bake looks for a bakefile called `bake.yml` in the working directory
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
 ```
-bake task1 task2 task3...
+$ bake task1 task2 task3...
 ```
 
 Here are all the supported command-line options:
