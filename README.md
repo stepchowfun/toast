@@ -6,11 +6,10 @@
 
 Running tasks in containers helps with reproducibility. If a Bake task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
-Here are some reasons to use Bake on top of vanilla Docker:
+Here are two reasons to use Bake on top of vanilla Docker:
 
-- Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**.
-- Bake supports **remote caching** of intermediate tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a Bake task which installs those things, and let Bake take care of distributing the resulting image and rebuilding it when necessary.
-- Bake supports **non-cacheable tasks**, such as publishing a library or deploying an application. You can invoke these tasks with secrets like API keys without worrying about them being persisted or shared.
+- Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**. You can define tasks for installing dependencies, building the application, running tests, linting, deploying, etc.
+- Bake supports **remote caching** of tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a Bake task which installs those things, and let Bake take care of distributing the resulting image and rebuilding it when necessary. You can also have non-cacheable tasks for actions which are not [idempotent](https://en.wikipedia.org/wiki/Idempotence).
 
 Bake has no knowledge of specific programming languages or frameworks. You might use Bake with another build system like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
@@ -36,7 +35,7 @@ $ bake
 [INFO] Running task `greet`...
 [INFO] echo 'Hello, World!'
 Hello, World!
-[INFO] Successfully executed 1 task.
+[INFO] 1 task finished.
 ```
 
 ### Adding a dependency
@@ -73,7 +72,7 @@ Run `bake` again and you will see:
             (__)\       )\/\
                 ||----w |
                 ||     ||
-[INFO] Successfully executed 2 tasks.
+[INFO] 2 tasks finished.
 ```
 
 Now that's better!
@@ -126,7 +125,63 @@ $ bake
 [INFO] Running task `run`...
 [INFO] ./a.out
 Hello, World!
-[INFO] Successfully executed 3 tasks.
+[INFO] 3 tasks finished.
+```
+
+### Passing arguments to a task
+
+Sometimes it's useful for tasks to take arguments. For example, a `deploy` task might want to know whether you want to deploy to the `staging` or `production` cluster. To do this, add an `environment` section to your task:
+
+```yaml
+image: ubuntu
+tasks:
+  deploy:
+    cache: false # Never cache this task or any task that depends on it
+    environment:
+      CLUSTER: staging # Deploy to staging by default
+    command: echo "Deploying to $CLUSTER..."
+```
+
+When you run this task, Bake will read the value from the environment:
+
+```sh
+$ CLUSTER=production bake deploy
+[INFO] The following tasks will be executed in the order given: `deploy`.
+[INFO] Running task `deploy`...
+[INFO] echo "Deploying to $CLUSTER..."
+Deploying to production...
+[INFO] 1 task finished.
+```
+
+If the variable does not exist in the environment, Bake will use the default value:
+
+```sh
+$ bake deploy
+[INFO] The following tasks will be executed in the order given: `deploy`.
+[INFO] Running task `deploy`...
+[INFO] echo "Deploying to $CLUSTER..."
+Deploying to staging...
+[INFO] 1 task finished.
+```
+
+If you don't want to have a default, set it to `null`:
+
+```yaml
+image: ubuntu
+tasks:
+  deploy:
+    cache: false # Never cache this task or any task that depends on it
+    environment:
+      CLUSTER: null # Required
+    command: echo "Deploying to $CLUSTER..."
+```
+
+Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain:
+
+```sh
+$ bake deploy
+[INFO] The following tasks will be executed in the order given: `deploy`.
+[ERROR] The following tasks use variables which are missing from the environment: `deploy` (`CLUSTER`).
 ```
 
 ## How Bake works
@@ -235,7 +290,7 @@ OPTIONS:
             Sets the Docker repository
 
     -s, --shell
-            Drops you into a shell after the tasks are complete
+            Drops you into a shell after the tasks are finished
 
     -v, --version
             Prints version information
