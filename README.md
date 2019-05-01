@@ -131,7 +131,7 @@ Hello, World!
 
 ## How Bake works
 
-Given a set of tasks to run, Bake computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker does not support combining two images into one, Bake does not run tasks in parallel and must instead determine a sequential execution schedule. You are free to use parallelism within individual tasks, of course.
+Given a set of tasks to run, Bake computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker does not support combining two images into one, Bake does not run tasks in parallel and must instead use a sequential execution schedule. You are free to use parallelism within individual tasks, of course.
 
 The topological sort of an arbitrary DAG is not necessarily unique. Bake uses [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. This algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `bake foo bar` and `bake bar foo` are guaranteed to produce identical schedules.
 
@@ -257,7 +257,7 @@ If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install 
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
 ```
 
-The same command can be used to update Bake to the latest version.
+The same command can be used again to update Bake to the latest version.
 
 ### Custom installation
 
