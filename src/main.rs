@@ -200,7 +200,7 @@ fn settings() -> Result<Settings, String> {
       Arg::with_name(SHELL_ARG)
         .short("s")
         .long(SHELL_ARG)
-        .help("Drops you into a shell after the tasks are complete"),
+        .help("Drops you into a shell after the tasks are finished"),
     )
     .arg(
       Arg::with_name(TASKS_ARG)
@@ -400,7 +400,7 @@ fn fetch_env(
   if !violations.is_empty() {
     // [tag:environment_valid]
     return Err(format!(
-      "The following tasks are missing variables from the environment: {}.",
+      "The following tasks use variables which are missing from the environment: {}.",
       format::series(
         &violations
           .iter()
@@ -561,10 +561,7 @@ fn run_tasks<'a>(
   }}
 
   // Tell the user the good news!
-  info!(
-    "Successfully executed {}.",
-    format::number(schedule.len(), "task")
-  );
+  info!("{} finished.", format::number(schedule.len(), "task"));
 
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
