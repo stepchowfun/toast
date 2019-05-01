@@ -9,9 +9,9 @@ Running tasks in containers helps with reproducibility. If a Bake task works on 
 Here are two reasons to use Bake on top of vanilla Docker:
 
 - Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**. You can define tasks for installing dependencies, building the application, running tests, linting, deploying, etc.
-- Bake supports **remote caching** of tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a Bake task which installs those things, and let Bake take care of distributing the resulting image and rebuilding it when necessary. You can also have non-cacheable tasks for actions which are not [idempotent](https://en.wikipedia.org/wiki/Idempotence).
+- Bake supports **remote caching** of tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a task which installs those things, and let Bake handle the rest.
 
-Bake has no knowledge of specific programming languages or frameworks. You might use Bake with another build system like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
+Bake has no knowledge of specific programming languages or frameworks. You can use Bake with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
 ## Tutorial
 
@@ -36,6 +36,25 @@ $ bake
 [INFO] echo 'Hello, World!'
 Hello, World!
 [INFO] 1 task finished.
+```
+
+If you run it again, Bake will find that nothing has changed and skip the task:
+
+```sh
+$ bake
+[INFO] The following tasks will be executed in the order given: `greet`.
+[INFO] Task `greet` found in local cache.
+[INFO] 1 task finished.
+```
+
+Bake caches tasks to save you time. For example, you don't want to re-install your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and any task that depends on it with the `cache` option:
+
+```yaml
+image: ubuntu
+tasks:
+  greet:
+    cache: false
+    command: echo 'Hello, World!'
 ```
 
 ### Adding a dependency
@@ -136,7 +155,7 @@ Sometimes it's useful for tasks to take arguments. For example, a `deploy` task 
 image: ubuntu
 tasks:
   deploy:
-    cache: false # Never cache this task or any task that depends on it
+    cache: false
     environment:
       CLUSTER: staging # Deploy to staging by default
     command: echo "Deploying to $CLUSTER..."
@@ -170,7 +189,7 @@ If you don't want to have a default, set it to `null`:
 image: ubuntu
 tasks:
   deploy:
-    cache: false # Never cache this task or any task that depends on it
+    cache: false
     environment:
       CLUSTER: null # Required
     command: echo "Deploying to $CLUSTER..."
@@ -257,6 +276,8 @@ A typical configuration for a continuous integration (CI) environment will enabl
 Each of these options can be overridden via command-line options (see below).
 
 ## Command-line options
+
+By default, Bake looks for a bakefile called `bake.yml` in the working directory, then in the parent directory, and so on. Any paths in the bakefile are relative to where the bakefile lives, not the working directory. This means you can run Bake from anywhere in your project and get the same results.
 
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
