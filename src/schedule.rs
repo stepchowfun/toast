@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 // Compute a topological sort of the transitive reflexive closure of a set of
 // tasks. The resulting schedule does not depend on the order of the inputs or
-// their dependencies. We assume the tasks form a DAG [ref:tasks_dag].
+// dependencies. We assume the tasks form a DAG [ref:tasks_dag].
 pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   // Sort the input tasks to ensure the given order doesn't matter.
   let mut roots: Vec<&'a str> = tasks.to_vec();

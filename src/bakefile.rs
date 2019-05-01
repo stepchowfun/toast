@@ -214,11 +214,14 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
     let mut ancestors_set: HashSet<&'a str> = HashSet::new();
     let mut ancestors_stack: Vec<&'a str> = vec![];
 
+    // Keep going as long as there are more nodes to process.
     // [tag:bakefile_frontier_nonempty]
     while !frontier.is_empty() {
-      // [ref:bakefile_frontier_nonempty]
+      // Take the top task from the frontier. This is safe due to
+      // [ref:bakefile_frontier_nonempty].
       let (task, task_depth) = frontier.pop().unwrap();
 
+      // Update the ancestors set and stack.
       for _ in 0..ancestors_stack.len() - task_depth {
         // The `unwrap` is safe because `ancestors_stack.len()` is positive in
         // every iteration of this loop.
@@ -226,6 +229,8 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         ancestors_set.remove(task_to_remove);
       }
 
+      // If this task is an ancestor of itself, we have a cycle. Return an
+      // error.
       if ancestors_set.contains(task) {
         let mut cycle_iter = ancestors_stack.iter();
         cycle_iter.find(|&&x| x == task);
@@ -252,6 +257,8 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         return Err(format!("The dependencies are cyclic. {}", error_message));
       }
 
+      // If we've never seen this task before, add its dependencies to the
+      // frontier.
       if !visited.contains(task) {
         visited.insert(task);
 
