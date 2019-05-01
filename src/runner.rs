@@ -74,14 +74,12 @@ pub fn run<R: Read>(
   if atty::is(Stream::Stdout) {
     // [tag:docker-tty] If STDOUT is a terminal, tell the Docker client to
     // behave like a TTY for the container. That means it will, for example,
-    // send a SIGINT signal to the container's foreground process group when it
-    // receives the end-of-text (^C) character on STDIN. This allows the user
-    // to kill the container with CTRL+C. If STDOUT is not a terminal, then
-    // we don't have the container behave as if it were attached to one. Some
-    // programs (this one included) query whether they are attached to a
-    // terminal and exhibit different behavior in that case (e.g., printing
-    // with color), and we want to make sure those programs behave correctly.
-    // See also [ref:bake-tty].
+    // send a SIGINT signal to the container's foreground process group when
+    // the user presses CTRL+C. If STDOUT is not a terminal, then we don't have
+    // the container behave as if it were attached to one. Some programs (this
+    // one included) query whether they are attached to a terminal and exhibit
+    // different behavior in that case (e.g., printing with color), and we want
+    // to make sure those programs behave correctly. See also [ref:bake-tty].
     create_command.push("--tty");
   }
   create_command

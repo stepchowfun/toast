@@ -50,7 +50,7 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   // Compute the hash of the file contents and metadata.
   file_hashes.push(cache::extend(
     &cache::extend(
-      &cache::hash(&path.as_ref().to_string_lossy().to_string()),
+      &cache::hash_str(&path.as_ref().to_string_lossy().to_string()),
       &cache::hash_read(&mut file)?,
     ),
     if executable { "+x" } else { "-x" },
@@ -178,6 +178,6 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
       .map_err(|e| format!("Error writing tar archive. Details: {}", e))?,
     file_hashes
       .iter()
-      .fold(cache::hash(""), |acc, x| cache::extend(&acc, x)),
+      .fold(cache::hash_str(""), |acc, x| cache::extend(&acc, x)),
   ))
 }

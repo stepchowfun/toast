@@ -318,6 +318,7 @@ fn settings() -> Result<Settings, String> {
 
 // Parse a bakefile.
 fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
+  // Read the file from disk.
   let bakefile_data = fs::read_to_string(bakefile_path).map_err(|e| {
     format!(
       "Unable to read file `{}`. Details: {}",
@@ -326,6 +327,7 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
     )
   })?;
 
+  // Parse it.
   bakefile::parse(&bakefile_data).map_err(|e| {
     format!(
       "Unable to parse file `{}`. Details: {}",
@@ -438,7 +440,7 @@ fn run_tasks<'a>(
   }
 
   // Run each task in sequence.
-  let mut cache_key = cache::hash(&bakefile.image);
+  let mut cache_key = cache::hash_str(&bakefile.image);
   let mut first_task = true;
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
