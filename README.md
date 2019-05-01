@@ -219,10 +219,7 @@ Now you can run `bake --shell` to play with `figlet`.
 ```
 $ bake --shell
 [INFO] The following tasks will be executed in the order given: `figlet`.
-[INFO] Running task `figlet`...
-[INFO] apt-get update
-       apt-get install --yes figlet
-       <...>
+[INFO] Task `figlet` found in local cache.
 [INFO] 1 task finished.
 [INFO] Here's a shell in the context of the tasks that were executed:
 # figlet 'Hello, Bake!'
