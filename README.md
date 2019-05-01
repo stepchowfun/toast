@@ -27,7 +27,7 @@ tasks:
 
 Now run `bake`. You should see something like the following:
 
-```sh
+```
 $ bake
 [INFO] The following tasks will be executed in the order given: `greet`.
 [INFO] Pulling image `ubuntu`...
@@ -40,7 +40,7 @@ Hello, World!
 
 If you run it again, Bake will find that nothing has changed and skip the task:
 
-```sh
+```
 $ bake
 [INFO] The following tasks will be executed in the order given: `greet`.
 [INFO] Task `greet` found in local cache.
@@ -59,38 +59,37 @@ tasks:
 
 ### Adding a dependency
 
-Let's make the greeting more fun with a program called `cowsay`. We'll add a task to install `cowsay`, and we'll change the `greet` task to depend on it:
+Let's make the greeting more fun with a program called `figlet`. We'll add a task to install `figlet`, and we'll change the `greet` task to depend on it:
 
 ```yaml
 image: ubuntu
 tasks:
-  cowsay: |
+  figlet: |
     apt-get update
-    apt-get install --yes cowsay
+    apt-get install --yes figlet
   greet:
     dependencies:
-      - cowsay
-    command: /usr/games/cowsay 'Hello, World!'
+      - figlet
+    command: figlet 'Hello, World!'
 ```
 
-Run `bake` again and you will see:
+Run `bake` to see a marvelous greeting:
 
-```sh
-[INFO] The following tasks will be executed in the order given: `cowsay` and `greet`.
-[INFO] Running task `cowsay`...
+```
+$ bake
+[INFO] The following tasks will be executed in the order given: `figlet` and `greet`.
+[INFO] Running task `figlet`...
 [INFO] apt-get update
-       apt-get install -y cowsay
+       apt-get install --yes figlet
        <...>
 [INFO] Running task `greet`...
-[INFO] /usr/games/cowsay 'Hello, World!'
- _______________
-< Hello, World! >
- ---------------
-        \   ^__^
-         \  (oo)\_______
-            (__)\       )\/\
-                ||----w |
-                ||     ||
+[INFO] figlet 'Hello, World!'
+ _   _      _ _         __        __         _     _ _
+| | | | ___| | | ___    \ \      / /__  _ __| | __| | |
+| |_| |/ _ \ | |/ _ \    \ \ /\ / / _ \| '__| |/ _` | |
+|  _  |  __/ | | (_) |    \ V  V / (_) | |  | | (_| |_|
+|_| |_|\___|_|_|\___( )    \_/\_/ \___/|_|  |_|\__,_(_)
+                    |/
 [INFO] 2 tasks finished.
 ```
 
@@ -132,7 +131,7 @@ Notice the `paths` array in the `build` task. Here we are copying a single file 
 
 Now if you run `bake`, you'll see this:
 
-```sh
+```
 $ bake
 [INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `run`.
 [INFO] Running task `gcc`...
@@ -163,7 +162,7 @@ tasks:
 
 When you run this task, Bake will read the value from the environment:
 
-```sh
+```
 $ CLUSTER=production bake deploy
 [INFO] The following tasks will be executed in the order given: `deploy`.
 [INFO] Running task `deploy`...
@@ -174,7 +173,7 @@ Deploying to production...
 
 If the variable does not exist in the environment, Bake will use the default value:
 
-```sh
+```
 $ bake deploy
 [INFO] The following tasks will be executed in the order given: `deploy`.
 [INFO] Running task `deploy`...
@@ -197,10 +196,42 @@ tasks:
 
 Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain:
 
-```sh
+```
 $ bake deploy
 [INFO] The following tasks will be executed in the order given: `deploy`.
 [ERROR] The following tasks use variables which are missing from the environment: `deploy` (`CLUSTER`).
+```
+
+### Dropping into a shell
+
+If you run Bake with `--shell`, Bake will drop you into an interactive shell inside the container when the requested tasks are finished. Suppose you have the following bakefile:
+
+```yaml
+image: ubuntu
+tasks:
+  figlet: |
+    apt-get update
+    apt-get install --yes figlet
+```
+
+Now you can run `bake --shell` to play with `figlet`.
+
+```
+$ bake --shell
+[INFO] The following tasks will be executed in the order given: `figlet`.
+[INFO] Running task `figlet`...
+[INFO] apt-get update
+       apt-get install --yes figlet
+       <...>
+[INFO] 1 task finished.
+[INFO] Here's a shell in the context of the tasks that were executed:
+# figlet 'Hello, Bake!'
+ _   _      _ _          ____        _        _
+| | | | ___| | | ___    | __ )  __ _| | _____| |
+| |_| |/ _ \ | |/ _ \   |  _ \ / _` | |/ / _ \ |
+|  _  |  __/ | | (_) |  | |_) | (_| |   <  __/_|
+|_| |_|\___|_|_|\___( ) |____/ \__,_|_|\_\___(_)
+                    |/
 ```
 
 ## How Bake works
@@ -281,13 +312,13 @@ By default, Bake looks for a bakefile called `bake.yml` in the working directory
 
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
-```sh
+```
 bake task1 task2 task3...
 ```
 
 Here are all the supported command-line options:
 
-```sh
+```
 USAGE:
     bake [OPTIONS] [TASKS]...
 
@@ -329,7 +360,7 @@ OPTIONS:
 
 If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Bake with this command:
 
-```sh
+```
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
 ```
 
@@ -344,7 +375,7 @@ The installation script supports the following environment variables:
 
 For example, the following will install Bake into the current directory:
 
-```sh
+```
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | PREFIX=. sh
 ```
 
