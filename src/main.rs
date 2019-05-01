@@ -137,7 +137,7 @@ struct Settings {
 // Parse the command-line arguments;
 fn settings() -> Result<Settings, String> {
   let matches = App::new("Bake")
-    .version("0.1.0")
+    .version("0.2.0")
     .version_short("v")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
