@@ -2,8 +2,8 @@ use crate::bakefile::Bakefile;
 use std::collections::HashSet;
 
 // Compute a topological sort of the transitive reflexive closure of a set of
-// tasks. The resulting schedule does not depend on the order of the inputs.
-// We assume that the tasks form a DAG (no cycles).
+// tasks. The resulting schedule does not depend on the order of the inputs or
+// their dependencies. We assume the tasks form a DAG [ref:tasks_dag].
 pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
   // Sort the input tasks to ensure the given order doesn't matter.
   let mut roots: Vec<&'a str> = tasks.to_vec();
@@ -48,14 +48,16 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
 
         // Add the task's dependencies to the frontier. We sort the
         // dependencies first to ensure their original order doesn't matter.
-        // The indexing is safe due to [ref:tasks_valid].
+        // After sorting, we reverse the order of the dependencies before
+        // adding them to the frontier so that they will be processed in
+        // lexicographical order (since the frontier is a stack rather than a
+        // queue). The indexing is safe due to [ref:tasks_valid].
         let mut dependencies: Vec<&'a str> = bakefile.tasks[task]
           .dependencies
           .iter()
           .map(|dependency| &dependency[..])
           .collect();
         dependencies.sort();
-        dependencies.reverse();
         frontier.extend(
           dependencies
             .into_iter()

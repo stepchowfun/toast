@@ -2,7 +2,8 @@ use crate::bakefile::Task;
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io, io::Read};
 
-// Determine the cache ID of a prefix of a schedule.
+// Determine the cache ID of a task based on the cache ID of the previous task
+// in the schedule (or the hash of the base image, if this is the first task).
 pub fn key(
   previous_key: &str,
   task: &Task,
@@ -23,12 +24,8 @@ pub fn key(
   cache_key[..48].to_owned()
 }
 
-// Compute the hash of a string.
-pub fn hash(input: &str) -> String {
-  hex::encode(Sha256::digest(input.as_bytes()))
-}
-
-// Compute the hash of a readable object.
+// Compute the hash of a readable object (e.g., a file). This function does not
+// need to load all the data in memory at the same time.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
   let mut hasher = Sha256::new();
   io::copy(input, &mut hasher)
@@ -36,16 +33,21 @@ pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
   Ok(hex::encode(hasher.result()))
 }
 
+// Compute the hash of a string.
+pub fn hash_str(input: &str) -> String {
+  hex::encode(Sha256::digest(input.as_bytes()))
+}
+
 // Combine a hash with another string to form a new hash.
 pub fn extend(x: &str, y: &str) -> String {
-  hash(&format!("{}{}", x, y))
+  hash_str(&format!("{}{}", x, y))
 }
 
 #[cfg(test)]
 mod tests {
   use crate::{
     bakefile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
-    cache::{extend, hash, key},
+    cache::{extend, hash_read, hash_str, key},
   };
   use std::{collections::HashMap, path::Path};
 
@@ -311,13 +313,27 @@ mod tests {
   }
 
   #[test]
-  fn hash_pure() {
-    assert_eq!(hash("foo"), hash("foo"));
+  fn hash_read_pure() {
+    let mut str1 = "foo".as_bytes();
+    let mut str2 = "foo".as_bytes();
+    assert_eq!(hash_read(&mut str1), hash_read(&mut str2));
   }
 
   #[test]
-  fn hash_not_constant() {
-    assert_ne!(hash("foo"), hash("bar"));
+  fn hash_read_not_constant() {
+    let mut str1 = "foo".as_bytes();
+    let mut str2 = "bar".as_bytes();
+    assert_ne!(hash_read(&mut str1), hash_read(&mut str2));
+  }
+
+  #[test]
+  fn hash_str_pure() {
+    assert_eq!(hash_str("foo"), hash_str("foo"));
+  }
+
+  #[test]
+  fn hash_str_not_constant() {
+    assert_ne!(hash_str("foo"), hash_str("bar"));
   }
 
   #[test]

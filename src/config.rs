@@ -43,7 +43,7 @@ fn default_write_remote_cache() -> bool {
   false
 }
 
-// Parse config data.
+// Parse a program configuration.
 pub fn parse(config: &str) -> Result<Config, String> {
   serde_yaml::from_str(config).map_err(|e| format!("{}", e))
 }

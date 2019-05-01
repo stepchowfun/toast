@@ -6,13 +6,14 @@ use std::{
   path::{Path, PathBuf},
 };
 
-// The default location for commands and paths.
+// The default location for commands and paths
 pub const DEFAULT_LOCATION: &str = "/scratch";
 
-// The default user for commands and paths.
+// The default user for commands and paths
 pub const DEFAULT_USER: &str = "root";
 
-// This struct represents a task.
+// This struct is the full representation of a task. In bakefiles, a shorter
+// form is also supported, but it gets translated into this.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
@@ -37,14 +38,6 @@ pub struct Task {
   pub command: Option<String>,
 }
 
-// This struct represents a task.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-enum RawTask {
-  Short(String),
-  Long(Task),
-}
-
 fn default_task_cache() -> bool {
   true
 }
@@ -55,6 +48,15 @@ fn default_task_location() -> PathBuf {
 
 fn default_task_user() -> String {
   DEFAULT_USER.to_owned()
+}
+
+// This struct also represents a task. This is the raw version that appears in
+// bakefiles. It gets translated into the full representation above.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+enum RawTask {
+  Short(String),
+  Long(Task),
 }
 
 // This struct represents a bakefile.
@@ -142,6 +144,7 @@ pub fn environment<'a>(
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).
+// [tag:tasks_dag]
 fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
   // Check the default task. [tag:valid_default]
   let valid_default = bakefile
