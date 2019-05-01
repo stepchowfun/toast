@@ -47,7 +47,7 @@ $ bake
 [INFO] 1 task finished.
 ```
 
-Bake caches tasks to save you time. For example, you don't want to re-install your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and any task that depends on it with the `cache` option:
+Bake caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
 ```yaml
 image: ubuntu
@@ -92,8 +92,6 @@ $ bake
                     |/
 [INFO] 2 tasks finished.
 ```
-
-Now that's better!
 
 ### Using files from the host
 
