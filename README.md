@@ -194,7 +194,7 @@ tasks:
   deploy:
     cache: false
     environment:
-      CLUSTER: null # Required
+      CLUSTER: null # No default provided
     command: echo "Deploying to $CLUSTER..."
 ```
 
@@ -289,9 +289,9 @@ read_remote_cache: false  # Whether Bake should read from remote cache
 write_remote_cache: false # Whether Bake should write to remote cache
 ```
 
-A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes.
+Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
-Each of these options can be overridden via command-line options (see below).
+A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/bake/blob/master/.travis.yml) for a complete example of how to use Bake in a CI environment.
 
 ## Command-line options
 
