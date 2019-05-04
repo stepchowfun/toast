@@ -65,9 +65,10 @@ Let's make the greeting more fun with a program called `figlet`. We'll add a tas
 ```yaml
 image: ubuntu
 tasks:
-  figlet: |
-    apt-get update
-    apt-get install --yes figlet
+  figlet:
+    command: |
+      apt-get update
+      apt-get install --yes figlet
 
   greet:
     dependencies:
@@ -112,9 +113,10 @@ Update `bake.yml` to compile and run the program:
 ```yaml
 image: ubuntu
 tasks:
-  gcc: |
-    apt-get update
-    apt-get install -y gcc
+  gcc:
+    command: |
+      apt-get update
+      apt-get install -y gcc
 
   build:
     dependencies:
