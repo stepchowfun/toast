@@ -68,6 +68,7 @@ tasks:
   figlet: |
     apt-get update
     apt-get install --yes figlet
+
   greet:
     dependencies:
       - figlet
@@ -114,12 +115,14 @@ tasks:
   gcc: |
     apt-get update
     apt-get install -y gcc
+
   build:
     dependencies:
       - gcc
     paths:
       - main.c
     command: gcc main.c
+
   run:
     dependencies:
       - build
