@@ -11,9 +11,11 @@ pub fn key(
   environment: &HashMap<String, String>,
 ) -> String {
   let mut cache_key = previous_key.to_owned();
-  for var in task.environment.keys() {
-    cache_key = extend(&cache_key, var);
-    cache_key = extend(&cache_key, &environment[var]); // [ref:environment_valid]
+  let mut variables = task.environment.keys().collect::<Vec<_>>();
+  variables.sort();
+  for variable in variables {
+    cache_key = extend(&cache_key, variable);
+    cache_key = extend(&cache_key, &environment[variable]); // [ref:environment_valid]
   }
   cache_key = extend(&cache_key, &files_hash);
   cache_key = extend(&cache_key, &task.location.to_string_lossy());
@@ -56,7 +58,7 @@ mod tests {
     let mut environment: HashMap<String, Option<String>> = HashMap::new();
     environment.insert("foo".to_owned(), None);
 
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task = Task {
       dependencies: vec![],
@@ -68,7 +70,7 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
@@ -80,14 +82,41 @@ mod tests {
   }
 
   #[test]
-  fn key_environment_keys() {
+  fn key_previous_key() {
+    let previous_key1 = "foo";
+    let previous_key2 = "bar";
+
+    let task = Task {
+      dependencies: vec![],
+      cache: true,
+      environment: HashMap::new(),
+      paths: vec![],
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: Some("echo wibble".to_owned()),
+    };
+
+    let files_hash = "grault";
+
+    let full_environment = HashMap::new();
+
+    assert_ne!(
+      key(previous_key1, &task, files_hash, &full_environment),
+      key(previous_key2, &task, files_hash, &full_environment)
+    );
+  }
+
+  #[test]
+  fn key_environment_order() {
     let mut environment1: HashMap<String, Option<String>> = HashMap::new();
     environment1.insert("foo".to_owned(), None);
+    environment1.insert("bar".to_owned(), None);
 
     let mut environment2: HashMap<String, Option<String>> = HashMap::new();
     environment2.insert("bar".to_owned(), None);
+    environment2.insert("foo".to_owned(), None);
 
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task1 = Task {
       dependencies: vec![],
@@ -109,7 +138,49 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
+
+    let mut full_environment = HashMap::new();
+    full_environment.insert("foo".to_owned(), "qux".to_owned());
+    full_environment.insert("bar".to_owned(), "fum".to_owned());
+
+    assert_eq!(
+      key(previous_key, &task1, files_hash, &full_environment),
+      key(previous_key, &task2, files_hash, &full_environment)
+    );
+  }
+
+  #[test]
+  fn key_environment_keys() {
+    let mut environment1: HashMap<String, Option<String>> = HashMap::new();
+    environment1.insert("foo".to_owned(), None);
+
+    let mut environment2: HashMap<String, Option<String>> = HashMap::new();
+    environment2.insert("bar".to_owned(), None);
+
+    let previous_key = "corge";
+
+    let task1 = Task {
+      dependencies: vec![],
+      cache: true,
+      environment: environment1,
+      paths: vec![],
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: Some("echo wibble".to_owned()),
+    };
+
+    let task2 = Task {
+      dependencies: vec![],
+      cache: true,
+      environment: environment2,
+      paths: vec![],
+      location: Path::new(DEFAULT_LOCATION).to_owned(),
+      user: DEFAULT_USER.to_owned(),
+      command: Some("echo wibble".to_owned()),
+    };
+
+    let files_hash = "grault";
 
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
@@ -126,7 +197,7 @@ mod tests {
     let mut environment: HashMap<String, Option<String>> = HashMap::new();
     environment.insert("foo".to_owned(), None);
 
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task = Task {
       dependencies: vec![],
@@ -138,7 +209,7 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let mut full_environment1 = HashMap::new();
     full_environment1.insert("foo".to_owned(), "bar".to_owned());
@@ -153,7 +224,7 @@ mod tests {
 
   #[test]
   fn key_files_hash() {
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task = Task {
       dependencies: vec![],
@@ -178,7 +249,7 @@ mod tests {
 
   #[test]
   fn key_location() {
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task1 = Task {
       dependencies: vec![],
@@ -200,7 +271,7 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let full_environment = HashMap::new();
 
@@ -212,7 +283,7 @@ mod tests {
 
   #[test]
   fn key_user() {
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task1 = Task {
       dependencies: vec![],
@@ -234,7 +305,7 @@ mod tests {
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let full_environment = HashMap::new();
 
@@ -246,7 +317,7 @@ mod tests {
 
   #[test]
   fn key_command_different() {
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task1 = Task {
       dependencies: vec![],
@@ -255,7 +326,7 @@ mod tests {
       paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
-      command: Some("echo wibble".to_owned()),
+      command: Some("echo foo".to_owned()),
     };
 
     let task2 = Task {
@@ -265,10 +336,10 @@ mod tests {
       paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
-      command: Some("echo wobble".to_owned()),
+      command: Some("echo bar".to_owned()),
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let full_environment = HashMap::new();
 
@@ -280,7 +351,7 @@ mod tests {
 
   #[test]
   fn key_command_some_none() {
-    let previous_key = "foo";
+    let previous_key = "corge";
 
     let task1 = Task {
       dependencies: vec![],
@@ -302,7 +373,7 @@ mod tests {
       command: None,
     };
 
-    let files_hash = "bar";
+    let files_hash = "grault";
 
     let full_environment = HashMap::new();
 

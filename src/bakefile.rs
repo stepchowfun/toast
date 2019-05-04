@@ -290,13 +290,13 @@ mod tests {
   #[test]
   fn parse_empty() {
     let input = r#"
-image: ubuntu:18.04
+image: encom:os-12
 tasks: {}
     "#
     .trim();
 
     let bakefile = Ok(Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     });
@@ -307,15 +307,15 @@ tasks: {}
   #[test]
   fn parse_shorthand_task() {
     let input = r#"
-image: ubuntu:18.04
+image: encom:os-12
 tasks:
-  build: cargo build
+  foo: wibble
     "#
     .trim();
 
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -323,12 +323,12 @@ tasks:
         paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
-        command: Some("cargo build".to_owned()),
+        command: Some("wibble".to_owned()),
       },
     );
 
     let bakefile = Ok(Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     });
@@ -339,15 +339,15 @@ tasks:
   #[test]
   fn parse_minimal_task() {
     let input = r#"
-image: ubuntu:18.04
+image: encom:os-12
 tasks:
-  build: {}
+  foo: {}
     "#
     .trim();
 
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -360,7 +360,7 @@ tasks:
     );
 
     let bakefile = Ok(Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     });
@@ -371,16 +371,16 @@ tasks:
   #[test]
   fn parse_valid_default() {
     let input = r#"
-image: ubuntu:18.04
-default: build
+image: encom:os-12
+default: foo
 tasks:
-  build: {}
+  foo: {}
     "#
     .trim();
 
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -393,8 +393,8 @@ tasks:
     );
 
     let bakefile = Ok(Bakefile {
-      image: "ubuntu:18.04".to_owned(),
-      default: Some("build".to_owned()),
+      image: "encom:os-12".to_owned(),
+      default: Some("foo".to_owned()),
       tasks,
     });
 
@@ -404,50 +404,50 @@ tasks:
   #[test]
   fn parse_invalid_default() {
     let input = r#"
-image: ubuntu:18.04
-default: test
+image: encom:os-12
+default: bar
 tasks:
-  build: {}
+  foo: {}
     "#
     .trim();
 
     let result = parse(input);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("test"));
+    assert!(result.unwrap_err().contains("bar"));
   }
 
   #[test]
   fn parse_comprehensive_task() {
     let input = r#"
-image: ubuntu:18.04
+image: encom:os-12
 tasks:
-  install_rust: {}
-  build:
+  foo: {}
+  bar:
     dependencies:
-      - install_rust
+      - foo
     cache: true
     environment:
-      AWS_ACCESS_KEY_ID: null
-      AWS_DEFAULT_REGION: null
-      AWS_SECRET_ACCESS_KEY: null
+      SPAM: null
+      HAM: null
+      EGGS: null
     paths:
-      - Cargo.lock
-      - Cargo.toml
-      - src/*
+      - qux
+      - quux
+      - quuz
     location: /code
-    user: foo
-    command: cargo build
+    user: waldo
+    command: wibble
     "#
     .trim();
 
     let mut environment = HashMap::new();
-    environment.insert("AWS_ACCESS_KEY_ID".to_owned(), None);
-    environment.insert("AWS_DEFAULT_REGION".to_owned(), None);
-    environment.insert("AWS_SECRET_ACCESS_KEY".to_owned(), None);
+    environment.insert("SPAM".to_owned(), None);
+    environment.insert("HAM".to_owned(), None);
+    environment.insert("EGGS".to_owned(), None);
 
     let mut tasks = HashMap::new();
     tasks.insert(
-      "install_rust".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -459,24 +459,24 @@ tasks:
       },
     );
     tasks.insert(
-      "build".to_owned(),
+      "bar".to_owned(),
       Task {
-        dependencies: vec!["install_rust".to_owned()],
+        dependencies: vec!["foo".to_owned()],
         cache: true,
         environment,
         paths: vec![
-          Path::new("Cargo.lock").to_owned(),
-          Path::new("Cargo.toml").to_owned(),
-          Path::new("src/*").to_owned(),
+          Path::new("qux").to_owned(),
+          Path::new("quux").to_owned(),
+          Path::new("quuz").to_owned(),
         ],
         location: Path::new("/code").to_owned(),
-        user: "foo".to_owned(),
-        command: Some("cargo build".to_owned()),
+        user: "waldo".to_owned(),
+        command: Some("wibble".to_owned()),
       },
     );
 
     let bakefile = Ok(Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     });
@@ -579,7 +579,7 @@ tasks:
   #[test]
   fn check_dependencies_empty() {
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     };
@@ -591,7 +591,7 @@ tasks:
   fn check_dependencies_single() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -604,7 +604,7 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -616,7 +616,7 @@ tasks:
   fn check_dependencies_nonempty() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -628,9 +628,9 @@ tasks:
       },
     );
     tasks.insert(
-      "test".to_owned(),
+      "bar".to_owned(),
       Task {
-        dependencies: vec!["build".to_owned()],
+        dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -641,7 +641,7 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -653,7 +653,7 @@ tasks:
   fn check_dependencies_nonexistent() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
         dependencies: vec![],
         cache: true,
@@ -665,9 +665,9 @@ tasks:
       },
     );
     tasks.insert(
-      "test".to_owned(),
+      "bar".to_owned(),
       Task {
-        dependencies: vec!["build".to_owned(), "do_thing".to_owned()],
+        dependencies: vec!["foo".to_owned(), "baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -678,23 +678,23 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
     let result = check_dependencies(&bakefile);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("do_thing"));
+    assert!(result.unwrap_err().contains("baz"));
   }
 
   #[test]
   fn check_dependencies_cycle_1() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
-        dependencies: vec!["build".to_owned()],
+        dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -705,7 +705,7 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -719,9 +719,9 @@ tasks:
   fn check_dependencies_cycle_2() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
-        dependencies: vec!["test".to_owned()],
+        dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -731,9 +731,9 @@ tasks:
       },
     );
     tasks.insert(
-      "test".to_owned(),
+      "bar".to_owned(),
       Task {
-        dependencies: vec!["build".to_owned()],
+        dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -744,7 +744,7 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -758,9 +758,9 @@ tasks:
   fn check_dependencies_cycle_3() {
     let mut tasks = HashMap::new();
     tasks.insert(
-      "build".to_owned(),
+      "foo".to_owned(),
       Task {
-        dependencies: vec!["publish".to_owned()],
+        dependencies: vec!["baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -770,9 +770,9 @@ tasks:
       },
     );
     tasks.insert(
-      "test".to_owned(),
+      "bar".to_owned(),
       Task {
-        dependencies: vec!["build".to_owned()],
+        dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -782,9 +782,9 @@ tasks:
       },
     );
     tasks.insert(
-      "publish".to_owned(),
+      "baz".to_owned(),
       Task {
-        dependencies: vec!["test".to_owned()],
+        dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
         paths: vec![],
@@ -795,7 +795,7 @@ tasks:
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
