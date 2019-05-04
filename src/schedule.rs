@@ -102,7 +102,7 @@ mod tests {
   #[test]
   fn schedule_empty() {
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     };
@@ -119,7 +119,7 @@ mod tests {
     tasks.insert("foo".to_owned(), empty_task());
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -144,7 +144,7 @@ mod tests {
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -169,7 +169,7 @@ mod tests {
     );
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
@@ -188,7 +188,7 @@ mod tests {
     tasks.insert("baz".to_owned(), empty_task());
 
     let bakefile = Bakefile {
-      image: "ubuntu:18.04".to_owned(),
+      image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
