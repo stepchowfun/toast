@@ -12,6 +12,7 @@ use log::Level;
 use std::{
   cell::{Cell, RefCell},
   collections::{HashMap, HashSet},
+  convert::AsRef,
   env::current_dir,
   fs,
   io::{stdout, Seek, SeekFrom, Write},
@@ -360,16 +361,10 @@ fn get_roots<'a>(
       // The user didn't provide any tasks. Check if there is a default task.
       if let Some(default) = &bakefile.default {
         // There is a default; use it.
-        Ok(vec![&default[..]])
+        Ok(vec![default.as_ref()])
       } else {
         // There is no default. Run all the tasks.
-        Ok(
-          bakefile
-            .tasks
-            .keys()
-            .map(|key| &key[..])
-            .collect::<Vec<_>>(),
-        )
+        Ok(bakefile.tasks.keys().map(AsRef::as_ref).collect::<Vec<_>>())
       }
     },
     |tasks| {
@@ -385,7 +380,7 @@ fn get_roots<'a>(
         }
       }
 
-      Ok(tasks.iter().map(|task| &task[..]).collect())
+      Ok(tasks.iter().map(AsRef::as_ref).collect())
     },
   )
 }
@@ -415,19 +410,19 @@ fn fetch_env(
     return Err(format!(
       "The following tasks use variables which are missing from the environment: {}.",
       format::series(
-        &violations
+        violations
           .iter()
           .map(|(task, vars)| format!(
             "`{}` ({})",
             task,
             format::series(
-              &vars
+              vars
                 .iter()
                 .map(|var| format!("`{}`", var))
-                .collect::<Vec<_>>()[..]
+                .collect::<Vec<_>>().as_ref()
             )
           ))
-          .collect::<Vec<_>>()[..]
+          .collect::<Vec<_>>().as_ref()
       )
     ));
   }
@@ -614,10 +609,11 @@ fn entry() -> Result<(), String> {
   info!(
     "The following tasks will be executed in the order given: {}.",
     format::series(
-      &schedule
+      schedule
         .iter()
         .map(|task| format!("`{}`", task))
-        .collect::<Vec<_>>()[..]
+        .collect::<Vec<_>>()
+        .as_ref()
     )
   );
 

@@ -132,7 +132,7 @@ pub fn environment<'a>(
     } else if let Ok(var) = maybe_var {
       result.insert(arg.clone(), var);
     } else {
-      violations.push(&arg[..]);
+      violations.push(arg.as_ref());
     }
   }
 
@@ -171,21 +171,23 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
   // If there were any invalid dependencies, report them.
   if !violations.is_empty() {
     let violations_series = format::series(
-      &violations
+      violations
         .iter()
         .map(|(task, dependencies)| {
           format!(
             "`{}` ({})",
             task,
             format::series(
-              &dependencies
+              dependencies
                 .iter()
                 .map(|task| format!("`{}`", task))
-                .collect::<Vec<_>>()[..]
+                .collect::<Vec<_>>()
+                .as_ref()
             )
           )
         })
-        .collect::<Vec<_>>()[..],
+        .collect::<Vec<_>>()
+        .as_ref(),
     );
 
     if valid_default {
@@ -246,11 +248,12 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
           format!(
             "{}.",
             format::series(
-              &cycle
+              cycle
                 .iter()
                 .zip(cycle_dependencies)
                 .map(|(x, y)| format!("`{}` depends on `{}`", x, y))
-                .collect::<Vec<_>>()[..],
+                .collect::<Vec<_>>()
+                .as_ref(),
             )
           )
         };
