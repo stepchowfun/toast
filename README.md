@@ -22,7 +22,8 @@ Let's create a simple bakefile. Create a file named `bake.yml` with the followin
 ```yaml
 image: ubuntu
 tasks:
-  greet: echo 'Hello, World!'
+  greet:
+    command: echo 'Hello, World!'
 ```
 
 Now run `bake`. You should see the following:
@@ -259,21 +260,6 @@ paths: []          # Paths to copy into the container
 location: /scratch # Path in the container for running this task
 user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container
-```
-
-For convenience, a task can be a string rather than an object. The resulting task uses that string as its `command`, with the other fields set to their defaults. So the following two bakefiles are equivalent:
-
-```yaml
-image: alpine
-tasks:
-  greet: echo 'Hello, World!'
-```
-
-```yaml
-image: alpine
-tasks:
-  greet:
-    command: echo 'Hello, World!'
 ```
 
 The [bakefile](https://github.com/stepchowfun/bake/blob/master/bake.yml) for Bake itself is a comprehensive real-world example.
