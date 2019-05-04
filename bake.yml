@@ -24,9 +24,14 @@ tasks:
       rustup component add rustfmt
       rm -rf "$(dirname "$(rustup which rustc)")/../share"
 
-  build:
+  tools:
     dependencies:
       - rust
+      - tagref
+
+  build:
+    dependencies:
+      - tools
     paths:
       - Cargo.lock
       - Cargo.toml
@@ -36,14 +41,13 @@ tasks:
 
   test:
     dependencies:
-      - build
+      - tools
     user: user
     command: cargo test
 
   lint:
     dependencies:
-      - build
-      - tagref
+      - tools
     paths:
       - rustfmt.toml
     user: user

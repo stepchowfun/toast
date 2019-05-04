@@ -70,15 +70,16 @@ pub fn run<R: Read>(
   // them to the child process. Then the default signal handling behavior of
   // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
   let container_id = run_docker_quiet(
-    &vec![
+    vec![
       "container",
       "create",
       "--init",
       from_image,
       "/bin/sh",
       "-c",
-      &command_str[..],
-    ][..],
+      command_str.as_ref(),
+    ]
+    .as_ref(),
     "Unable to create container.",
   )?
   .trim()

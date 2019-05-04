@@ -1,5 +1,5 @@
 use crate::bakefile::Bakefile;
-use std::collections::HashSet;
+use std::{collections::HashSet, convert::AsRef};
 
 // Compute a topological sort of the transitive reflexive closure of a set of
 // tasks. The resulting schedule does not depend on the order of the inputs or
@@ -55,7 +55,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
         let mut dependencies: Vec<&'a str> = bakefile.tasks[task]
           .dependencies
           .iter()
-          .map(|dependency| &dependency[..])
+          .map(AsRef::as_ref)
           .collect();
         dependencies.sort();
         frontier.extend(
