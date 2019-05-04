@@ -32,7 +32,7 @@ Now run `bake`. You should see the following:
 $ bake
 [INFO] The following tasks will be executed in the order given: `greet`.
 [INFO] Pulling image `ubuntu`...
-       <...>
+       <output omitted>
 [INFO] Running task `greet`...
 [INFO] echo 'Hello, World!'
 Hello, World!
@@ -84,7 +84,7 @@ $ bake
 [INFO] Running task `figlet`...
 [INFO] apt-get update
        apt-get install --yes figlet
-       <...>
+       <output omitted>
 [INFO] Running task `greet`...
 [INFO] figlet 'Hello, World!'
  _   _      _ _         __        __         _     _ _
@@ -116,7 +116,7 @@ tasks:
   gcc:
     command: |
       apt-get update
-      apt-get install -y gcc
+      apt-get install --yes gcc
 
   build:
     dependencies:
@@ -140,8 +140,8 @@ $ bake
 [INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `run`.
 [INFO] Running task `gcc`...
 [INFO] apt-get update
-       apt-get install -y gcc
-       <...>
+       apt-get install --yes gcc
+       <output omitted>
 [INFO] Running task `build`...
 [INFO] gcc main.c
 [INFO] Running task `run`...
@@ -213,9 +213,10 @@ If you run Bake with `--shell`, Bake will drop you into an interactive shell ins
 ```yaml
 image: ubuntu
 tasks:
-  figlet: |
-    apt-get update
-    apt-get install --yes figlet
+  figlet:
+    command: |
+      apt-get update
+      apt-get install --yes figlet
 ```
 
 Now you can run `bake --shell` to play with `figlet`.
@@ -226,7 +227,7 @@ $ bake --shell
 [INFO] Task `figlet` found in local cache.
 [INFO] 1 task finished.
 [INFO] Here's a shell in the context of the tasks that were executed:
-# figlet 'Hello, Bake!'
+root@f1454db4408a:~# figlet 'Hello, Bake!'
  _   _      _ _          ____        _        _
 | | | | ___| | | ___    | __ )  __ _| | _____| |
 | |_| |/ _ \ | |/ _ \   |  _ \ / _` | |/ / _ \ |
