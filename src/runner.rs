@@ -25,40 +25,44 @@ pub fn run<R: Read>(
 
   // Ensure the task's location exists within the container and that the user
   // can access it.
-  commands_to_run
-    .push(format!("mkdir -p '{}'", task.location.to_string_lossy()));
-  commands_to_run
-    .push(format!("chmod 777 '{}'", task.location.to_string_lossy()));
+  commands_to_run.push(format!(
+    "mkdir -p {}",
+    shell_escape(&task.location.to_string_lossy())
+  ));
+  commands_to_run.push(format!(
+    "chmod 777 {}",
+    shell_escape(&task.location.to_string_lossy())
+  ));
 
   // Construct a small script to execute the task's command in the task's
   // location as the task's user with the task's environment variables.
   if let Some(command) = &task.command {
     commands_to_run.push(format!(
-      "su -l -c {} {}",
-      shell_escape(&format!(
-        "{} set -eu; cd {}; {}",
-        task
-          .environment
-          .keys()
-          .map(|var| {
-            format!(
-              "export {}={};",
-              shell_escape(&var),
-              shell_escape(&environment[var]) // [ref:environment_valid]
-            )
-          })
-          .collect::<Vec<_>>()
-          .join(" "),
-        shell_escape(&task.location.to_string_lossy()),
-        command,
-      )),
+      "cd {}",
+      shell_escape(&task.location.to_string_lossy())
+    ));
+
+    for variable in task.environment.keys() {
+      commands_to_run.push(format!(
+        "export {}={}",
+        shell_escape(variable),
+        shell_escape(&environment[variable]), // [ref:environment_valid]
+      ));
+    }
+
+    commands_to_run.push(format!(
+      "su -c {} {}",
+      shell_escape(&command),
       shell_escape(&task.user)
     ));
   }
 
   // Create the container.
-  debug!("Creating container from image `{}`...", from_image);
   let command_str = commands_to_run.join(" && ");
+  debug!(
+    "Creating container from image `{}` with command `{}`...",
+    from_image, command_str
+  );
 
   // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
   // otherwise they can accumulate. Bash does this, but we run `/bin/sh` in the
