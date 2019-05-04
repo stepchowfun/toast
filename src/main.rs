@@ -32,6 +32,9 @@ extern crate log;
 #[macro_use]
 extern crate scopeguard;
 
+// The program version
+const VERSION: &str = "0.3.0";
+
 // Defaults
 const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
 const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
@@ -147,7 +150,7 @@ struct Settings {
 // Parse the command-line arguments;
 fn settings() -> Result<Settings, String> {
   let matches = App::new("Bake")
-    .version("0.2.0")
+    .version(VERSION)
     .version_short("v")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
     .about("Bake is a containerized build system.")
