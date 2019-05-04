@@ -47,7 +47,7 @@ tasks:
 
   test:
     dependencies:
-      - tools
+      - build
     user: user
     command: |
       . $HOME/.cargo/env
@@ -55,7 +55,7 @@ tasks:
 
   lint:
     dependencies:
-      - tools
+      - build
     paths:
       - rustfmt.toml
     user: user
