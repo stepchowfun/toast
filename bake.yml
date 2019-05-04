@@ -49,7 +49,7 @@ tasks:
     dependencies:
       - tools
     user: user
-    command:
+    command: |
       . $HOME/.cargo/env
       cargo test
 
