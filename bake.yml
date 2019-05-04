@@ -41,13 +41,17 @@ tasks:
       - Cargo.toml
       - src
     user: user
-    command: cargo build
+    command: |
+      . $HOME/.cargo/env
+      cargo build
 
   test:
     dependencies:
       - tools
     user: user
-    command: cargo test
+    command:
+      . $HOME/.cargo/env
+      cargo test
 
   lint:
     dependencies:
@@ -56,6 +60,7 @@ tasks:
       - rustfmt.toml
     user: user
     command: |
+      . $HOME/.cargo/env
       cargo fmt --all -- --check
       cargo clippy -- --deny clippy::pedantic
       tagref
