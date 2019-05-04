@@ -9,7 +9,7 @@ tasks:
       - packages
     command: |
       set -o pipefail
-      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
+      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=0.0.8 sh
 
   user: adduser --disabled-password --gecos '' user
 
@@ -20,7 +20,7 @@ tasks:
     user: user
     command: |
       set -o pipefail
-      curl https://sh.rustup.rs -sSf | sh -s -- -y
+      curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable-2019-04-25-x86_64-unknown-linux-gnu
       . $HOME/.cargo/env
       rustup component add clippy
       rustup component add rustfmt
