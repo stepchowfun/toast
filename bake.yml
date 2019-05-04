@@ -11,7 +11,7 @@ tasks:
       set -o pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
 
-  user: useradd --user-group --create-home user
+  user: adduser --disabled-password --gecos '' user
 
   rust:
     dependencies:
