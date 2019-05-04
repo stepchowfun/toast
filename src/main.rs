@@ -110,7 +110,7 @@ fn set_up_signal_handlers(
       let _ = stdout().write(b"\n");
       info!("Terminating...");
 
-      // Stop any active containers. The unwrap will only fail if a panic
+      // Stop any active containers. The `unwrap` will only fail if a panic
       // already occurred.
       for container in &*active_containers_ref.lock().unwrap() {
         if let Err(e) = runner::stop_container(&container) {
