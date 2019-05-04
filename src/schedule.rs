@@ -58,6 +58,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
           .map(AsRef::as_ref)
           .collect();
         dependencies.sort();
+        dependencies.reverse();
         frontier.extend(
           dependencies
             .into_iter()
@@ -156,7 +157,7 @@ mod tests {
   }
 
   #[test]
-  fn schedule_duplicates() {
+  fn schedule_diamond() {
     let mut tasks = HashMap::new();
     tasks.insert("foo".to_owned(), empty_task());
     tasks.insert(
@@ -165,7 +166,11 @@ mod tests {
     );
     tasks.insert(
       "baz".to_owned(),
-      task_with_dependencies(vec!["bar".to_owned()]),
+      task_with_dependencies(vec!["foo".to_owned()]),
+    );
+    tasks.insert(
+      "qux".to_owned(),
+      task_with_dependencies(vec!["bar".to_owned(), "baz".to_owned()]),
     );
 
     let bakefile = Bakefile {
@@ -174,14 +179,14 @@ mod tests {
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &["baz", "baz"]);
-    let expected: Vec<&str> = vec!["foo", "bar", "baz"];
+    let actual: Vec<&str> = compute(&bakefile, &["qux"]);
+    let expected: Vec<&str> = vec!["foo", "bar", "baz", "qux"];
 
     assert_eq!(actual, expected);
   }
 
   #[test]
-  fn schedule_tie_breaking() {
+  fn schedule_lexicographical_tie_breaking() {
     let mut tasks = HashMap::new();
     tasks.insert("foo".to_owned(), empty_task());
     tasks.insert("bar".to_owned(), empty_task());
@@ -197,5 +202,133 @@ mod tests {
     let expected: Vec<&str> = vec!["bar", "baz", "foo"];
 
     assert_eq!(actual, expected);
+  }
+
+  #[test]
+  fn schedule_dependency_duplicates() {
+    let mut tasks1 = HashMap::new();
+    tasks1.insert("foo".to_owned(), empty_task());
+    tasks1.insert("bar".to_owned(), empty_task());
+    tasks1.insert(
+      "baz".to_owned(),
+      task_with_dependencies(vec![
+        "foo".to_owned(),
+        "bar".to_owned(),
+        "foo".to_owned(),
+      ]),
+    );
+
+    let mut tasks2 = HashMap::new();
+    tasks2.insert("foo".to_owned(), empty_task());
+    tasks2.insert("bar".to_owned(), empty_task());
+    tasks2.insert(
+      "baz".to_owned(),
+      task_with_dependencies(vec![
+        "bar".to_owned(),
+        "foo".to_owned(),
+        "bar".to_owned(),
+      ]),
+    );
+
+    let bakefile1 = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks: tasks1,
+    };
+
+    let bakefile2 = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks: tasks2,
+    };
+
+    let first: Vec<&str> = compute(&bakefile1, &["baz"]);
+    let second: Vec<&str> = compute(&bakefile2, &["baz"]);
+
+    assert_eq!(first, second);
+  }
+
+  #[test]
+  fn schedule_input_duplicates() {
+    let mut tasks = HashMap::new();
+    tasks.insert("foo".to_owned(), empty_task());
+    tasks.insert("bar".to_owned(), empty_task());
+    tasks.insert("baz".to_owned(), empty_task());
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let first: Vec<&str> = compute(&bakefile, &["baz", "bar", "baz"]);
+    let second: Vec<&str> = compute(&bakefile, &["bar", "baz", "bar"]);
+
+    assert_eq!(first, second);
+  }
+
+  #[test]
+  fn schedule_dependency_order() {
+    let mut tasks1 = HashMap::new();
+    tasks1.insert("foo".to_owned(), empty_task());
+    tasks1.insert("bar".to_owned(), empty_task());
+    tasks1.insert("baz".to_owned(), empty_task());
+    tasks1.insert(
+      "qux".to_owned(),
+      task_with_dependencies(vec![
+        "foo".to_owned(),
+        "bar".to_owned(),
+        "baz".to_owned(),
+      ]),
+    );
+
+    let mut tasks2 = HashMap::new();
+    tasks2.insert("foo".to_owned(), empty_task());
+    tasks2.insert("bar".to_owned(), empty_task());
+    tasks2.insert("baz".to_owned(), empty_task());
+    tasks2.insert(
+      "qux".to_owned(),
+      task_with_dependencies(vec![
+        "baz".to_owned(),
+        "bar".to_owned(),
+        "foo".to_owned(),
+      ]),
+    );
+
+    let bakefile1 = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks: tasks1,
+    };
+
+    let bakefile2 = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks: tasks2,
+    };
+
+    let first: Vec<&str> = compute(&bakefile1, &["baz"]);
+    let second: Vec<&str> = compute(&bakefile2, &["baz"]);
+
+    assert_eq!(first, second);
+  }
+
+  #[test]
+  fn schedule_input_order() {
+    let mut tasks = HashMap::new();
+    tasks.insert("foo".to_owned(), empty_task());
+    tasks.insert("bar".to_owned(), empty_task());
+    tasks.insert("baz".to_owned(), empty_task());
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let first: Vec<&str> = compute(&bakefile, &["foo", "bar", "baz"]);
+    let second: Vec<&str> = compute(&bakefile, &["baz", "bar", "foo"]);
+
+    assert_eq!(first, second);
   }
 }
