@@ -1,8 +1,9 @@
 image: ubuntu:18.04
 tasks:
-  packages: |
-    apt-get update
-    apt-get install --yes build-essential curl
+  packages:
+    command: |
+      apt-get update
+      apt-get install --yes build-essential curl
 
   tagref:
     dependencies:
@@ -11,7 +12,8 @@ tasks:
       set -o pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=0.0.8 sh
 
-  user: adduser --disabled-password --gecos '' user
+  user:
+    command: adduser --disabled-password --gecos '' user
 
   rust:
     dependencies:
