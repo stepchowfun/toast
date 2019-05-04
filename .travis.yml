@@ -2,6 +2,6 @@ language: generic
 services: docker
 install:
   - echo "$DOCKER_HUB_PASSWORD" | docker login --username stephanmisc --password-stdin
-  - curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
+  - curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | VERSION=0.2.0 sh
 script:
   - bake --repo stephanmisc/bake --read-remote-cache true --write-remote-cache true
