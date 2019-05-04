@@ -8,9 +8,10 @@ tasks:
     dependencies:
       - packages
     command: |
+      set -o pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
 
-  user: useradd --user-group --create-home user
+  user: adduser --disabled-password --gecos '' user
 
   rust:
     dependencies:
@@ -18,6 +19,7 @@ tasks:
       - user
     user: user
     command: |
+      set -o pipefail
       curl https://sh.rustup.rs -sSf | sh -s -- -y
       . $HOME/.cargo/env
       rustup component add clippy

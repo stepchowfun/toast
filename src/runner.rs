@@ -87,7 +87,8 @@ pub fn run<R: Read>(
   debug!("Created container `{}`.", container_id);
 
   {
-    // If the user interrupts the program, kill the container.
+    // If the user interrupts the program, kill the container. The `unwrap`
+    // will only fail if a panic already occurred.
     active_containers
       .lock()
       .unwrap()
@@ -221,7 +222,8 @@ pub fn spawn_shell(image: &str) -> Result<(), String> {
       "--tty",
       "--init", // [ref:--init]
       image,
-      "/bin/sh",
+      "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
+      "-l",
     ],
     "The shell exited with a failure.",
   )

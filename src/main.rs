@@ -86,11 +86,10 @@ fn set_up_logging() {
   .init();
 }
 
-// Set up the signal handlers. Returns a reference to a Boolean indicating
-// whether the user requested graceful termination.
+// Set up the signal handlers.
 fn set_up_signal_handlers(
-  running: &Arc<AtomicBool>,
-  active_containers: &Arc<Mutex<HashSet<String>>>,
+  running: Arc<AtomicBool>,
+  active_containers: Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
   // If STDOUT is a TTY, the process will receive a SIGINT when
   // the user types CTRL+C at the terminal. The default behavior is to crash
@@ -98,21 +97,18 @@ fn set_up_signal_handlers(
   // before terminating, so we trap the signal here. This code also traps
   // SIGTERM, because we compile the `ctrlc` crate with the `termination`
   // feature [ref:ctrlc_term].
-  let running_ref: Arc<AtomicBool> = running.clone();
-  let active_containers_ref: Arc<Mutex<HashSet<String>>> =
-    active_containers.clone();
   ctrlc::set_handler(move || {
     // Let the rest of the program know the user wants to quit.
-    if running_ref.swap(false, Ordering::SeqCst) {
+    if running.swap(false, Ordering::SeqCst) {
       // Acknowledge the request to quit. We may have been in the middle of
       // printing a line of output, so here we print a newline before emitting
       // the log message.
       let _ = stdout().write(b"\n");
       info!("Terminating...");
 
-      // Stop any active containers. The unwrap will only fail if a panic
+      // Stop any active containers. The `unwrap` will only fail if a panic
       // already occurred.
-      for container in &*active_containers_ref.lock().unwrap() {
+      for container in &*active_containers.lock().unwrap() {
         if let Err(e) = runner::stop_container(&container) {
           error!("{}", e);
         }
@@ -542,8 +538,8 @@ fn run_tasks<'a>(
       &to_image.borrow(),
       &env,
       tar_file,
-      running,
-      active_containers,
+      &running,
+      &active_containers,
     )?;
 
     // If the user wants to stop the job, quit now.
@@ -593,7 +589,7 @@ fn entry() -> Result<(), String> {
   let active_containers = Arc::new(Mutex::new(HashSet::<String>::new()));
 
   // Set up the signal handlers.
-  set_up_signal_handlers(&running, &active_containers)?;
+  set_up_signal_handlers(running.clone(), active_containers.clone())?;
 
   // Parse the command-line arguments;
   let settings = settings()?;
