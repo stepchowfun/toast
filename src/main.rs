@@ -11,7 +11,7 @@ use env_logger::{fmt::Color, Builder, Env};
 use log::Level;
 use std::{
   cell::{Cell, RefCell},
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   env::current_dir,
   fs,
   io::{stdout, Seek, SeekFrom, Write},
@@ -20,7 +20,7 @@ use std::{
   process::exit,
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
   },
 };
 use tempfile::tempfile;
@@ -87,29 +87,42 @@ fn set_up_logging() {
 
 // Set up the signal handlers. Returns a reference to a Boolean indicating
 // whether the user requested graceful termination.
-fn set_up_signal_handlers() -> Result<Arc<AtomicBool>, String> {
-  let running = Arc::new(AtomicBool::new(true));
+fn set_up_signal_handlers(
+  running: &Arc<AtomicBool>,
+  active_containers: &Arc<Mutex<HashSet<String>>>,
+) -> Result<(), String> {
+  // If STDOUT is a TTY, the process will receive a SIGINT when
+  // the user types CTRL+C at the terminal. The default behavior is to crash
+  // when this signal is received. However, we would rather clean up resources
+  // before terminating, so we trap the signal here. This code also traps
+  // SIGTERM, because we compile the `ctrlc` crate with the `termination`
+  // feature [ref:ctrlc_term].
+  let running_ref: Arc<AtomicBool> = running.clone();
+  let active_containers_ref: Arc<Mutex<HashSet<String>>> =
+    active_containers.clone();
+  ctrlc::set_handler(move || {
+    // Let the rest of the program know the user wants to quit.
+    if running_ref.swap(false, Ordering::SeqCst) {
+      // Acknowledge the request to quit. We may have been in the middle of
+      // printing a line of output, so here we print a newline before emitting
+      // the log message.
+      let _ = stdout().write(b"\n");
+      info!("Terminating...");
 
-  // [tag:bake-tty] If STDOUT is a TTY, the process will receive a SIGINT when
-  // the user sends an end-of-text (EOT) character to STDIN (e.g., by pressing
-  // CTRL+C). The default behavior is to crash when this signal is received.
-  // However, we would rather clean up resources before terminating, so we trap
-  // the signal here. We also trap SIGTERM, because we compile the `ctrlc`
-  // crate with the `termination` feature. See also [docker-tty].
-  let running_ref = running.clone();
-  if let Err(e) = ctrlc::set_handler(move || {
-    // Remember that the user wants to quit.
-    running_ref.store(false, Ordering::SeqCst);
+      // Stop any active containers. The unwrap will only fail if a panic
+      // already occurred.
+      for container in &*active_containers_ref.lock().unwrap() {
+        if let Err(e) = runner::stop_container(&container) {
+          error!("{}", e);
+        }
+      }
 
-    // If the user interrupted the container, the container may have been in
-    // the middle of printing a line of output. Here we print a newline to
-    // prepare for further printing.
-    let _ = stdout().write(b"\n");
-  }) {
-    return Err(format!("Error installing signal handler. Details: {}", e));
-  }
-
-  Ok(running)
+      // We may have been in the middle of printing a line of output. Here we
+      // print a newline to prepare for further printing.
+      let _ = stdout().write(b"\n");
+    }
+  })
+  .map_err(|e| format!("Error installing signal handler. Details: {}", e))
 }
 
 // Convert a string (from a command-line argument) into a Boolean.
@@ -429,6 +442,7 @@ fn run_tasks<'a>(
   bakefile: &bakefile::Bakefile,
   env: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
+  active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
   // Pull the base image. Docker will do this automatically when we run the
   // first task, but we do it explicitly here so the user knows what's
@@ -534,6 +548,7 @@ fn run_tasks<'a>(
       &env,
       tar_file,
       running,
+      active_containers,
     )?;
 
     // If the user wants to stop the job, quit now.
@@ -578,8 +593,12 @@ fn entry() -> Result<(), String> {
   // Set up the logger.
   set_up_logging();
 
+  // Set up global mutable state (yum!).
+  let running = Arc::new(AtomicBool::new(true));
+  let active_containers = Arc::new(Mutex::new(HashSet::<String>::new()));
+
   // Set up the signal handlers.
-  let running = set_up_signal_handlers()?;
+  set_up_signal_handlers(&running, &active_containers)?;
 
   // Parse the command-line arguments;
   let settings = settings()?;
@@ -606,7 +625,14 @@ fn entry() -> Result<(), String> {
   let env = fetch_env(&schedule, &bakefile.tasks)?;
 
   // Execute the schedule.
-  run_tasks(&schedule, &settings, &bakefile, &env, &running)?;
+  run_tasks(
+    &schedule,
+    &settings,
+    &bakefile,
+    &env,
+    &running,
+    &active_containers,
+  )?;
 
   // Everything succeeded.
   Ok(())

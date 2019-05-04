@@ -11,7 +11,6 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-atty = "0.2"
 dirs = "1"
 env_logger = "0.6"
 hex = "0.3"
@@ -26,7 +25,7 @@ textwrap = "0.11"
 
 [dependencies.ctrlc]
 version = "3"
-features = ["termination"]
+features = ["termination"] # [tag:ctrlc_term]
 
 [dependencies.clap]
 version = "2"
