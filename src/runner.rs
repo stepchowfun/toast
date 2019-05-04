@@ -1,13 +1,12 @@
 use crate::bakefile::Task;
-use atty::Stream;
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   io,
   io::Read,
   process::{ChildStdin, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
   },
 };
 
@@ -19,6 +18,7 @@ pub fn run<R: Read>(
   environment: &HashMap<String, String>,
   mut tar: R,
   running: &Arc<AtomicBool>,
+  active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
   // Construct the command to run inside the container.
   let mut commands_to_run = vec![];
@@ -69,30 +69,38 @@ pub fn run<R: Read>(
   // signals by explicitly trapping them. Tini traps these signals and forwards
   // them to the child process. Then the default signal handling behavior of
   // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
-  let mut create_command = vec!["container", "create", "--init"];
-
-  if atty::is(Stream::Stdout) {
-    // [tag:docker-tty] If STDOUT is a terminal, tell the Docker client to
-    // behave like a TTY for the container. That means it will, for example,
-    // send a SIGINT signal to the container's foreground process group when
-    // the user presses CTRL+C. If STDOUT is not a terminal, then we don't have
-    // the container behave as if it were attached to one. Some programs (this
-    // one included) query whether they are attached to a terminal and exhibit
-    // different behavior in that case (e.g., printing with color), and we want
-    // to make sure those programs behave correctly. See also [ref:bake-tty].
-    create_command.push("--tty");
-  }
-  create_command
-    .extend([from_image, "/bin/sh", "-c", &command_str[..]].iter());
-  let container_id =
-    run_docker_quiet(&create_command[..], "Unable to create container.")?
-      .trim()
-      .to_owned();
+  let container_id = run_docker_quiet(
+    &vec![
+      "container",
+      "create",
+      "--init",
+      from_image,
+      "/bin/sh",
+      "-c",
+      &command_str[..],
+    ][..],
+    "Unable to create container.",
+  )?
+  .trim()
+  .to_owned();
   debug!("Created container `{}`.", container_id);
+
+  {
+    // If the user interrupts the program, kill the container.
+    active_containers
+      .lock()
+      .unwrap()
+      .insert(container_id.clone());
+  }
 
   // Delete the container when this function returns.
   defer! {{
     debug!("Deleting container...");
+    {
+      // If the user interrupts the program, don't bother killing the
+      // container. We're about to kill it here.
+      active_containers.lock().unwrap().remove(&container_id);
+    }
     if let Err(e) = run_docker_quiet(
       &["container", "rm", "--force", &container_id],
       "Unable to delete container."
@@ -177,6 +185,16 @@ pub fn pull_image(image: &str) -> Result<(), String> {
   run_docker_loud(
     &["image", "pull", image],
     &format!("Unable to pull image `{}`.", image),
+  )
+  .map(|_| ())
+}
+
+// Stop a Docker container.
+pub fn stop_container(container: &str) -> Result<(), String> {
+  debug!("Stopping container `{}`...", container);
+  run_docker_quiet(
+    &["stop", container],
+    &format!("Unable to stop container `{}`.", container),
   )
   .map(|_| ())
 }
