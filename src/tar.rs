@@ -70,14 +70,23 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   Ok(())
 }
 
-// Construct a tar archive and return a hash of its contents. The `source_dir`
-// and `destination_dir` are expected to be absolute paths [tag:src_dest_abs].
+// Construct a tar archive and return a hash of its contents.
 pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
   writer: W,
   paths: &[P],
   source_dir: Q,
   destination_dir: R,
 ) -> Result<(W, String), String> {
+  // Canonicalize the source directory such that other paths can be relativized
+  // with respect to it.
+  let source_dir = source_dir.as_ref().canonicalize().map_err(|e| {
+    format!(
+      "Unable to canonicalize path `{}`. Details: {}",
+      source_dir.as_ref().to_string_lossy(),
+      e
+    )
+  })?;
+
   // This vector will store all the hashes of the contents and metadata of all
   // the files in the archive. In the end, we will sort this vector and then
   // take the hash of the whole thing.
@@ -90,7 +99,7 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
   // Add each path to the archive.
   for path in paths {
     // Compute the source path.
-    let source_path = source_dir.as_ref().join(path);
+    let source_path = source_dir.join(path);
 
     // Fetch the filesystem metadata for this path.
     let metadata = fs::metadata(&source_path).map_err(|e| {
@@ -139,12 +148,12 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
                   e
                 )
               })?
-              .strip_prefix(source_dir.as_ref())
+              .strip_prefix(&source_dir)
               .map_err(|e| {
                 format!(
                   "Unable to relativize path `{}` with respect to `{}`. Details: {}",
                   &entry.path().to_string_lossy(),
-                  &source_dir.as_ref().to_string_lossy(),
+                  &source_dir.to_string_lossy(),
                   e
                 )
               })?,
