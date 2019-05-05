@@ -279,7 +279,7 @@ fn settings() -> Result<Settings, String> {
     );
   let config = config::parse(&config_data).map_err(|e| {
     format!(
-      "Unable to parse file `{}`. Details: {}.",
+      "Unable to parse file `{}`. Details: {}",
       config_file_path.as_ref().unwrap().to_string_lossy(), // Manually verified safe
       e
     )
