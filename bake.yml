@@ -57,7 +57,8 @@ tasks:
     dependencies:
       - build
     paths:
-      - rustfmt.toml
+      - .ignore # Used by `tagref`
+      - rustfmt.toml # Used by `cargo fmt`
     user: user
     command: |
       . $HOME/.cargo/env
