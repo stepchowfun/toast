@@ -10,7 +10,7 @@ tasks:
       - packages
     command: |
       set -o pipefail
-      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.0.0 sh
+      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.1.0 sh
 
   user:
     command: adduser --disabled-password --gecos '' user
