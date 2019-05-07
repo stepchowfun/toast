@@ -7,18 +7,20 @@ mod schedule;
 mod tar;
 
 use clap::{App, AppSettings, Arg};
-use env_logger::{fmt::Color, Builder, Env};
-use log::Level;
+use env_logger::{fmt::Color, Builder};
+use log::{Level, LevelFilter};
 use std::{
   cell::{Cell, RefCell},
   collections::{HashMap, HashSet},
   convert::AsRef,
+  env,
   env::current_dir,
   fs,
   io::{stdout, Seek, SeekFrom, Write},
   path::Path,
   path::PathBuf,
   process::exit,
+  str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -38,6 +40,7 @@ const VERSION: &str = "0.3.0";
 // Defaults
 const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
 const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
+const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 
 // Command-line argument and option names
 const BAKEFILE_ARG: &str = "file";
@@ -52,41 +55,45 @@ const TASKS_ARG: &str = "tasks";
 
 // Set up the logger.
 fn set_up_logging() {
-  Builder::from_env(
-    Env::default()
-      .filter_or("LOG_LEVEL", "info")
-      .write_style("LOG_STYLE"),
-  )
-  .format(|buf, record| {
-    let mut style = buf.style();
-    style.set_bold(true);
-    match record.level() {
-      Level::Error => {
-        style.set_color(Color::Red);
-      }
-      Level::Warn => {
-        style.set_color(Color::Yellow);
-      }
-      Level::Info => {
-        style.set_color(Color::Green);
-      }
-      Level::Debug | Level::Trace => {
-        style.set_color(Color::Blue);
-      }
-    }
-    let indent_size = record.level().to_string().len() + 3;
-    let indent = &" ".repeat(indent_size);
-    writeln!(
-      buf,
-      "{} {}",
-      style.value(format!("[{}]", record.level())),
-      &Wrapper::with_termwidth()
-        .initial_indent(indent)
-        .subsequent_indent(indent)
-        .fill(&record.args().to_string())[indent_size..]
+  Builder::new()
+    .filter_module(
+      module_path!(),
+      LevelFilter::from_str(
+        &env::var("LOG_LEVEL")
+          .unwrap_or_else(|_| DEFAULT_LOG_LEVEL.to_string()),
+      )
+      .unwrap_or_else(|_| DEFAULT_LOG_LEVEL),
     )
-  })
-  .init();
+    .format(|buf, record| {
+      let mut style = buf.style();
+      style.set_bold(true);
+      match record.level() {
+        Level::Error => {
+          style.set_color(Color::Red);
+        }
+        Level::Warn => {
+          style.set_color(Color::Yellow);
+        }
+        Level::Info => {
+          style.set_color(Color::Green);
+        }
+        Level::Debug | Level::Trace => {
+          style.set_color(Color::Blue);
+        }
+      }
+      let indent_size = record.level().to_string().len() + 3;
+      let indent = &" ".repeat(indent_size);
+      writeln!(
+        buf,
+        "{} {}",
+        style.value(format!("[{}]", record.level())),
+        &Wrapper::with_termwidth()
+          .initial_indent(indent)
+          .subsequent_indent(indent)
+          .fill(&record.args().to_string())[indent_size..]
+      )
+    })
+    .init();
 }
 
 // Set up the signal handlers.
@@ -262,7 +269,10 @@ fn settings() -> Result<Settings, String> {
   let config_data = config_file_path
     .as_ref()
     .and_then(|path| {
-      debug!("Loading configuration file `{}`...", path.to_string_lossy());
+      debug!(
+        "Attempting to loading configuration file `{}`...",
+        path.to_string_lossy()
+      );
       fs::read_to_string(path).ok()
     })
     .map_or_else(
