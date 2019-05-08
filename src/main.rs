@@ -231,7 +231,7 @@ fn settings() -> Result<Settings, String> {
     )
     .get_matches();
 
-  // Determine the bakefile path.
+  // Find the bakefile.
   let bakefile_path = matches.value_of(BAKEFILE_ARG).map_or_else(
     || {
       let mut candidate_dir = current_dir().map_err(|e| {
@@ -258,7 +258,7 @@ fn settings() -> Result<Settings, String> {
     |x| Ok(Path::new(x).to_owned()),
   )?;
 
-  // Parse the config file path.
+  // Read the config file path.
   let default_config_file_path =
     dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
   let config_file_path = matches.value_of(CONFIG_FILE_ARG).map_or_else(
@@ -296,7 +296,7 @@ fn settings() -> Result<Settings, String> {
     )
   })?;
 
-  // Parse the local caching switches.
+  // Read the local caching switches.
   let read_local_cache = matches
     .value_of(READ_LOCAL_CACHE_ARG)
     .map_or(Ok(config.read_local_cache), |s| parse_bool(s))?;
@@ -304,7 +304,7 @@ fn settings() -> Result<Settings, String> {
     .value_of(WRITE_LOCAL_CACHE_ARG)
     .map_or(Ok(config.write_local_cache), |s| parse_bool(s))?;
 
-  // Parse the remote caching switches.
+  // Read the remote caching switches.
   let read_remote_cache = matches
     .value_of(READ_REMOTE_CACHE_ARG)
     .map_or(Ok(config.read_remote_cache), |s| parse_bool(s))?;
@@ -312,16 +312,16 @@ fn settings() -> Result<Settings, String> {
     .value_of(WRITE_REMOTE_CACHE_ARG)
     .map_or(Ok(config.write_remote_cache), |s| parse_bool(s))?;
 
-  // Parse the Docker repo.
+  // Read the Docker repo.
   let docker_repo = matches
     .value_of(REPO_ARG)
     .unwrap_or(&config.docker_repo)
     .to_owned();
 
-  // Parse the shell switch.
+  // Read the shell switch.
   let spawn_shell = matches.is_present(SHELL_ARG);
 
-  // Parse the tasks.
+  // Read the list of tasks.
   let tasks = matches.values_of(TASKS_ARG).map(|tasks| {
     tasks
       .map(std::borrow::ToOwned::to_owned)
@@ -370,7 +370,7 @@ fn get_roots<'a>(
     || {
       // The user didn't provide any tasks. Check if there is a default task.
       if let Some(default) = &bakefile.default {
-        // There is a default; use it.
+        // There is a default. Use it.
         Ok(vec![default.as_ref()])
       } else {
         // There is no default. Run all the tasks.
