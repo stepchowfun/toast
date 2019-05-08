@@ -431,7 +431,7 @@ tasks:
 
   #[test]
   fn environment_default_overridden() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();
@@ -457,7 +457,7 @@ tasks:
 
   #[test]
   fn environment_default_not_overridden() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();
@@ -483,7 +483,7 @@ tasks:
 
   #[test]
   fn environment_missing() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();

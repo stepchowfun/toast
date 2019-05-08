@@ -18,7 +18,7 @@ pub fn image_exists(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<bool, String> {
-  debug!("Checking existence of image {}...", image.user_str());
+  debug!("Checking existence of image {}…", image.user_str());
   if let Err(e) = run_quiet(
     &["image", "inspect", image],
     &format!("The image {} does not exist.", image.user_str()),
@@ -39,7 +39,7 @@ pub fn push_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pushing image {}...", image.user_str());
+  debug!("Pushing image {}…", image.user_str());
   run_quiet(
     &["image", "push", image],
     &format!("Unable to push image {}.", image.user_str()),
@@ -53,7 +53,7 @@ pub fn pull_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pulling image {}...", image.user_str());
+  debug!("Pulling image {}…", image.user_str());
   run_quiet(
     &["image", "pull", image],
     &format!("Unable to pull image {}.", image.user_str()),
@@ -67,7 +67,7 @@ pub fn delete_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting image {}...", image.user_str());
+  debug!("Deleting image {}…", image.user_str());
   run_quiet(
     &["image", "rm", "--force", image],
     &format!("Unable to delete image {}.", image.user_str()),
@@ -83,7 +83,7 @@ pub fn create_container(
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   debug!(
-    "Creating container from image {} with command {}...",
+    "Creating container from image {} with command {}…",
     image.user_str(),
     command.user_str()
   );
@@ -127,7 +127,7 @@ pub fn copy_into_container<R: Read>(
   mut tar: R,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Copying files into container {}...", container.user_str());
+  debug!("Copying files into container {}…", container.user_str());
   run_quiet_stdin(
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
     "Unable to copy files into the container.",
@@ -148,7 +148,7 @@ pub fn start_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Starting container {}...", container.user_str());
+  debug!("Starting container {}…", container.user_str());
   run_loud(
     &["container", "start", "--attach", container],
     &format!("Unable to start container {}.", container.user_str()),
@@ -162,7 +162,7 @@ pub fn stop_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Stopping container {}...", container.user_str());
+  debug!("Stopping container {}…", container.user_str());
   run_quiet(
     &["container", "stop", container],
     &format!("Unable to stop container {}.", container.user_str()),
@@ -178,7 +178,7 @@ pub fn commit_container(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
-    "Committing container {} to image {}...",
+    "Committing container {} to image {}…",
     container.user_str(),
     image.user_str()
   );
@@ -199,7 +199,7 @@ pub fn delete_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting container {}...", container.user_str());
+  debug!("Deleting container {}…", container.user_str());
   run_quiet(
     &["container", "rm", "--force", container],
     &format!("Unable to delete container {}.", container.user_str()),
@@ -214,7 +214,7 @@ pub fn spawn_shell(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
-    "Spawning an interactive shell for image {}...",
+    "Spawning an interactive shell for image {}…",
     image.user_str()
   );
   run_attach(
