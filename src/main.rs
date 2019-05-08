@@ -530,15 +530,13 @@ fn run_tasks<'a>(
       // Check the remote cache if applicable.
       if settings.read_remote_cache {
         info!("Attempting to fetch task `{}` from remote cache...", task);
-        if let Err(e) = docker::pull_image(&to_image.borrow(), running) {
-          if e.contains(INTERRUPT_MESSAGE) {
-            return Err(e);
-          } else {
-            info!("Task `{}` not found in remote cache.", task);
-          }
-        } else {
+        if docker::pull_image(&to_image.borrow(), running).is_ok() {
           info!("Task `{}` fetched from remote cache.", task);
           continue;
+        } else if running.load(Ordering::SeqCst) {
+          info!("Task `{}` not found in remote cache.", task);
+        } else {
+          return Err(INTERRUPT_MESSAGE.to_owned());
         }
       }
     }

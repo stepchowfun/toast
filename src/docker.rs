@@ -19,10 +19,10 @@ pub fn image_exists(
     &format!("The image `{}` does not exist.", image),
     running,
   ) {
-    if e.contains(super::INTERRUPT_MESSAGE) {
-      Err(e)
-    } else {
+    if running.load(Ordering::SeqCst) {
       Ok(false)
+    } else {
+      Err(e)
     }
   } else {
     Ok(true)
