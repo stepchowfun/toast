@@ -1,3 +1,4 @@
+use indicatif::{ProgressBar, ProgressStyle};
 use std::{
   io,
   io::Read,
@@ -6,6 +7,9 @@ use std::{
     atomic::{AtomicBool, Ordering},
     Arc,
   },
+  thread,
+  thread::sleep,
+  time::Duration,
 };
 
 // Query whether an image exists locally.
@@ -228,6 +232,11 @@ fn run_quiet(
   error: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
+  let stop_spinning = spin();
+  defer! {{
+    stop_spinning();
+  }}
+
   let output = command(args)
     .stdin(Stdio::null())
     .output()
@@ -256,6 +265,11 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   writer: W,
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
+  let stop_spinning = spin();
+  defer! {{
+    stop_spinning();
+  }}
+
   let mut child = command(args)
     .stdin(Stdio::piped()) // [tag:stdin_piped]
     .stdout(Stdio::piped())
@@ -266,6 +280,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   let output = child
     .wait_with_output()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
@@ -335,4 +350,25 @@ fn command(args: &[&str]) -> Command {
     command.arg(arg);
   }
   command
+}
+
+// Render a spinner in the terminal and return a closure to kill it.
+fn spin() -> impl FnOnce() {
+  let spinning = Arc::new(AtomicBool::new(true));
+  let spinning_clone = spinning.clone();
+
+  let child = thread::spawn(move || {
+    let spinner = ProgressBar::new(1);
+    spinner.set_style(ProgressStyle::default_spinner());
+    while spinning_clone.load(Ordering::SeqCst) {
+      spinner.tick();
+      sleep(Duration::from_millis(100));
+    }
+    spinner.finish_and_clear();
+  });
+
+  move || {
+    spinning.store(false, Ordering::SeqCst);
+    let _ = child.join();
+  }
 }
