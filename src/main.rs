@@ -1,6 +1,7 @@
 mod bakefile;
 mod cache;
 mod config;
+mod docker;
 mod format;
 mod runner;
 mod schedule;
@@ -119,7 +120,7 @@ fn set_up_signal_handlers(
       // Stop any active containers. The `unwrap` will only fail if a panic
       // already occurred.
       for container in &*active_containers.lock().unwrap() {
-        if let Err(e) = runner::stop_container(&container) {
+        if let Err(e) = docker::stop_container(&container) {
           error!("{}", e);
         }
       }
@@ -451,10 +452,10 @@ fn run_tasks<'a>(
   // Pull the base image. Docker will do this automatically when we run the
   // first task, but we do it explicitly here so the user knows what's
   // happening and when it's done.
-  let base_image_already_existed = runner::image_exists(&bakefile.image);
+  let base_image_already_existed = docker::image_exists(&bakefile.image);
   if !base_image_already_existed {
     info!("Pulling image `{}`...", bakefile.image);
-    runner::pull_image(&bakefile.image)?;
+    docker::pull_image(&bakefile.image)?;
   }
 
   // Run each task in sequence.
@@ -477,7 +478,7 @@ fn run_tasks<'a>(
     };
     defer! {{
       if let Some(image) = image_to_delete {
-        if let Err(e) = runner::delete_image(&image) {
+        if let Err(e) = docker::delete_image(&image) {
           error!("{}", e);
         }
       }
@@ -520,7 +521,7 @@ fn run_tasks<'a>(
     // Skip the task if it's cached.
     if this_task_cacheable {
       // Check the local cache.
-      if settings.read_local_cache && runner::image_exists(&to_image.borrow())
+      if settings.read_local_cache && docker::image_exists(&to_image.borrow())
       {
         info!("Task `{}` found in local cache.", task);
         continue;
@@ -529,7 +530,7 @@ fn run_tasks<'a>(
       // Check the remote cache if applicable.
       if settings.read_remote_cache {
         info!("Attempting to fetch task `{}` from remote cache...", task);
-        if runner::pull_image(&to_image.borrow()).is_ok() {
+        if docker::pull_image(&to_image.borrow()).is_ok() {
           // Skip to the next task.
           info!("Task `{}` fetched from remote cache.", task);
           continue;
@@ -563,7 +564,7 @@ fn run_tasks<'a>(
     // Push the image to a remote cache if applicable.
     if settings.write_remote_cache && this_task_cacheable {
       info!("Writing to remote cache...");
-      match runner::push_image(&to_image.borrow()) {
+      match docker::push_image(&to_image.borrow()) {
         Ok(()) => info!("Task `{}` pushed to remote cache.", task),
         Err(e) => warn!("{}", e),
       };
@@ -573,7 +574,7 @@ fn run_tasks<'a>(
   // Delete the final image if it isn't cacheable.
   defer! {{
     if !settings.write_local_cache || !from_image_cacheable.get() {
-      if let Err(e) = runner::delete_image(&from_image.borrow()) {
+      if let Err(e) = docker::delete_image(&from_image.borrow()) {
         error!("{}", e);
       }
     }
@@ -585,7 +586,7 @@ fn run_tasks<'a>(
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
     info!("Here's a shell in the context of the tasks that were executed:");
-    runner::spawn_shell(&from_image.borrow())?;
+    docker::spawn_shell(&from_image.borrow())?;
   }
 
   // Everything succeeded.
