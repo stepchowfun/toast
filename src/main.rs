@@ -615,16 +615,18 @@ fn entry() -> Result<(), String> {
 
   // Compute a schedule of tasks to run.
   let schedule = schedule::compute(&bakefile, &root_tasks);
-  info!(
-    "The following tasks will be executed in the order given: {}.",
-    format::series(
-      schedule
-        .iter()
-        .map(|task| format!("`{}`", task))
-        .collect::<Vec<_>>()
-        .as_ref()
-    )
-  );
+  if !schedule.is_empty() {
+    info!(
+      "The following tasks will be executed in the order given: {}.",
+      format::series(
+        schedule
+          .iter()
+          .map(|task| format!("`{}`", task))
+          .collect::<Vec<_>>()
+          .as_ref()
+      )
+    );
+  }
 
   // Fetch all the environment variables used by the tasks in the schedule.
   let env = fetch_env(&schedule, &bakefile.tasks)?;
