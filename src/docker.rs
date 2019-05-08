@@ -2,50 +2,81 @@ use std::{
   io,
   io::Read,
   process::{ChildStdin, Command, Stdio},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
 };
 
 // Query whether an image exists locally.
-pub fn image_exists(image: &str) -> bool {
+pub fn image_exists(
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<bool, String> {
   debug!("Checking existence of image `{}`...", image);
-  run_quiet(
+  if let Err(e) = run_quiet(
     &["image", "inspect", image],
     &format!("The image `{}` does not exist.", image),
-  )
-  .is_ok()
+    running,
+  ) {
+    if e.contains(super::INTERRUPT_MESSAGE) {
+      Err(e)
+    } else {
+      Ok(false)
+    }
+  } else {
+    Ok(true)
+  }
 }
 
 // Push an image.
-pub fn push_image(image: &str) -> Result<(), String> {
+pub fn push_image(
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Pushing image `{}`...", image);
-  run_loud(
+  run_quiet(
     &["image", "push", image],
     &format!("Unable to push image `{}`.", image),
+    running,
   )
   .map(|_| ())
 }
 
 // Pull an image.
-pub fn pull_image(image: &str) -> Result<(), String> {
+pub fn pull_image(
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Pulling image `{}`...", image);
-  run_loud(
+  run_quiet(
     &["image", "pull", image],
     &format!("Unable to pull image `{}`.", image),
+    running,
   )
   .map(|_| ())
 }
 
 // Delete an image.
-pub fn delete_image(image: &str) -> Result<(), String> {
+pub fn delete_image(
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Deleting image `{}`...", image);
   run_quiet(
     &["image", "rm", "--force", image],
     &format!("Unable to delete image `{}`.", image),
+    running,
   )
   .map(|_| ())
 }
 
 // Create a container and return its ID.
-pub fn create_container(image: &str, command: &str) -> Result<String, String> {
+pub fn create_container(
+  image: &str,
+  command: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<String, String> {
   debug!(
     "Creating container from image `{}` with command `{}`...",
     image, command
@@ -76,6 +107,7 @@ pub fn create_container(image: &str, command: &str) -> Result<String, String> {
         "Unable to create container from image `{}` with command `{}`.",
         image, command
       ),
+      running,
     )?
     .trim()
     .to_owned(),
@@ -86,6 +118,7 @@ pub fn create_container(image: &str, command: &str) -> Result<String, String> {
 pub fn copy_into_container<R: Read>(
   container: &str,
   mut tar: R,
+  running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Copying files into container `{}`...", container);
   run_quiet_stdin(
@@ -98,32 +131,45 @@ pub fn copy_into_container<R: Read>(
 
       Ok(())
     },
+    running,
   )
   .map(|_| ())
 }
 
 // Start a container.
-pub fn start_container(container: &str) -> Result<(), String> {
+pub fn start_container(
+  container: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Starting container `{}`...", container);
   run_loud(
     &["container", "start", "--attach", container],
     &format!("Unable to start container `{}`.", container),
+    running,
   )
   .map(|_| ())
 }
 
 // Stop a container.
-pub fn stop_container(container: &str) -> Result<(), String> {
+pub fn stop_container(
+  container: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Stopping container `{}`...", container);
   run_quiet(
     &["container", "stop", container],
     &format!("Unable to stop container `{}`.", container),
+    running,
   )
   .map(|_| ())
 }
 
 // Commit a container to an image.
-pub fn commit_container(container: &str, image: &str) -> Result<(), String> {
+pub fn commit_container(
+  container: &str,
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!(
     "Committing container `{}` to image `{}`...",
     container, image
@@ -134,22 +180,30 @@ pub fn commit_container(container: &str, image: &str) -> Result<(), String> {
       "Unable to commit container `{}` to image `{}`.",
       container, image
     ),
+    running,
   )
   .map(|_| ())
 }
 
 // Delete a container.
-pub fn delete_container(container: &str) -> Result<(), String> {
+pub fn delete_container(
+  container: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Deleting container `{}`...", container);
   run_quiet(
     &["container", "rm", "--force", container],
     &format!("Unable to delete container `{}`.", container),
+    running,
   )
   .map(|_| ())
 }
 
 // Run an interactive shell.
-pub fn spawn_shell(image: &str) -> Result<(), String> {
+pub fn spawn_shell(
+  image: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   debug!("Spawning an interactive shell for image `{}`...", image);
   run_attach(
     &[
@@ -164,23 +218,34 @@ pub fn spawn_shell(image: &str) -> Result<(), String> {
       "-l",
     ],
     "The shell exited with a failure.",
+    running,
   )
 }
 
 // Run a command and return its standard output.
-fn run_quiet(args: &[&str], error: &str) -> Result<String, String> {
+fn run_quiet(
+  args: &[&str],
+  error: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<String, String> {
   let output = command(args)
     .stdin(Stdio::null())
     .output()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !output.status.success() {
-    return Err(format!(
-      "{}\nDetails: {}",
-      error,
-      String::from_utf8_lossy(&output.stderr)
-    ));
+
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(if running.load(Ordering::SeqCst) {
+      format!(
+        "{}\nDetails: {}",
+        error,
+        String::from_utf8_lossy(&output.stderr)
+      )
+    } else {
+      super::INTERRUPT_MESSAGE.to_owned()
+    })
   }
-  Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 // Run a command and return its standard output. Accepts a closure which
@@ -189,6 +254,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   args: &[&str],
   error: &str,
   writer: W,
+  running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   let mut child = command(args)
     .stdin(Stdio::piped()) // [tag:stdin_piped]
@@ -200,37 +266,66 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   let output = child
     .wait_with_output()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !output.status.success() {
-    return Err(format!(
-      "{}\nDetails: {}",
-      error,
-      String::from_utf8_lossy(&output.stderr)
-    ));
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(if running.load(Ordering::SeqCst) {
+      format!(
+        "{}\nDetails: {}",
+        error,
+        String::from_utf8_lossy(&output.stderr)
+      )
+    } else {
+      super::INTERRUPT_MESSAGE.to_owned()
+    })
   }
-  Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 // Run a command and forward its standard output and error streams.
-fn run_loud(args: &[&str], error: &str) -> Result<(), String> {
+fn run_loud(
+  args: &[&str],
+  error: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   let status = command(args)
     .stdin(Stdio::null())
     .status()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !status.success() {
-    return Err(error.to_owned());
+  if status.success() {
+    Ok(())
+  } else {
+    Err(
+      if running.load(Ordering::SeqCst) {
+        error
+      } else {
+        super::INTERRUPT_MESSAGE
+      }
+      .to_owned(),
+    )
   }
-  Ok(())
 }
 
 // Run a command and forward its standard input, output, and error streams.
-fn run_attach(args: &[&str], error: &str) -> Result<(), String> {
+fn run_attach(
+  args: &[&str],
+  error: &str,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
   let status = command(args)
     .status()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !status.success() {
-    return Err(error.to_owned());
+  if status.success() {
+    Ok(())
+  } else {
+    Err(
+      if running.load(Ordering::SeqCst) {
+        error
+      } else {
+        super::INTERRUPT_MESSAGE
+      }
+      .to_owned(),
+    )
   }
-  Ok(())
 }
 
 // Construct a Docker `Command` from an array of arguments.

@@ -56,8 +56,11 @@ pub fn run<R: Read>(
   }
 
   // Create the container.
-  let container =
-    docker::create_container(from_image, &commands_to_run.join(" && "))?;
+  let container = docker::create_container(
+    from_image,
+    &commands_to_run.join(" && "),
+    running,
+  )?;
 
   // If the user interrupts the program, kill the container. The `unwrap`
   // will only fail if a panic already occurred.
@@ -73,37 +76,31 @@ pub fn run<R: Read>(
       active_containers.lock().unwrap().remove(&container);
     }
 
-    if let Err(e) = docker::delete_container(&container) {
+    if let Err(e) = docker::delete_container(&container, running) {
       error!("{}", e);
     }
   }};
 
   // Copy files into the container, if applicable.
   if !task.paths.is_empty() {
-    docker::copy_into_container(&container, &mut tar).map_err(|e| {
-      if running.load(Ordering::SeqCst) {
-        e
-      } else {
-        "Interrupted.".to_owned()
-      }
-    })?;
+    docker::copy_into_container(&container, &mut tar, running)?;
   }
 
   // Start the container to run the command.
   if let Some(command) = &task.command {
     info!("{}", command);
   }
-  docker::start_container(&container).map_err(|_| {
+  docker::start_container(&container, running).map_err(|_| {
     if running.load(Ordering::SeqCst) {
       "Task failed."
     } else {
-      "Interrupted."
+      super::INTERRUPT_MESSAGE
     }
     .to_owned()
   })?;
 
   // Create an image from the container.
-  docker::commit_container(&container, to_image)?;
+  docker::commit_container(&container, to_image, running)?;
 
   Ok(())
 }
