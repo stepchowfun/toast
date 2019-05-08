@@ -1,4 +1,4 @@
-use crate::cache;
+use crate::{cache, format::UserStr};
 use ignore::Walk;
 use std::{
   fs,
@@ -41,8 +41,8 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   // Open the file so we can compute the hash of its contents.
   let mut file = File::open(&source).map_err(|e| {
     format!(
-      "Unable to open file `{}`. Details: {}",
-      &source.to_string_lossy(),
+      "Unable to open file {}. Details: {}",
+      &source.to_string_lossy().user_str(),
       e
     )
   })?;
@@ -59,8 +59,8 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   // Jump back to the beginning of the file so the tar builder can read it.
   file.seek(SeekFrom::Start(0)).map_err(|e| {
     format!(
-      "Unable to seek file `{}`. Details: {}",
-      &source.to_string_lossy(),
+      "Unable to seek file {}. Details: {}",
+      &source.to_string_lossy().user_str(),
       e
     )
   })?;
@@ -81,8 +81,8 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
   // with respect to it.
   let source_dir = source_dir.as_ref().canonicalize().map_err(|e| {
     format!(
-      "Unable to canonicalize path `{}`. Details: {}",
-      source_dir.as_ref().to_string_lossy(),
+      "Unable to canonicalize path {}. Details: {}",
+      source_dir.as_ref().to_string_lossy().user_str(),
       e
     )
   })?;
@@ -104,8 +104,8 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     // Fetch the filesystem metadata for this path.
     let metadata = fs::metadata(&source_path).map_err(|e| {
       format!(
-        "Unable to fetch filesystem metadata for `{}`. Details: {}",
-        &source_path.to_string_lossy(),
+        "Unable to fetch filesystem metadata for {}. Details: {}",
+        &source_path.to_string_lossy().user_str(),
         e
       )
     })?;
@@ -117,15 +117,15 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
         // Fetch the filesystem metadata for this entry.
         let entry = entry.map_err(|e| {
           format!(
-            "Unable to traverse directory `{}`. Details: {}",
-            &source_path.to_string_lossy(),
+            "Unable to traverse directory {}. Details: {}",
+            &source_path.to_string_lossy().user_str(),
             e
           )
         })?;
         let entry_metadata = entry.metadata().map_err(|e| {
           format!(
-            "Unable to fetch filesystem metadata for `{}`. Details: {}",
-            &source_path.to_string_lossy(),
+            "Unable to fetch filesystem metadata for {}. Details: {}",
+            &source_path.to_string_lossy().user_str(),
             e
           )
         })?;
@@ -143,17 +143,17 @@ pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
               .canonicalize()
               .map_err(|e| {
                 format!(
-                  "Unable to canonicalize path `{}`. Details: {}",
-                  &entry.path().to_string_lossy(),
+                  "Unable to canonicalize path {}. Details: {}",
+                  &entry.path().to_string_lossy().user_str(),
                   e
                 )
               })?
               .strip_prefix(&source_dir)
               .map_err(|e| {
                 format!(
-                  "Unable to relativize path `{}` with respect to `{}`. Details: {}",
-                  &entry.path().to_string_lossy(),
-                  &source_dir.to_string_lossy(),
+                  "Unable to relativize path {} with respect to {}. Details: {}",
+                  &entry.path().to_string_lossy().user_str(),
+                  &source_dir.to_string_lossy().user_str(),
                   e
                 )
               })?,

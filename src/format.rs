@@ -1,3 +1,22 @@
+use atty::Stream;
+use colored::{ColoredString, Colorize};
+
+// This trait has a function for formatting a user-provided string, such as a
+// task name.
+pub trait UserStr {
+  fn user_str(&self) -> ColoredString;
+}
+
+impl UserStr for str {
+  fn user_str(&self) -> ColoredString {
+    if atty::is(Stream::Stdout) {
+      self.magenta()
+    } else {
+      ColoredString::from(&format!("`{}`", self) as &Self)
+    }
+  }
+}
+
 // This function takes a number and a noun and returns a string representing
 // the noun with the given multiplicity (pluralizing if necessary). For
 // example, (3, "cow") becomes "3 cows".

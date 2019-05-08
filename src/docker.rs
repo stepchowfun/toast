@@ -1,3 +1,4 @@
+use crate::format::UserStr;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
   io,
@@ -17,10 +18,10 @@ pub fn image_exists(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<bool, String> {
-  debug!("Checking existence of image `{}`...", image);
+  debug!("Checking existence of image {}...", image.user_str());
   if let Err(e) = run_quiet(
     &["image", "inspect", image],
-    &format!("The image `{}` does not exist.", image),
+    &format!("The image {} does not exist.", image.user_str()),
     running,
   ) {
     if running.load(Ordering::SeqCst) {
@@ -38,10 +39,10 @@ pub fn push_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pushing image `{}`...", image);
+  debug!("Pushing image {}...", image.user_str());
   run_quiet(
     &["image", "push", image],
-    &format!("Unable to push image `{}`.", image),
+    &format!("Unable to push image {}.", image.user_str()),
     running,
   )
   .map(|_| ())
@@ -52,10 +53,10 @@ pub fn pull_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pulling image `{}`...", image);
+  debug!("Pulling image {}...", image.user_str());
   run_quiet(
     &["image", "pull", image],
-    &format!("Unable to pull image `{}`.", image),
+    &format!("Unable to pull image {}.", image.user_str()),
     running,
   )
   .map(|_| ())
@@ -66,10 +67,10 @@ pub fn delete_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting image `{}`...", image);
+  debug!("Deleting image {}...", image.user_str());
   run_quiet(
     &["image", "rm", "--force", image],
-    &format!("Unable to delete image `{}`.", image),
+    &format!("Unable to delete image {}.", image.user_str()),
     running,
   )
   .map(|_| ())
@@ -82,8 +83,9 @@ pub fn create_container(
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   debug!(
-    "Creating container from image `{}` with command `{}`...",
-    image, command
+    "Creating container from image {} with command {}...",
+    image.user_str(),
+    command.user_str()
   );
 
   // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
@@ -108,8 +110,9 @@ pub fn create_container(
       ]
       .as_ref(),
       &format!(
-        "Unable to create container from image `{}` with command `{}`.",
-        image, command
+        "Unable to create container from image {} with command {}.",
+        image.user_str(),
+        command.user_str()
       ),
       running,
     )?
@@ -124,7 +127,7 @@ pub fn copy_into_container<R: Read>(
   mut tar: R,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Copying files into container `{}`...", container);
+  debug!("Copying files into container {}...", container.user_str());
   run_quiet_stdin(
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
     "Unable to copy files into the container.",
@@ -145,10 +148,10 @@ pub fn start_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Starting container `{}`...", container);
+  debug!("Starting container {}...", container.user_str());
   run_loud(
     &["container", "start", "--attach", container],
-    &format!("Unable to start container `{}`.", container),
+    &format!("Unable to start container {}.", container.user_str()),
     running,
   )
   .map(|_| ())
@@ -159,10 +162,10 @@ pub fn stop_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Stopping container `{}`...", container);
+  debug!("Stopping container {}...", container.user_str());
   run_quiet(
     &["container", "stop", container],
-    &format!("Unable to stop container `{}`.", container),
+    &format!("Unable to stop container {}.", container.user_str()),
     running,
   )
   .map(|_| ())
@@ -175,14 +178,16 @@ pub fn commit_container(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
-    "Committing container `{}` to image `{}`...",
-    container, image
+    "Committing container {} to image {}...",
+    container.user_str(),
+    image.user_str()
   );
   run_quiet(
     &["container", "commit", container, image],
     &format!(
-      "Unable to commit container `{}` to image `{}`.",
-      container, image
+      "Unable to commit container {} to image {}.",
+      container.user_str(),
+      image.user_str()
     ),
     running,
   )
@@ -194,10 +199,10 @@ pub fn delete_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting container `{}`...", container);
+  debug!("Deleting container {}...", container.user_str());
   run_quiet(
     &["container", "rm", "--force", container],
-    &format!("Unable to delete container `{}`.", container),
+    &format!("Unable to delete container {}.", container.user_str()),
     running,
   )
   .map(|_| ())
@@ -208,7 +213,10 @@ pub fn spawn_shell(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Spawning an interactive shell for image `{}`...", image);
+  debug!(
+    "Spawning an interactive shell for image {}...",
+    image.user_str()
+  );
   run_attach(
     &[
       "container",
