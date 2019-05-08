@@ -270,7 +270,7 @@ fn settings() -> Result<Settings, String> {
     .as_ref()
     .and_then(|path| {
       debug!(
-        "Attempting to loading configuration file {}...",
+        "Attempting to loading configuration file {}…",
         path.to_string_lossy().user_str()
       );
       fs::read_to_string(path).ok()
@@ -458,7 +458,7 @@ fn run_tasks<'a>(
   let base_image_already_existed =
     docker::image_exists(&bakefile.image, running)?;
   if !base_image_already_existed {
-    info!("Pulling image {}...", bakefile.image.user_str());
+    info!("Pulling image {}…", bakefile.image.user_str());
     docker::pull_image(&bakefile.image, running)?;
   }
 
@@ -468,7 +468,7 @@ fn run_tasks<'a>(
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
-    info!("Running task {}...", task.user_str());
+    info!("Running task {}…", task.user_str());
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
     // At the end of this iteration, delete the image from the previous step if

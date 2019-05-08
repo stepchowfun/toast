@@ -36,9 +36,9 @@ Now run `bake`. You should see the following:
 ```
 $ bake
 [INFO] The following tasks will be executed in the order given: `greet`.
-[INFO] Pulling image `ubuntu`...
+[INFO] Pulling image `ubuntu`…
        <output omitted>
-[INFO] Running task `greet`...
+[INFO] Running task `greet`…
 [INFO] echo 'Hello, World!'
 Hello, World!
 [INFO] 1 task finished.
@@ -86,11 +86,11 @@ Run `bake` to see a marvelous greeting:
 ```
 $ bake
 [INFO] The following tasks will be executed in the order given: `figlet` and `greet`.
-[INFO] Running task `figlet`...
+[INFO] Running task `figlet`…
 [INFO] apt-get update
        apt-get install --yes figlet
        <output omitted>
-[INFO] Running task `greet`...
+[INFO] Running task `greet`…
 [INFO] figlet 'Hello, World!'
  _   _      _ _         __        __         _     _ _
 | | | | ___| | | ___    \ \      / /__  _ __| | __| | |
@@ -143,13 +143,13 @@ Now if you run `bake`, you'll see this:
 ```
 $ bake
 [INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `run`.
-[INFO] Running task `gcc`...
+[INFO] Running task `gcc`…
 [INFO] apt-get update
        apt-get install --yes gcc
        <output omitted>
-[INFO] Running task `build`...
+[INFO] Running task `build`…
 [INFO] gcc main.c
-[INFO] Running task `run`...
+[INFO] Running task `run`…
 [INFO] ./a.out
 Hello, World!
 [INFO] 3 tasks finished.
@@ -166,7 +166,7 @@ tasks:
     cache: false
     environment:
       CLUSTER: staging # Deploy to staging by default
-    command: echo "Deploying to $CLUSTER..."
+    command: echo "Deploying to $CLUSTER…"
 ```
 
 When you run this task, Bake will read the value from the environment:
@@ -174,9 +174,9 @@ When you run this task, Bake will read the value from the environment:
 ```
 $ CLUSTER=production bake deploy
 [INFO] The following tasks will be executed in the order given: `deploy`.
-[INFO] Running task `deploy`...
-[INFO] echo "Deploying to $CLUSTER..."
-Deploying to production...
+[INFO] Running task `deploy`…
+[INFO] echo "Deploying to $CLUSTER…"
+Deploying to production…
 [INFO] 1 task finished.
 ```
 
@@ -185,9 +185,9 @@ If the variable does not exist in the environment, Bake will use the default val
 ```
 $ bake deploy
 [INFO] The following tasks will be executed in the order given: `deploy`.
-[INFO] Running task `deploy`...
-[INFO] echo "Deploying to $CLUSTER..."
-Deploying to staging...
+[INFO] Running task `deploy`…
+[INFO] echo "Deploying to $CLUSTER…"
+Deploying to staging…
 [INFO] 1 task finished.
 ```
 
@@ -200,7 +200,7 @@ tasks:
     cache: false
     environment:
       CLUSTER: null # No default provided
-    command: echo "Deploying to $CLUSTER..."
+    command: echo "Deploying to $CLUSTER…"
 ```
 
 Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain:
@@ -305,7 +305,7 @@ By default, Bake looks for a bakefile called `bake.yml` in the working directory
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
 ```
-$ bake task1 task2 task3...
+$ bake task1 task2 task3…
 ```
 
 Here are all the supported command-line options:
