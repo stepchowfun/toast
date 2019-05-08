@@ -1,4 +1,5 @@
 use crate::{bakefile::Task, docker};
+use colored::Colorize;
 use std::{
   collections::{HashMap, HashSet},
   io::Read,
@@ -88,7 +89,7 @@ pub fn run<R: Read>(
 
   // Start the container to run the command.
   if let Some(command) = &task.command {
-    info!("{}", command);
+    info!("{}", command.blue());
   }
   docker::start_container(&container, running).map_err(|_| {
     if running.load(Ordering::SeqCst) {

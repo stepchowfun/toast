@@ -1,24 +1,24 @@
 image: ubuntu:18.04
 tasks:
-  packages:
+  install_packages:
     command: |
       apt-get update
       apt-get install --yes build-essential curl
 
-  tagref:
+  install_tagref:
     dependencies:
-      - packages
+      - install_packages
     command: |
       set -o pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.1.0 sh
 
-  user:
+  create_user:
     command: adduser --disabled-password --gecos '' user
 
-  rust:
+  install_rust:
     dependencies:
-      - packages
-      - user
+      - install_packages
+      - create_user
     user: user
     command: |
       set -o pipefail
@@ -28,14 +28,14 @@ tasks:
       rustup component add rustfmt
       rm -rf "$(dirname "$(rustup which rustc)")/../share"
 
-  tools:
+  install_tools:
     dependencies:
-      - rust
-      - tagref
+      - install_rust
+      - install_tagref
 
-  crates:
+  fetch_crates:
     dependencies:
-      - tools
+      - install_tools
     paths:
       - Cargo.lock
       - Cargo.toml
@@ -53,7 +53,7 @@ tasks:
 
   build:
     dependencies:
-      - crates
+      - fetch_crates
     paths:
       - src
     user: user

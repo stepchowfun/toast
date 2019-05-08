@@ -1,4 +1,4 @@
-use crate::format;
+use crate::{format, format::UserStr};
 use serde::{Deserialize, Serialize};
 use std::{
   collections::{HashMap, HashSet},
@@ -129,12 +129,12 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         .iter()
         .map(|(task, dependencies)| {
           format!(
-            "`{}` ({})",
-            task,
+            "{} ({})",
+            task.user_str(),
             format::series(
               dependencies
                 .iter()
-                .map(|task| format!("`{}`", task))
+                .map(|task| format!("{}", task.user_str()))
                 .collect::<Vec<_>>()
                 .as_ref()
             )
@@ -151,15 +151,15 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
       ));
     } else {
       return Err(format!(
-        "The default task `{}` does not exist, and the following tasks have invalid dependencies: {}.",
-        bakefile.default.as_ref().unwrap(), // [ref:valid_default]
+        "The default task {} does not exist, and the following tasks have invalid dependencies: {}.",
+        bakefile.default.as_ref().unwrap().user_str(), // [ref:valid_default]
         violations_series
       ));
     }
   } else if !valid_default {
     return Err(format!(
-      "The default task `{}` does not exist.",
-      bakefile.default.as_ref().unwrap() // [ref:valid_default]
+      "The default task {} does not exist.",
+      bakefile.default.as_ref().unwrap().user_str() // [ref:valid_default]
     ));
   }
 
@@ -193,9 +193,13 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         let mut cycle = cycle_iter.collect::<Vec<_>>();
         cycle.push(&task); // [tag:cycle_nonempty]
         let error_message = if cycle.len() == 1 {
-          format!("`{}` depends on itself.", cycle[0])
+          format!("{} depends on itself.", cycle[0].user_str())
         } else if cycle.len() == 2 {
-          format!("`{}` and `{}` depend on each other.", cycle[0], cycle[1])
+          format!(
+            "{} and {} depend on each other.",
+            cycle[0].user_str(),
+            cycle[1].user_str()
+          )
         } else {
           let mut cycle_dependencies = cycle[1..].to_owned();
           cycle_dependencies.push(cycle[0]); // [ref:cycle_nonempty]
@@ -205,7 +209,11 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
               cycle
                 .iter()
                 .zip(cycle_dependencies)
-                .map(|(x, y)| format!("`{}` depends on `{}`", x, y))
+                .map(|(x, y)| format!(
+                  "{} depends on {}",
+                  x.user_str(),
+                  y.user_str()
+                ))
                 .collect::<Vec<_>>()
                 .as_ref(),
             )

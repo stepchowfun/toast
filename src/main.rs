@@ -7,6 +7,8 @@ mod runner;
 mod schedule;
 mod tar;
 
+use crate::format::UserStr;
+use atty::Stream;
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
@@ -136,7 +138,7 @@ fn parse_bool(s: &str) -> Result<bool, String> {
   match normalized.as_ref() {
     "true" | "yes" => Ok(true),
     "false" | "no" => Ok(false),
-    _ => Err(format!("`{}` is not a Boolean.", s)),
+    _ => Err(format!("{} is not a Boolean.", s.user_str())),
   }
 }
 
@@ -246,8 +248,8 @@ fn settings() -> Result<Settings, String> {
         }
         if !candidate_dir.pop() {
           return Err(format!(
-            "Unable to locate file `{}`.",
-            BAKEFILE_DEFAULT_NAME
+            "Unable to locate file {}.",
+            BAKEFILE_DEFAULT_NAME.user_str()
           ));
         }
       }
@@ -268,8 +270,8 @@ fn settings() -> Result<Settings, String> {
     .as_ref()
     .and_then(|path| {
       debug!(
-        "Attempting to loading configuration file `{}`...",
-        path.to_string_lossy()
+        "Attempting to loading configuration file {}...",
+        path.to_string_lossy().user_str()
       );
       fs::read_to_string(path).ok()
     })
@@ -287,8 +289,12 @@ fn settings() -> Result<Settings, String> {
     );
   let config = config::parse(&config_data).map_err(|e| {
     format!(
-      "Unable to parse file `{}`. Details: {}",
-      config_file_path.as_ref().unwrap().to_string_lossy(), // Manually verified safe
+      "Unable to parse file {}. Details: {}",
+      config_file_path
+        .as_ref()
+        .unwrap()
+        .to_string_lossy()
+        .user_str(), // Manually verified safe
       e
     )
   })?;
@@ -342,8 +348,8 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
   // Read the file from disk.
   let bakefile_data = fs::read_to_string(bakefile_path).map_err(|e| {
     format!(
-      "Unable to read file `{}`. Details: {}",
-      bakefile_path.to_string_lossy(),
+      "Unable to read file {}. Details: {}",
+      bakefile_path.to_string_lossy().user_str(),
       e
     )
   })?;
@@ -351,8 +357,8 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
   // Parse it.
   bakefile::parse(&bakefile_data).map_err(|e| {
     format!(
-      "Unable to parse file `{}`. Details: {}",
-      bakefile_path.to_string_lossy(),
+      "Unable to parse file {}. Details: {}",
+      bakefile_path.to_string_lossy().user_str(),
       e
     )
   })
@@ -380,9 +386,9 @@ fn get_roots<'a>(
         if !bakefile.tasks.contains_key(task) {
           // [tag:tasks_valid]
           return Err(format!(
-            "No task named `{}` in `{}`.",
-            task,
-            settings.bakefile_path.to_string_lossy()
+            "No task named {} in {}.",
+            task.user_str(),
+            settings.bakefile_path.to_string_lossy().user_str()
           ));
         }
       }
@@ -420,12 +426,12 @@ fn fetch_env(
         violations
           .iter()
           .map(|(task, vars)| format!(
-            "`{}` ({})",
-            task,
+            "{} ({})",
+            task.user_str(),
             format::series(
               vars
                 .iter()
-                .map(|var| format!("`{}`", var))
+                .map(|var| format!("{}", var.user_str()))
                 .collect::<Vec<_>>().as_ref()
             )
           ))
@@ -452,7 +458,7 @@ fn run_tasks<'a>(
   let base_image_already_existed =
     docker::image_exists(&bakefile.image, running)?;
   if !base_image_already_existed {
-    info!("Pulling image `{}`...", bakefile.image);
+    info!("Pulling image {}...", bakefile.image.user_str());
     docker::pull_image(&bakefile.image, running)?;
   }
 
@@ -518,24 +524,27 @@ fn run_tasks<'a>(
 
     // Skip the task if it's cached.
     if this_task_cacheable {
-      // Check the local cache.
-      if settings.read_local_cache {
-        if docker::image_exists(&to_image.borrow(), running)? {
-          info!("Task `{}` found in local cache.", task);
-          continue;
-        }
-        info!("Task `{}` not found in local cache.", task);
+      if settings.read_local_cache
+        && docker::image_exists(&to_image.borrow(), running)?
+      {
+        info!("Task {} found in local cache.", task.user_str());
+        continue;
       }
 
-      // Check the remote cache if applicable.
       if settings.read_remote_cache {
-        info!("Attempting to fetch task `{}` from remote cache...", task);
-        if docker::pull_image(&to_image.borrow(), running).is_ok() {
-          info!("Task `{}` fetched from remote cache.", task);
-          continue;
-        } else if running.load(Ordering::SeqCst) {
-          info!("Task `{}` not found in remote cache.", task);
+        if settings.read_local_cache {
+          info!(
+            "Task {} not found in local cache. Checking remote cache...",
+            task.user_str()
+          );
         } else {
+          info!("Checking remote cache for task {}...", task.user_str());
+        }
+
+        if docker::pull_image(&to_image.borrow(), running).is_ok() {
+          info!("Found.");
+          continue;
+        } else if !running.load(Ordering::SeqCst) {
           return Err(INTERRUPT_MESSAGE.to_owned());
         }
       }
@@ -547,7 +556,7 @@ fn run_tasks<'a>(
     }
 
     // Run the task.
-    info!("Running task `{}`...", task);
+    info!("Running task {}...", task.user_str());
     runner::run(
       task_data,
       &from_image.borrow(),
@@ -566,10 +575,9 @@ fn run_tasks<'a>(
     // Push the image to a remote cache if applicable.
     if settings.write_remote_cache && this_task_cacheable {
       info!("Writing to remote cache...");
-      match docker::push_image(&to_image.borrow(), running) {
-        Ok(()) => info!("Task `{}` pushed to remote cache.", task),
-        Err(e) => warn!("{}", e),
-      };
+      if let Err(e) = docker::push_image(&to_image.borrow(), running) {
+        warn!("{}", e);
+      }
     }
   }
 
@@ -583,7 +591,7 @@ fn run_tasks<'a>(
   }}
 
   // Tell the user the good news!
-  info!("{} finished.", format::number(schedule.len(), "task"));
+  info!("Done.");
 
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
@@ -597,6 +605,9 @@ fn run_tasks<'a>(
 
 // Program entrypoint
 fn entry() -> Result<(), String> {
+  // Determine whether to print colored output.
+  colored::control::set_override(atty::is(Stream::Stdout));
+
   // Set up the logger.
   set_up_logging();
 
@@ -620,11 +631,12 @@ fn entry() -> Result<(), String> {
   let schedule = schedule::compute(&bakefile, &root_tasks);
   if !schedule.is_empty() {
     info!(
-      "The following tasks will be executed in the order given: {}.",
+      "Running {}: {}.",
+      format::number(schedule.len(), "task"),
       format::series(
         schedule
           .iter()
-          .map(|task| format!("`{}`", task))
+          .map(|task| format!("{}", task.user_str()))
           .collect::<Vec<_>>()
           .as_ref()
       )
