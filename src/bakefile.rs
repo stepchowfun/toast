@@ -90,11 +90,11 @@ pub fn environment<'a>(
     }
   }
 
-  if !violations.is_empty() {
-    return Err(violations);
+  if violations.is_empty() {
+    Ok(result)
+  } else {
+    Err(violations)
   }
-
-  Ok(result)
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).

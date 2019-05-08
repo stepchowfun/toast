@@ -54,6 +54,9 @@ const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
 
+// The error message to log when Bake is interrupted.
+const INTERRUPT_MESSAGE: &str = "Interrupted.";
+
 // Set up the logger.
 fn set_up_logging() {
   Builder::new()
@@ -111,16 +114,10 @@ fn set_up_signal_handlers(
   ctrlc::set_handler(move || {
     // Let the rest of the program know the user wants to quit.
     if running.swap(false, Ordering::SeqCst) {
-      // Acknowledge the request to quit. We may have been in the middle of
-      // printing a line of output, so here we print a newline before emitting
-      // the log message.
-      let _ = stdout().write(b"\n");
-      info!("Terminating...");
-
       // Stop any active containers. The `unwrap` will only fail if a panic
       // already occurred.
       for container in &*active_containers.lock().unwrap() {
-        if let Err(e) = docker::stop_container(&container) {
+        if let Err(e) = docker::stop_container(&container, &running) {
           error!("{}", e);
         }
       }
@@ -452,10 +449,11 @@ fn run_tasks<'a>(
   // Pull the base image. Docker will do this automatically when we run the
   // first task, but we do it explicitly here so the user knows what's
   // happening and when it's done.
-  let base_image_already_existed = docker::image_exists(&bakefile.image);
+  let base_image_already_existed =
+    docker::image_exists(&bakefile.image, running)?;
   if !base_image_already_existed {
     info!("Pulling image `{}`...", bakefile.image);
-    docker::pull_image(&bakefile.image)?;
+    docker::pull_image(&bakefile.image, running)?;
   }
 
   // Run each task in sequence.
@@ -478,7 +476,7 @@ fn run_tasks<'a>(
     };
     defer! {{
       if let Some(image) = image_to_delete {
-        if let Err(e) = docker::delete_image(&image) {
+        if let Err(e) = docker::delete_image(&image, running) {
           error!("{}", e);
         }
       }
@@ -487,7 +485,7 @@ fn run_tasks<'a>(
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      return Err("Interrupted.".to_owned());
+      return Err(INTERRUPT_MESSAGE.to_owned());
     }
 
     // Tar up the files to be copied into the container.
@@ -521,27 +519,33 @@ fn run_tasks<'a>(
     // Skip the task if it's cached.
     if this_task_cacheable {
       // Check the local cache.
-      if settings.read_local_cache && docker::image_exists(&to_image.borrow())
-      {
-        info!("Task `{}` found in local cache.", task);
-        continue;
+      if settings.read_local_cache {
+        if docker::image_exists(&to_image.borrow(), running)? {
+          info!("Task `{}` found in local cache.", task);
+          continue;
+        }
+        info!("Task `{}` not found in local cache.", task);
       }
 
       // Check the remote cache if applicable.
       if settings.read_remote_cache {
         info!("Attempting to fetch task `{}` from remote cache...", task);
-        if docker::pull_image(&to_image.borrow()).is_ok() {
-          // Skip to the next task.
+        if let Err(e) = docker::pull_image(&to_image.borrow(), running) {
+          if e.contains(INTERRUPT_MESSAGE) {
+            return Err(e);
+          } else {
+            info!("Task `{}` not found in remote cache.", task);
+          }
+        } else {
           info!("Task `{}` fetched from remote cache.", task);
           continue;
         }
-        info!("Task `{}` not found in remote cache.", task);
       }
     }
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      return Err("Interrupted.".to_owned());
+      return Err(INTERRUPT_MESSAGE.to_owned());
     }
 
     // Run the task.
@@ -558,13 +562,13 @@ fn run_tasks<'a>(
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      return Err("Interrupted.".to_owned());
+      return Err(INTERRUPT_MESSAGE.to_owned());
     }
 
     // Push the image to a remote cache if applicable.
     if settings.write_remote_cache && this_task_cacheable {
       info!("Writing to remote cache...");
-      match docker::push_image(&to_image.borrow()) {
+      match docker::push_image(&to_image.borrow(), running) {
         Ok(()) => info!("Task `{}` pushed to remote cache.", task),
         Err(e) => warn!("{}", e),
       };
@@ -574,7 +578,7 @@ fn run_tasks<'a>(
   // Delete the final image if it isn't cacheable.
   defer! {{
     if !settings.write_local_cache || !from_image_cacheable.get() {
-      if let Err(e) = docker::delete_image(&from_image.borrow()) {
+      if let Err(e) = docker::delete_image(&from_image.borrow(), running) {
         error!("{}", e);
       }
     }
@@ -586,7 +590,7 @@ fn run_tasks<'a>(
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
     info!("Here's a shell in the context of the tasks that were executed:");
-    docker::spawn_shell(&from_image.borrow())?;
+    docker::spawn_shell(&from_image.borrow(), running)?;
   }
 
   // Everything succeeded.
