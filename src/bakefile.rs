@@ -6,10 +6,10 @@ use std::{
   path::{Path, PathBuf},
 };
 
-// The default location for commands and paths
+// The default location for commands and files copied into the container
 pub const DEFAULT_LOCATION: &str = "/scratch";
 
-// The default user for commands and paths
+// The default user for commands and files copied into the container
 pub const DEFAULT_USER: &str = "root";
 
 // This struct represents a task.
