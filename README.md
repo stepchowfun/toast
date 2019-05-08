@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/bake.svg?branch=master)](https://travis-ci.org/stepchowfun/bake)
 
-*Bake* is a containerized build system. You define tasks and their dependencies in a *bakefile*, and Bake runs them in a Dockerized environment based on an image of your choosing. Bake supports local and remote caching to avoid repeating work.
+*Bake* is a containerized build system. You define tasks and their dependencies in a *bakefile*, and Bake runs them in containers based on a Docker image of your choosing. Bake supports local and remote caching to avoid repeating work.
 
 Running tasks in containers helps with reproducibility. If a Bake task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
@@ -10,6 +10,11 @@ Here are two reasons to use Bake on top of vanilla Docker:
 
 - Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**. You can define tasks for installing dependencies, building the application, running tests, linting, deploying, etc.
 - Bake supports **remote caching** of tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a task which installs those things, and let Bake handle the rest.
+
+On the other hand, here are two reasons *not* to use Bake:
+
+- Bake is not suitable for tasks that cannot run in Linux containers (e.g., builds for iOS applications).
+- Bake tasks cannot run a Docker daemon (e.g., to build an image), because [containers don't nest well](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/). In the future, Bake may provide an option to expose the host's Docker daemon, but this is not currently supported.
 
 Bake has no knowledge of specific programming languages or frameworks. You can use Bake with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
