@@ -1,9 +1,7 @@
-use crate::bakefile::Task;
+use crate::{bakefile::Task, docker};
 use std::{
   collections::{HashMap, HashSet},
-  io,
   io::Read,
-  process::{ChildStdin, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -58,77 +56,31 @@ pub fn run<R: Read>(
   }
 
   // Create the container.
-  let command_str = commands_to_run.join(" && ");
-  debug!(
-    "Creating container from image `{}` with command `{}`...",
-    from_image, command_str
-  );
+  let container =
+    docker::create_container(from_image, &commands_to_run.join(" && "))?;
 
-  // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
-  // otherwise they can accumulate. Bash does this, but we run `/bin/sh` in the
-  // container, which may or may not be Bash. So `--init` runs Tini
-  // (https://github.com/krallin/tini) as PID 1, which properly reaps orphaned
-  // zombies. (2) PID 1 also does not exhibit the default behavior (crashing)
-  // for signals like SIGINT and SIGTERM. However, PID 1 can still handle these
-  // signals by explicitly trapping them. Tini traps these signals and forwards
-  // them to the child process. Then the default signal handling behavior of
-  // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
-  let container_id = run_docker_quiet(
-    vec![
-      "container",
-      "create",
-      "--init",
-      from_image,
-      "/bin/sh",
-      "-c",
-      command_str.as_ref(),
-    ]
-    .as_ref(),
-    "Unable to create container.",
-  )?
-  .trim()
-  .to_owned();
-  debug!("Created container `{}`.", container_id);
-
+  // If the user interrupts the program, kill the container. The `unwrap`
+  // will only fail if a panic already occurred.
   {
-    // If the user interrupts the program, kill the container. The `unwrap`
-    // will only fail if a panic already occurred.
-    active_containers
-      .lock()
-      .unwrap()
-      .insert(container_id.clone());
+    active_containers.lock().unwrap().insert(container.clone());
   }
 
   // Delete the container when this function returns.
   defer! {{
-    debug!("Deleting container...");
     {
       // If the user interrupts the program, don't bother killing the
       // container. We're about to kill it here.
-      active_containers.lock().unwrap().remove(&container_id);
+      active_containers.lock().unwrap().remove(&container);
     }
-    if let Err(e) = run_docker_quiet(
-      &["container", "rm", "--force", &container_id],
-      "Unable to delete container."
-    ) {
+
+    if let Err(e) = docker::delete_container(&container) {
       error!("{}", e);
     }
   }};
 
   // Copy files into the container, if applicable.
   if !task.paths.is_empty() {
-    run_docker_quiet_stdin(
-      &["container", "cp", "-", &format!("{}:{}", container_id, "/")],
-      "Unable to copy files into the container.",
-      |mut stdin| {
-        io::copy(&mut tar, &mut stdin).map_err(|e| {
-          format!("Unable to copy files into the container.. Details: {}", e)
-        })?;
-
-        Ok(())
-      },
-    )
-    .map_err(|e| {
+    docker::copy_into_container(&container, &mut tar).map_err(|e| {
       if running.load(Ordering::SeqCst) {
         e
       } else {
@@ -137,174 +89,22 @@ pub fn run<R: Read>(
     })?;
   }
 
-  // Start the container.
-  debug!("Starting container...");
+  // Start the container to run the command.
   if let Some(command) = &task.command {
     info!("{}", command);
   }
-  run_docker_loud(
-    &["container", "start", "--attach", &container_id],
-    "Task failed.",
-  )
-  .map_err(|e| {
+  docker::start_container(&container).map_err(|_| {
     if running.load(Ordering::SeqCst) {
-      e
+      "Task failed."
     } else {
-      "Interrupted.".to_owned()
+      "Interrupted."
     }
+    .to_owned()
   })?;
 
   // Create an image from the container.
-  debug!("Creating image...");
-  run_docker_quiet(
-    &["container", "commit", &container_id, to_image],
-    "Unable to create image.",
-  )?;
-  debug!("Created image `{}`.", to_image);
+  docker::commit_container(&container, to_image)?;
 
-  Ok(())
-}
-
-// Query whether a Docker image exists locally.
-pub fn image_exists(image: &str) -> bool {
-  debug!("Checking existence of image `{}`...", image);
-  run_docker_quiet(
-    &["image", "inspect", image],
-    &format!("The image `{}` does not exist.", image),
-  )
-  .is_ok()
-}
-
-// Push a Docker image.
-pub fn push_image(image: &str) -> Result<(), String> {
-  debug!("Pushing image `{}`...", image);
-  run_docker_loud(
-    &["image", "push", image],
-    &format!("Unable to push image `{}`.", image),
-  )
-  .map(|_| ())
-}
-
-// Pull a Docker image.
-pub fn pull_image(image: &str) -> Result<(), String> {
-  debug!("Pulling image `{}`...", image);
-  run_docker_loud(
-    &["image", "pull", image],
-    &format!("Unable to pull image `{}`.", image),
-  )
-  .map(|_| ())
-}
-
-// Stop a Docker container.
-pub fn stop_container(container: &str) -> Result<(), String> {
-  debug!("Stopping container `{}`...", container);
-  run_docker_quiet(
-    &["stop", container],
-    &format!("Unable to stop container `{}`.", container),
-  )
-  .map(|_| ())
-}
-
-// Delete a Docker image.
-pub fn delete_image(image: &str) -> Result<(), String> {
-  debug!("Deleting image `{}`...", image);
-  run_docker_quiet(
-    &["image", "rm", "--force", image],
-    &format!("Unable to delete image `{}`.", image),
-  )
-  .map(|_| ())
-}
-
-// Run an interactive shell and block until it exits.
-pub fn spawn_shell(image: &str) -> Result<(), String> {
-  run_docker_attach(
-    &[
-      "container",
-      "run",
-      "--rm",
-      "--interactive",
-      "--tty",
-      "--init", // [ref:--init]
-      image,
-      "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
-      "-l",
-    ],
-    "The shell exited with a failure.",
-  )
-}
-
-// Construct a Docker `Command` from an array of arguments.
-fn docker_command(args: &[&str]) -> Command {
-  let mut command = Command::new("docker");
-  for arg in args {
-    command.arg(arg);
-  }
-  command
-}
-
-// Run a command and return its standard output or an error message. Accepts a
-// closure which receives a pipe to the STDIN of the child process.
-fn run_docker_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
-  args: &[&str],
-  error: &str,
-  writer: W,
-) -> Result<String, String> {
-  let mut child = docker_command(args)
-    .stdin(Stdio::piped()) // [tag:stdin_piped]
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  writer(child.stdin.as_mut().unwrap())?; // [ref:stdin_piped]
-  let output = child
-    .wait_with_output()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !output.status.success() {
-    return Err(format!(
-      "{}\nDetails: {}",
-      error,
-      String::from_utf8_lossy(&output.stderr)
-    ));
-  }
-  Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-// Run a command and return its standard output or an error message.
-fn run_docker_quiet(args: &[&str], error: &str) -> Result<String, String> {
-  let output = docker_command(args)
-    .stdin(Stdio::null())
-    .output()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !output.status.success() {
-    return Err(format!(
-      "{}\nDetails: {}",
-      error,
-      String::from_utf8_lossy(&output.stderr)
-    ));
-  }
-  Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-// Run a command and forward its standard output and error streams.
-fn run_docker_loud(args: &[&str], error: &str) -> Result<(), String> {
-  let status = docker_command(args)
-    .stdin(Stdio::null())
-    .status()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !status.success() {
-    return Err(error.to_owned());
-  }
-  Ok(())
-}
-
-// Run a command and forward its standard input, output, and error streams.
-fn run_docker_attach(args: &[&str], error: &str) -> Result<(), String> {
-  let status = docker_command(args)
-    .status()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  if !status.success() {
-    return Err(error.to_owned());
-  }
   Ok(())
 }
 
