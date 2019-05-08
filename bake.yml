@@ -33,12 +33,28 @@ tasks:
       - rust
       - tagref
 
-  build:
+  crates:
     dependencies:
       - tools
     paths:
       - Cargo.lock
       - Cargo.toml
+    user: user
+    command: |
+      . $HOME/.cargo/env
+      mv Cargo.lock Cargo.lock.og
+      mv Cargo.toml Cargo.toml.og
+      cargo init --vcs none
+      mv Cargo.lock.og Cargo.lock
+      mv Cargo.toml.og Cargo.toml
+      cargo build
+      cargo clippy
+      rm -rf src
+
+  build:
+    dependencies:
+      - crates
+    paths:
       - src
     user: user
     command: |
