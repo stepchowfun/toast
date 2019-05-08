@@ -468,6 +468,7 @@ fn run_tasks<'a>(
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
+    info!("Running task {}...", task.user_str());
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
     // At the end of this iteration, delete the image from the previous step if
@@ -527,22 +528,11 @@ fn run_tasks<'a>(
       if settings.read_local_cache
         && docker::image_exists(&to_image.borrow(), running)?
       {
-        info!("Task {} found in local cache.", task.user_str());
         continue;
       }
 
       if settings.read_remote_cache {
-        if settings.read_local_cache {
-          info!(
-            "Task {} not found in local cache. Checking remote cache...",
-            task.user_str()
-          );
-        } else {
-          info!("Checking remote cache for task {}...", task.user_str());
-        }
-
         if docker::pull_image(&to_image.borrow(), running).is_ok() {
-          info!("Found.");
           continue;
         } else if !running.load(Ordering::SeqCst) {
           return Err(INTERRUPT_MESSAGE.to_owned());
@@ -556,7 +546,6 @@ fn run_tasks<'a>(
     }
 
     // Run the task.
-    info!("Running task {}...", task.user_str());
     runner::run(
       task_data,
       &from_image.borrow(),
@@ -574,7 +563,6 @@ fn run_tasks<'a>(
 
     // Push the image to a remote cache if applicable.
     if settings.write_remote_cache && this_task_cacheable {
-      info!("Writing to remote cache...");
       if let Err(e) = docker::push_image(&to_image.borrow(), running) {
         warn!("{}", e);
       }
