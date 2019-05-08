@@ -270,7 +270,7 @@ fn settings() -> Result<Settings, String> {
     .as_ref()
     .and_then(|path| {
       debug!(
-        "Attempting to loading configuration file {}…",
+        "Attempting to load configuration file {}…",
         path.to_string_lossy().user_str()
       );
       fs::read_to_string(path).ok()
