@@ -38,7 +38,7 @@ extern crate log;
 extern crate scopeguard;
 
 // The program version
-const VERSION: &str = "0.4.0";
+const VERSION: &str = "0.5.0";
 
 // Defaults
 const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
