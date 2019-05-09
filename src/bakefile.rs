@@ -1,4 +1,4 @@
-use crate::{format, format::UserStr};
+use crate::{format, format::CodeStr};
 use serde::{Deserialize, Serialize};
 use std::{
   collections::{HashMap, HashSet},
@@ -112,9 +112,9 @@ fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
       if path.is_absolute() {
         return Err(format!(
           "Task {} has an absolute {}: {}.",
-          name.user_str(),
-          "input_path".user_str(),
-          path.to_string_lossy().user_str()
+          name.code_str(),
+          "input_path".code_str(),
+          path.to_string_lossy().code_str()
         ));
       }
     }
@@ -124,9 +124,9 @@ fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
       if path.is_absolute() {
         return Err(format!(
           "Task {} has an absolute {}: {}.",
-          name.user_str(),
-          "ouput_path".user_str(),
-          path.to_string_lossy().user_str()
+          name.code_str(),
+          "ouput_path".code_str(),
+          path.to_string_lossy().code_str()
         ));
       }
     }
@@ -135,9 +135,9 @@ fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
     if task.location.is_relative() {
       return Err(format!(
         "Task {} has a relative {}: {}.",
-        name.user_str(),
-        "location".user_str(),
-        task.location.to_string_lossy().user_str()
+        name.code_str(),
+        "location".code_str(),
+        task.location.to_string_lossy().code_str()
       ));
     }
   }
@@ -178,11 +178,11 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         .map(|(task, dependencies)| {
           format!(
             "{} ({})",
-            task.user_str(),
+            task.code_str(),
             format::series(
               dependencies
                 .iter()
-                .map(|task| format!("{}", task.user_str()))
+                .map(|task| format!("{}", task.code_str()))
                 .collect::<Vec<_>>()
                 .as_ref()
             )
@@ -200,14 +200,14 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
     } else {
       return Err(format!(
         "The default task {} does not exist, and the following tasks have invalid dependencies: {}.",
-        bakefile.default.as_ref().unwrap().user_str(), // [ref:valid_default]
+        bakefile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
         violations_series
       ));
     }
   } else if !valid_default {
     return Err(format!(
       "The default task {} does not exist.",
-      bakefile.default.as_ref().unwrap().user_str() // [ref:valid_default]
+      bakefile.default.as_ref().unwrap().code_str() // [ref:valid_default]
     ));
   }
 
@@ -241,12 +241,12 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         let mut cycle = cycle_iter.collect::<Vec<_>>();
         cycle.push(&task); // [tag:cycle_nonempty]
         let error_message = if cycle.len() == 1 {
-          format!("{} depends on itself.", cycle[0].user_str())
+          format!("{} depends on itself.", cycle[0].code_str())
         } else if cycle.len() == 2 {
           format!(
             "{} and {} depend on each other.",
-            cycle[0].user_str(),
-            cycle[1].user_str()
+            cycle[0].code_str(),
+            cycle[1].code_str()
           )
         } else {
           let mut cycle_dependencies = cycle[1..].to_owned();
@@ -259,8 +259,8 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
                 .zip(cycle_dependencies)
                 .map(|(x, y)| format!(
                   "{} depends on {}",
-                  x.user_str(),
-                  y.user_str()
+                  x.code_str(),
+                  y.code_str()
                 ))
                 .collect::<Vec<_>>()
                 .as_ref(),

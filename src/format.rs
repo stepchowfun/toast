@@ -1,14 +1,14 @@
 use atty::Stream;
 use colored::{ColoredString, Colorize};
 
-// This trait has a function for formatting a user-provided string, such as a
-// task name.
-pub trait UserStr {
-  fn user_str(&self) -> ColoredString;
+// This trait has a function for formatting "code-like" text, such as a task
+// name or a file path.
+pub trait CodeStr {
+  fn code_str(&self) -> ColoredString;
 }
 
-impl UserStr for str {
-  fn user_str(&self) -> ColoredString {
+impl CodeStr for str {
+  fn code_str(&self) -> ColoredString {
     if atty::is(Stream::Stdout) {
       self.magenta()
     } else {

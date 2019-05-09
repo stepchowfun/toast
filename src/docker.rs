@@ -1,4 +1,4 @@
-use crate::format::UserStr;
+use crate::format::CodeStr;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
   fs::{create_dir_all, metadata, rename},
@@ -22,7 +22,7 @@ pub fn image_exists(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<bool, String> {
-  debug!("Checking existence of image {}\u{2026}", image.user_str());
+  debug!("Checking existence of image {}\u{2026}", image.code_str());
   if let Err(e) = run_quiet(
     &["image", "inspect", image],
     "The image doesn't exist.",
@@ -43,7 +43,7 @@ pub fn push_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pushing image {}\u{2026}", image.user_str());
+  debug!("Pushing image {}\u{2026}", image.code_str());
   run_quiet(&["image", "push", image], "Unable to push image.", running)
     .map(|_| ())
 }
@@ -53,7 +53,7 @@ pub fn pull_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pulling image {}\u{2026}", image.user_str());
+  debug!("Pulling image {}\u{2026}", image.code_str());
   run_quiet(&["image", "pull", image], "Unable to pull image.", running)
     .map(|_| ())
 }
@@ -63,7 +63,7 @@ pub fn delete_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting image {}\u{2026}", image.user_str());
+  debug!("Deleting image {}\u{2026}", image.code_str());
   run_quiet(
     &["image", "rm", "--force", image],
     "Unable to delete image.",
@@ -80,8 +80,8 @@ pub fn create_container(
 ) -> Result<String, String> {
   debug!(
     "Creating container from image {} with command {}\u{2026}",
-    image.user_str(),
-    command.user_str()
+    image.code_str(),
+    command.code_str()
   );
 
   // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
@@ -121,7 +121,7 @@ pub fn copy_into_container<R: Read>(
 ) -> Result<(), String> {
   debug!(
     "Copying files into container {}\u{2026}",
-    container.user_str()
+    container.code_str()
   );
   run_quiet_stdin(
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
@@ -151,7 +151,7 @@ pub fn copy_from_container(
     debug!(
       "Copying `{}` from container {}\u{2026}",
       path.to_string_lossy(),
-      container.user_str()
+      container.code_str()
     );
 
     // `docker container cp` is not idempotent. For example, suppose there is a
@@ -191,7 +191,7 @@ pub fn copy_from_container(
     let metadata_err_map = |e| {
       format!(
         "Unable to retrieve filesystem metadata for path {}. Details: {}",
-        intermediate.to_string_lossy().user_str(),
+        intermediate.to_string_lossy().code_str(),
         e
       )
     };
@@ -200,8 +200,8 @@ pub fn copy_from_container(
       rename(&intermediate, &destination).map_err(|e| {
         format!(
           "Unable to move file {} to destination {}. Details: {}",
-          intermediate.to_string_lossy().user_str(),
-          destination.to_string_lossy().user_str(),
+          intermediate.to_string_lossy().code_str(),
+          destination.to_string_lossy().code_str(),
           e
         )
       })?;
@@ -212,7 +212,7 @@ pub fn copy_from_container(
         let entry = entry.map_err(|e| {
           format!(
             "Unable to traverse directory {}. Details: {}",
-            intermediate.to_string_lossy().user_str(),
+            intermediate.to_string_lossy().code_str(),
             e
           )
         })?;
@@ -229,7 +229,7 @@ pub fn copy_from_container(
           create_dir_all(&destination_path).map_err(|e| {
             format!(
               "Unable to create directory {}. Details: {}",
-              destination_path.to_string_lossy().user_str(),
+              destination_path.to_string_lossy().code_str(),
               e
             )
           })?;
@@ -238,8 +238,8 @@ pub fn copy_from_container(
           rename(entry_path, &destination_path).map_err(|e| {
             format!(
               "Unable to move file {} to destination {}. Details: {}",
-              entry_path.to_string_lossy().user_str(),
-              destination_path.to_string_lossy().user_str(),
+              entry_path.to_string_lossy().code_str(),
+              destination_path.to_string_lossy().code_str(),
               e
             )
           })?;
@@ -256,7 +256,7 @@ pub fn start_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Starting container {}\u{2026}", container.user_str());
+  debug!("Starting container {}\u{2026}", container.code_str());
   run_loud(
     &["container", "start", "--attach", container],
     "Unable to start container.",
@@ -270,7 +270,7 @@ pub fn stop_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Stopping container {}\u{2026}", container.user_str());
+  debug!("Stopping container {}\u{2026}", container.code_str());
   run_quiet(
     &["container", "stop", container],
     "Unable to stop container.",
@@ -287,8 +287,8 @@ pub fn commit_container(
 ) -> Result<(), String> {
   debug!(
     "Committing container {} to image {}\u{2026}",
-    container.user_str(),
-    image.user_str()
+    container.code_str(),
+    image.code_str()
   );
   run_quiet(
     &["container", "commit", container, image],
@@ -303,7 +303,7 @@ pub fn delete_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting container {}\u{2026}", container.user_str());
+  debug!("Deleting container {}\u{2026}", container.code_str());
   run_quiet(
     &["container", "rm", "--force", container],
     "Unable to delete container.",
@@ -319,7 +319,7 @@ pub fn spawn_shell(
 ) -> Result<(), String> {
   debug!(
     "Spawning an interactive shell for image {}\u{2026}",
-    image.user_str()
+    image.code_str()
   );
   run_attach(
     &[
