@@ -6,6 +6,8 @@
 
 Running tasks in containers helps with reproducibility. If a Bake task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
+![Welcome to Bake.](https://s3.amazonaws.com/static.stephanboyer.com/bake/welcome.svg)
+
 Here are two reasons to use Bake on top of vanilla Docker:
 
 - Bake allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**. You can define tasks for installing dependencies, building the application, running tests, linting, deploying, etc.
@@ -33,25 +35,11 @@ tasks:
 
 Now run `bake`. You should see the following:
 
-```
-$ bake
-[INFO] The following tasks will be executed in the order given: `greet`.
-[INFO] Pulling image `ubuntu`…
-       <output omitted>
-[INFO] Running task `greet`…
-[INFO] echo 'Hello, World!'
-Hello, World!
-[INFO] 1 task finished.
-```
+![A simple task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/minimal-task.svg)
 
 If you run it again, Bake will find that nothing has changed and skip the task:
 
-```
-$ bake
-[INFO] The following tasks will be executed in the order given: `greet`.
-[INFO] Task `greet` found in local cache.
-[INFO] 1 task finished.
-```
+![Caching.](https://s3.amazonaws.com/static.stephanboyer.com/bake/caching.svg)
 
 Bake caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
@@ -83,23 +71,7 @@ tasks:
 
 Run `bake` to see a marvelous greeting:
 
-```
-$ bake
-[INFO] The following tasks will be executed in the order given: `figlet` and `greet`.
-[INFO] Running task `figlet`…
-[INFO] apt-get update
-       apt-get install --yes figlet
-       <output omitted>
-[INFO] Running task `greet`…
-[INFO] figlet 'Hello, World!'
- _   _      _ _         __        __         _     _ _
-| | | | ___| | | ___    \ \      / /__  _ __| | __| | |
-| |_| |/ _ \ | |/ _ \    \ \ /\ / / _ \| '__| |/ _` | |
-|  _  |  __/ | | (_) |    \ V  V / (_) | |  | | (_| |_|
-|_| |_|\___|_|_|\___( )    \_/\_/ \___/|_|  |_|\__,_(_)
-                    |/
-[INFO] 2 tasks finished.
-```
+![Adding a dependency.](https://s3.amazonaws.com/static.stephanboyer.com/bake/dependency.svg)
 
 ### Using files from the host
 
@@ -140,20 +112,33 @@ Notice the `input_paths` array in the `build` task. Here we are copying a single
 
 Now if you run `bake`, you'll see this:
 
+![Adding files from the host.](https://s3.amazonaws.com/static.stephanboyer.com/bake/input-paths.svg)
+
+### Exporting files from the container
+
+A common use case for Bake is to build a project. Naturally, you might wonder how to access the build artifacts produced inside the container. It's easy to do with `output_paths`:
+
+```yaml
+image: ubuntu
+tasks:
+  gcc:
+    command: |
+      apt-get update
+      apt-get install --yes gcc
+
+  build:
+    dependencies:
+      - gcc
+    input_paths:
+      - main.c
+    output_paths:
+      - a.out
+    command: gcc main.c
 ```
-$ bake
-[INFO] The following tasks will be executed in the order given: `gcc`, `build`, and `run`.
-[INFO] Running task `gcc`…
-[INFO] apt-get update
-       apt-get install --yes gcc
-       <output omitted>
-[INFO] Running task `build`…
-[INFO] gcc main.c
-[INFO] Running task `run`…
-[INFO] ./a.out
-Hello, World!
-[INFO] 3 tasks finished.
-```
+
+When Bake runs the `build` task, it will copy the `a.out` file to the host.
+
+![Exporting files from the container.](https://s3.amazonaws.com/static.stephanboyer.com/bake/output-paths.svg)
 
 ### Passing arguments to a task
 
@@ -166,30 +151,16 @@ tasks:
     cache: false
     environment:
       CLUSTER: staging # Deploy to staging by default
-    command: echo "Deploying to $CLUSTER…"
+    command: echo "Deploying to $CLUSTER..."
 ```
 
 When you run this task, Bake will read the value from the environment:
 
-```
-$ CLUSTER=production bake deploy
-[INFO] The following tasks will be executed in the order given: `deploy`.
-[INFO] Running task `deploy`…
-[INFO] echo "Deploying to $CLUSTER…"
-Deploying to production…
-[INFO] 1 task finished.
-```
+![Passing arguments to a task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-explicit.svg)
 
 If the variable does not exist in the environment, Bake will use the default value:
 
-```
-$ bake deploy
-[INFO] The following tasks will be executed in the order given: `deploy`.
-[INFO] Running task `deploy`…
-[INFO] echo "Deploying to $CLUSTER…"
-Deploying to staging…
-[INFO] 1 task finished.
-```
+![Using argument defaults.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-default.svg)
 
 If you don't want to have a default, set it to `null`:
 
@@ -200,16 +171,10 @@ tasks:
     cache: false
     environment:
       CLUSTER: null # No default provided
-    command: echo "Deploying to $CLUSTER…"
+    command: echo "Deploying to $CLUSTER..."
 ```
 
-Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain:
-
-```
-$ bake deploy
-[INFO] The following tasks will be executed in the order given: `deploy`.
-[ERROR] The following tasks use variables which are missing from the environment: `deploy` (`CLUSTER`).
-```
+Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain.
 
 ### Dropping into a shell
 
@@ -226,20 +191,7 @@ tasks:
 
 Now you can run `bake --shell` to play with `figlet`.
 
-```
-$ bake --shell
-[INFO] The following tasks will be executed in the order given: `figlet`.
-[INFO] Task `figlet` found in local cache.
-[INFO] 1 task finished.
-[INFO] Here's a shell in the context of the tasks that were executed:
-root@f1454db4408a:~# figlet 'Hello, Bake!'
- _   _      _ _          ____        _        _
-| | | | ___| | | ___    | __ )  __ _| | _____| |
-| |_| |/ _ \ | |/ _ \   |  _ \ / _` | |/ / _ \ |
-|  _  |  __/ | | (_) |  | |_) | (_| |   <  __/_|
-|_| |_|\___|_|_|\___( ) |____/ \__,_|_|\_\___(_)
-                    |/
-```
+![Dropping into a shell.](https://s3.amazonaws.com/static.stephanboyer.com/bake/shell.svg)
 
 ## How Bake works
 
