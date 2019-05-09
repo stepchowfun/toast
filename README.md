@@ -16,7 +16,7 @@ Here are two reasons to use Bake on top of vanilla Docker:
 On the other hand, here are two reasons *not* to use Bake:
 
 - Bake is not suitable for tasks that cannot run in Linux containers (e.g., builds for iOS applications).
-- Bake tasks cannot run a Docker daemon (e.g., to build an image), because [containers don't nest well](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/). In the future, Bake may provide an option to expose the host's Docker daemon, but this is not currently supported.
+- Bake tasks cannot run a Docker daemon (e.g., to build an image), because [containers don't nest well](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/).
 
 Bake has no knowledge of specific programming languages or frameworks. You can use Bake with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
