@@ -615,7 +615,7 @@ fn entry() -> Result<(), String> {
   let schedule = schedule::compute(&bakefile, &root_tasks);
   if !schedule.is_empty() {
     info!(
-      "Running {}: {}.",
+      "Ready to run {}: {}.",
       format::number(schedule.len(), "task"),
       format::series(
         schedule
