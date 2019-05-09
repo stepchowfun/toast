@@ -174,7 +174,7 @@ tasks:
     command: echo "Deploying to $CLUSTER..."
 ```
 
-Now if you run `bake deploy` without the `CLUSTER` variable, Bake will complain.
+Now if you run `bake deploy` without specifying a `CLUSTER`, Bake will complain about the missing variable and refuse to run the task.
 
 ### Dropping into a shell
 
@@ -192,6 +192,8 @@ tasks:
 Now you can run `bake --shell` to play with `figlet`.
 
 ![Dropping into a shell.](https://s3.amazonaws.com/static.stephanboyer.com/bake/shell.svg)
+
+When you're done, the container is deleted automatically.
 
 ## How Bake works
 
@@ -256,8 +258,8 @@ By default, Bake looks for a bakefile called `bake.yml` in the working directory
 
 Run `bake` with no arguments to execute the default task, or all the tasks if the bakefile doesn't define a default. You can also execute specific tasks and their dependencies:
 
-```
-$ bake task1 task2 task3…
+```sh
+bake task1 task2 task3…
 ```
 
 Here are all the supported command-line options:
@@ -300,17 +302,19 @@ OPTIONS:
 
 ## Installation
 
-### Default installation
+### Easy installation
 
 If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Bake with this command:
 
-```
+```sh
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | sh
 ```
 
 The same command can be used again to update Bake to the latest version.
 
-### Custom installation
+**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download the installation script and inspect it or choose one of the other installation methods.
+
+#### Customizing the installation
 
 The installation script supports the following environment variables:
 
@@ -319,9 +323,23 @@ The installation script supports the following environment variables:
 
 For example, the following will install Bake into the current directory:
 
-```
+```sh
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | PREFIX=. sh
 ```
+
+### Manual installation
+
+The [releases page](https://github.com/stepchowfun/bake/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
+
+### Installation with Cargo
+
+If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Bake as follows:
+
+```sh
+cargo install bake
+```
+
+You can run that command with `--force` to update an existing installation.
 
 ## Requirements
 
