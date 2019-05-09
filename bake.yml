@@ -65,8 +65,6 @@ tasks:
       set -euxo pipefail
       . $HOME/.cargo/env
       cargo build
-      mkdir output
-      echo 'Hello, World!' > output/foo.txt
 
   test:
     dependencies:
