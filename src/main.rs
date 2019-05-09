@@ -30,7 +30,6 @@ use std::{
   },
 };
 use tempfile::tempfile;
-use textwrap::Wrapper;
 
 #[macro_use]
 extern crate log;
@@ -87,16 +86,12 @@ fn set_up_logging() {
           style.set_color(Color::Blue);
         }
       }
-      let indent_size = record.level().to_string().len() + 3;
-      let indent = &" ".repeat(indent_size);
+
       writeln!(
         buf,
         "{} {}",
         style.value(format!("[{}]", record.level())),
-        &Wrapper::with_termwidth()
-          .initial_indent(indent)
-          .subsequent_indent(indent)
-          .fill(&record.args().to_string())[indent_size..]
+        record.args().to_string()
       )
     })
     .init();
@@ -270,7 +265,7 @@ fn settings() -> Result<Settings, String> {
     .as_ref()
     .and_then(|path| {
       debug!(
-        "Attempting to load configuration file {}…",
+        "Attempting to load configuration file {}\u{2026}",
         path.to_string_lossy().user_str()
       );
       fs::read_to_string(path).ok()
@@ -458,7 +453,7 @@ fn run_tasks<'a>(
   let base_image_already_existed =
     docker::image_exists(&bakefile.image, running)?;
   if !base_image_already_existed {
-    info!("Pulling image {}…", bakefile.image.user_str());
+    info!("Pulling image {}\u{2026}", bakefile.image.user_str());
     docker::pull_image(&bakefile.image, running)?;
   }
 
@@ -468,7 +463,7 @@ fn run_tasks<'a>(
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
-    info!("Running task {}…", task.user_str());
+    info!("Running task {}\u{2026}", task.user_str());
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
     // At the end of this iteration, delete the image from the previous step if
@@ -501,10 +496,10 @@ fn run_tasks<'a>(
     })?;
     let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
     bakefile_dir.pop();
-    let (mut tar_file, files_hash) = tar::create(
+    let (mut tar_file, input_files_hash) = tar::create(
       tar_file,
-      &task_data.paths,
-      &bakefile_dir.to_string_lossy().to_string(),
+      &task_data.input_paths,
+      &bakefile_dir,
       &task_data.location,
     )?;
     tar_file
@@ -512,7 +507,7 @@ fn run_tasks<'a>(
       .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
 
     // Compute the cache key.
-    cache_key = cache::key(&cache_key, &task_data, &files_hash, &env);
+    cache_key = cache::key(&cache_key, &task_data, &input_files_hash, &env);
     let to_image =
       RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
 
@@ -524,21 +519,20 @@ fn run_tasks<'a>(
     }}
 
     // Skip the task if it's cached.
+    let mut cache_hit = false;
     if this_task_cacheable {
-      if settings.read_local_cache
-        && docker::image_exists(&to_image.borrow(), running)?
-      {
-        continue;
-      }
+      cache_hit = settings.read_local_cache
+        && docker::image_exists(&to_image.borrow(), running)?;
 
-      if settings.read_remote_cache {
+      if !cache_hit && settings.read_remote_cache {
         if docker::pull_image(&to_image.borrow(), running).is_ok() {
-          continue;
+          cache_hit = true;
         } else if !running.load(Ordering::SeqCst) {
           return Err(INTERRUPT_MESSAGE.to_owned());
         }
       }
     }
+    let cache_hit = cache_hit; // Remove `mut`.
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
@@ -552,6 +546,8 @@ fn run_tasks<'a>(
       &to_image.borrow(),
       &env,
       tar_file,
+      &bakefile_dir,
+      cache_hit,
       &running,
       &active_containers,
     )?;
@@ -562,7 +558,7 @@ fn run_tasks<'a>(
     }
 
     // Push the image to a remote cache if applicable.
-    if settings.write_remote_cache && this_task_cacheable {
+    if !cache_hit && settings.write_remote_cache && this_task_cacheable {
       if let Err(e) = docker::push_image(&to_image.borrow(), running) {
         warn!("{}", e);
       }

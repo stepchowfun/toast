@@ -7,22 +7,34 @@ use std::{collections::HashMap, io, io::Read};
 pub fn key(
   previous_key: &str,
   task: &Task,
-  files_hash: &str,
+  input_files_hash: &str,
   environment: &HashMap<String, String>,
 ) -> String {
   let mut cache_key = previous_key.to_owned();
+
   let mut variables = task.environment.keys().collect::<Vec<_>>();
   variables.sort();
   for variable in variables {
     cache_key = extend(&cache_key, variable);
     cache_key = extend(&cache_key, &environment[variable]); // [ref:environment_valid]
   }
-  cache_key = extend(&cache_key, &files_hash);
-  cache_key = extend(&cache_key, &task.location.to_string_lossy());
-  cache_key = extend(&cache_key, &task.user);
-  if let Some(c) = &task.command {
-    cache_key = extend(&cache_key, &c);
+
+  cache_key = extend(&cache_key, &input_files_hash);
+
+  let mut output_paths = task.output_paths.clone();
+  output_paths.sort();
+  for path in output_paths {
+    cache_key = extend(&cache_key, &path.to_string_lossy());
   }
+
+  cache_key = extend(&cache_key, &task.location.to_string_lossy());
+
+  cache_key = extend(&cache_key, &task.user);
+
+  if let Some(command) = &task.command {
+    cache_key = extend(&cache_key, &command);
+  }
+
   cache_key[..48].to_owned()
 }
 
@@ -64,20 +76,21 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
 
     assert_eq!(
-      key(previous_key, &task, files_hash, &full_environment),
-      key(previous_key, &task, files_hash, &full_environment)
+      key(previous_key, &task, input_files_hash, &full_environment),
+      key(previous_key, &task, input_files_hash, &full_environment)
     );
   }
 
@@ -90,19 +103,20 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key1, &task, files_hash, &full_environment),
-      key(previous_key2, &task, files_hash, &full_environment)
+      key(previous_key1, &task, input_files_hash, &full_environment),
+      key(previous_key2, &task, input_files_hash, &full_environment)
     );
   }
 
@@ -122,7 +136,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: environment1,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
@@ -132,21 +147,22 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: environment2,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
     full_environment.insert("bar".to_owned(), "fum".to_owned());
 
     assert_eq!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     );
   }
 
@@ -164,7 +180,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: environment1,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
@@ -174,21 +191,22 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: environment2,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let mut full_environment = HashMap::new();
     full_environment.insert("foo".to_owned(), "qux".to_owned());
     full_environment.insert("bar".to_owned(), "fum".to_owned());
 
     assert_ne!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     );
   }
 
@@ -203,13 +221,14 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let mut full_environment1 = HashMap::new();
     full_environment1.insert("foo".to_owned(), "bar".to_owned());
@@ -217,33 +236,34 @@ mod tests {
     full_environment2.insert("foo".to_owned(), "baz".to_owned());
 
     assert_ne!(
-      key(previous_key, &task, files_hash, &full_environment1),
-      key(previous_key, &task, files_hash, &full_environment2)
+      key(previous_key, &task, input_files_hash, &full_environment1),
+      key(previous_key, &task, input_files_hash, &full_environment2)
     );
   }
 
   #[test]
-  fn key_files_hash() {
+  fn key_input_files_hash() {
     let previous_key = "corge";
 
     let task = Task {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash1 = "foo";
-    let files_hash2 = "bar";
+    let input_files_hash1 = "foo";
+    let input_files_hash2 = "bar";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key, &task, files_hash1, &full_environment),
-      key(previous_key, &task, files_hash2, &full_environment)
+      key(previous_key, &task, input_files_hash1, &full_environment),
+      key(previous_key, &task, input_files_hash2, &full_environment)
     );
   }
 
@@ -255,7 +275,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new("/foo").to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
@@ -265,19 +286,20 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new("/bar").to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     );
   }
 
@@ -289,7 +311,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: "foo".to_owned(),
       command: Some("echo wibble".to_owned()),
@@ -299,19 +322,20 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: "bar".to_owned(),
       command: Some("echo wibble".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     );
   }
 
@@ -323,7 +347,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo foo".to_owned()),
@@ -333,19 +358,20 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo bar".to_owned()),
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     );
   }
 
@@ -357,7 +383,8 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: Some("echo wibble".to_owned()),
@@ -367,19 +394,20 @@ mod tests {
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
     };
 
-    let files_hash = "grault";
+    let input_files_hash = "grault";
 
     let full_environment = HashMap::new();
 
     assert_ne!(
-      key(previous_key, &task1, files_hash, &full_environment),
-      key(previous_key, &task2, files_hash, &full_environment)
+      key(previous_key, &task1, input_files_hash, &full_environment),
+      key(previous_key, &task2, input_files_hash, &full_environment)
     )
   }
 

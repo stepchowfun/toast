@@ -26,7 +26,10 @@ pub struct Task {
   pub environment: HashMap<String, Option<String>>,
 
   #[serde(default)]
-  pub paths: Vec<PathBuf>,
+  pub input_paths: Vec<PathBuf>,
+
+  #[serde(default)]
+  pub output_paths: Vec<PathBuf>,
 
   #[serde(default = "default_task_location")]
   pub location: PathBuf,
@@ -64,6 +67,9 @@ pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
   let bakefile: Bakefile =
     serde_yaml::from_str(bakefile_data).map_err(|e| format!("{}", e))?;
 
+  // Make sure the paths are valid.
+  check_paths(&bakefile)?;
+
   // Make sure the dependencies are valid.
   check_dependencies(&bakefile)?;
 
@@ -95,6 +101,48 @@ pub fn environment<'a>(
   } else {
     Err(violations)
   }
+}
+
+// Check that paths that should be relative are, and likewise for paths that
+// should be absolute.
+fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
+  for (name, task) in &bakefile.tasks {
+    // Check `input_paths`.
+    for path in &task.input_paths {
+      if path.is_absolute() {
+        return Err(format!(
+          "Task {} has an absolute {}: {}.",
+          name.user_str(),
+          "input_path".user_str(),
+          path.to_string_lossy().user_str()
+        ));
+      }
+    }
+
+    // Check `output_paths`.
+    for path in &task.output_paths {
+      if path.is_absolute() {
+        return Err(format!(
+          "Task {} has an absolute {}: {}.",
+          name.user_str(),
+          "ouput_path".user_str(),
+          path.to_string_lossy().user_str()
+        ));
+      }
+    }
+
+    // Check `location`.
+    if task.location.is_relative() {
+      return Err(format!(
+        "Task {} has a relative {}: {}.",
+        name.user_str(),
+        "location".user_str(),
+        task.location.to_string_lossy().user_str()
+      ));
+    }
+  }
+
+  Ok(())
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).
@@ -282,7 +330,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -315,7 +364,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -360,10 +410,14 @@ tasks:
       SPAM: null
       HAM: null
       EGGS: null
-    paths:
+    input_paths:
       - qux
       - quux
       - quuz
+    output_paths:
+      - corge
+      - grault
+      - garply
     location: /code
     user: waldo
     command: wibble
@@ -382,7 +436,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -394,10 +449,15 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment,
-        paths: vec![
+        input_paths: vec![
           Path::new("qux").to_owned(),
           Path::new("quux").to_owned(),
           Path::new("quuz").to_owned(),
+        ],
+        output_paths: vec![
+          Path::new("corge").to_owned(),
+          Path::new("grault").to_owned(),
+          Path::new("garply").to_owned(),
         ],
         location: Path::new("/code").to_owned(),
         user: "waldo".to_owned(),
@@ -420,7 +480,8 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -431,7 +492,7 @@ tasks:
 
   #[test]
   fn environment_default_overridden() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();
@@ -441,7 +502,8 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -457,7 +519,7 @@ tasks:
 
   #[test]
   fn environment_default_not_overridden() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();
@@ -467,7 +529,8 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -483,7 +546,7 @@ tasks:
 
   #[test]
   fn environment_missing() {
-    // NOTE: We add an index to the test arg ("foo1", "foo2", …) to avoid
+    // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
     // having parallel tests clobbering environment variables used by other
     // threads.
     let mut env_map = HashMap::new();
@@ -493,7 +556,8 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      paths: vec![],
+      input_paths: vec![],
+      output_paths: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -526,7 +590,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -551,7 +616,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -563,7 +629,8 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -588,7 +655,8 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -600,7 +668,8 @@ tasks:
         dependencies: vec!["foo".to_owned(), "baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -627,7 +696,8 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -654,7 +724,8 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -666,7 +737,8 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -693,7 +765,8 @@ tasks:
         dependencies: vec!["baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -705,7 +778,8 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -717,7 +791,8 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        paths: vec![],
+        input_paths: vec![],
+        output_paths: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,

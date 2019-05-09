@@ -126,7 +126,7 @@ tasks:
   build:
     dependencies:
       - gcc
-    paths:
+    input_paths:
       - main.c
     command: gcc main.c
 
@@ -136,7 +136,7 @@ tasks:
     command: ./a.out
 ```
 
-Notice the `paths` array in the `build` task. Here we are copying a single file into the container, but we could instead copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
+Notice the `input_paths` array in the `build` task. Here we are copying a single file into the container, but we could instead copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
 
 Now if you run `bake`, you'll see this:
 
@@ -267,7 +267,7 @@ Tasks have the following schema and defaults:
 dependencies: []   # Names of dependencies
 cache: true        # Whether a task can be cached
 environment: {}    # Map from environment variable to optional default
-paths: []          # Paths to copy into the container
+input_paths: []          # Paths to copy into the container
 location: /scratch # Path in the container for running this task
 user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container

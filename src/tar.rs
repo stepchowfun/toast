@@ -5,22 +5,22 @@ use std::{
   fs::{File, Metadata},
   io::{Seek, SeekFrom, Write},
   os::unix::fs::PermissionsExt,
-  path::Path,
+  path::{Path, PathBuf},
 };
 use tar::{Builder, Header};
 
 // Add a file to a tar archive.
-fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
+fn add_file<W: Write>(
   builder: &mut Builder<W>,
   metadata: &Metadata,
-  path: P,
-  source_dir: Q,
-  destination_dir: R,
+  path: &Path,
+  source_dir: &Path,
+  destination_dir: &Path,
   file_hashes: &mut Vec<String>,
 ) -> Result<(), String> {
   // Compute the source and destination paths.
-  let source = source_dir.as_ref().join(&path);
-  let mut destination = destination_dir.as_ref().join(&path);
+  let source = source_dir.join(&path);
+  let mut destination = destination_dir.join(&path);
 
   // Tar archives must contain only relative paths. But for our purposes, the
   // paths will be relative to the filesystem root. [tag:destination_absolute]
@@ -50,7 +50,7 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
   // Compute the hash of the file contents and metadata.
   file_hashes.push(cache::extend(
     &cache::extend(
-      &cache::hash_str(&path.as_ref().to_string_lossy().to_string()),
+      &cache::hash_str(&path.to_string_lossy()),
       &cache::hash_read(&mut file)?,
     ),
     if executable { "+x" } else { "-x" },
@@ -71,18 +71,18 @@ fn add_file<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>, W: Write>(
 }
 
 // Construct a tar archive and return a hash of its contents.
-pub fn create<W: Write, P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
+pub fn create<W: Write>(
   writer: W,
-  paths: &[P],
-  source_dir: Q,
-  destination_dir: R,
+  paths: &[PathBuf],
+  source_dir: &Path,
+  destination_dir: &Path,
 ) -> Result<(W, String), String> {
   // Canonicalize the source directory such that other paths can be relativized
   // with respect to it.
-  let source_dir = source_dir.as_ref().canonicalize().map_err(|e| {
+  let source_dir = source_dir.canonicalize().map_err(|e| {
     format!(
       "Unable to canonicalize path {}. Details: {}",
-      source_dir.as_ref().to_string_lossy().user_str(),
+      source_dir.to_string_lossy().user_str(),
       e
     )
   })?;

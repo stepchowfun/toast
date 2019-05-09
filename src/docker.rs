@@ -1,8 +1,10 @@
 use crate::format::UserStr;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
+  fs::{create_dir_all, metadata, rename},
   io,
   io::Read,
+  path::{Path, PathBuf},
   process::{ChildStdin, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -12,16 +14,18 @@ use std::{
   thread::sleep,
   time::Duration,
 };
+use tempfile::tempdir;
+use walkdir::WalkDir;
 
 // Query whether an image exists locally.
 pub fn image_exists(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<bool, String> {
-  debug!("Checking existence of image {}…", image.user_str());
+  debug!("Checking existence of image {}\u{2026}", image.user_str());
   if let Err(e) = run_quiet(
     &["image", "inspect", image],
-    &format!("The image {} does not exist.", image.user_str()),
+    "The image doesn't exist.",
     running,
   ) {
     if running.load(Ordering::SeqCst) {
@@ -39,13 +43,9 @@ pub fn push_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pushing image {}…", image.user_str());
-  run_quiet(
-    &["image", "push", image],
-    &format!("Unable to push image {}.", image.user_str()),
-    running,
-  )
-  .map(|_| ())
+  debug!("Pushing image {}\u{2026}", image.user_str());
+  run_quiet(&["image", "push", image], "Unable to push image.", running)
+    .map(|_| ())
 }
 
 // Pull an image.
@@ -53,13 +53,9 @@ pub fn pull_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Pulling image {}…", image.user_str());
-  run_quiet(
-    &["image", "pull", image],
-    &format!("Unable to pull image {}.", image.user_str()),
-    running,
-  )
-  .map(|_| ())
+  debug!("Pulling image {}\u{2026}", image.user_str());
+  run_quiet(&["image", "pull", image], "Unable to pull image.", running)
+    .map(|_| ())
 }
 
 // Delete an image.
@@ -67,10 +63,10 @@ pub fn delete_image(
   image: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting image {}…", image.user_str());
+  debug!("Deleting image {}\u{2026}", image.user_str());
   run_quiet(
     &["image", "rm", "--force", image],
-    &format!("Unable to delete image {}.", image.user_str()),
+    "Unable to delete image.",
     running,
   )
   .map(|_| ())
@@ -83,7 +79,7 @@ pub fn create_container(
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   debug!(
-    "Creating container from image {} with command {}…",
+    "Creating container from image {} with command {}\u{2026}",
     image.user_str(),
     command.user_str()
   );
@@ -109,11 +105,7 @@ pub fn create_container(
         command,
       ]
       .as_ref(),
-      &format!(
-        "Unable to create container from image {} with command {}.",
-        image.user_str(),
-        command.user_str()
-      ),
+      "Unable to create container.",
       running,
     )?
     .trim()
@@ -127,7 +119,10 @@ pub fn copy_into_container<R: Read>(
   mut tar: R,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Copying files into container {}…", container.user_str());
+  debug!(
+    "Copying files into container {}\u{2026}",
+    container.user_str()
+  );
   run_quiet_stdin(
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
     "Unable to copy files into the container.",
@@ -143,15 +138,128 @@ pub fn copy_into_container<R: Read>(
   .map(|_| ())
 }
 
+// Copy files from a container.
+pub fn copy_from_container(
+  container: &str,
+  paths: &[PathBuf],
+  source_dir: &Path,
+  destination_dir: &Path,
+  running: &Arc<AtomicBool>,
+) -> Result<(), String> {
+  // Copy each path from the container to the host.
+  for path in paths {
+    debug!(
+      "Copying `{}` from container {}\u{2026}",
+      path.to_string_lossy(),
+      container.user_str()
+    );
+
+    // `docker container cp` is not idempotent. For example, suppose there is a
+    // directory called `/foo` in the container and `/bar` does not exist on
+    // the host. Consider the following command:
+    //   `docker cp container:/foo /bar`
+    // The first time that command is run, Docker will create the directory
+    // `/bar` on the host and copy the files from `/foo` into it. But if you
+    // run it again, Docker will copy `/bar` into the directory `/foo`,
+    // resulting in `/foo/foo`, which is undesirable. To work around this, we
+    // first copy the path from the container into a temporary directory (where
+    // the target path is guaranteed to not exist). Then we copy/move that to
+    // the final destination.
+    let temp_dir = tempdir().map_err(|e| {
+      format!("Unable to create temporary directory. Details: {}", e)
+    })?;
+
+    // Figure out what needs to go where.
+    let source = source_dir.join(path);
+    let intermediate = temp_dir.path().join("data");
+    let destination = destination_dir.join(path);
+
+    // Get the path from the container.
+    run_quiet(
+      &[
+        "container",
+        "cp",
+        &format!("{}:{}", container, source.to_string_lossy()),
+        &intermediate.to_string_lossy(),
+      ],
+      "Unable to copy files from the container.",
+      running,
+    )
+    .map(|_| ())?;
+
+    // Check if what we got from the container is a file or a directory.
+    let metadata_err_map = |e| {
+      format!(
+        "Unable to retrieve filesystem metadata for path {}. Details: {}",
+        intermediate.to_string_lossy().user_str(),
+        e
+      )
+    };
+    if metadata(&intermediate).map_err(metadata_err_map)?.is_file() {
+      // It's a file. Just move it to the destination.
+      rename(&intermediate, &destination).map_err(|e| {
+        format!(
+          "Unable to move file {} to destination {}. Details: {}",
+          intermediate.to_string_lossy().user_str(),
+          destination.to_string_lossy().user_str(),
+          e
+        )
+      })?;
+    } else {
+      // It's a directory. Traverse it.
+      for entry in WalkDir::new(&intermediate) {
+        // If we run into an error traversing the filesystem, report it.
+        let entry = entry.map_err(|e| {
+          format!(
+            "Unable to traverse directory {}. Details: {}",
+            intermediate.to_string_lossy().user_str(),
+            e
+          )
+        })?;
+
+        // Figure out what needs to go where. The `unwrap` is safe because
+        // `entry` is guaranteed to be inside `intermediate` (or equal to it).
+        let entry_path = entry.path();
+        let destination_path =
+          destination.join(entry_path.strip_prefix(&intermediate).unwrap());
+
+        // Check if the current entry is a file or a directory.
+        if entry.file_type().is_dir() {
+          // It's a directory. Create a directory at the destination.
+          create_dir_all(&destination_path).map_err(|e| {
+            format!(
+              "Unable to create directory {}. Details: {}",
+              destination_path.to_string_lossy().user_str(),
+              e
+            )
+          })?;
+        } else {
+          // It's a file. Move it to the destination.
+          rename(entry_path, &destination_path).map_err(|e| {
+            format!(
+              "Unable to move file {} to destination {}. Details: {}",
+              entry_path.to_string_lossy().user_str(),
+              destination_path.to_string_lossy().user_str(),
+              e
+            )
+          })?;
+        }
+      }
+    }
+  }
+
+  Ok(())
+}
+
 // Start a container.
 pub fn start_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Starting container {}…", container.user_str());
+  debug!("Starting container {}\u{2026}", container.user_str());
   run_loud(
     &["container", "start", "--attach", container],
-    &format!("Unable to start container {}.", container.user_str()),
+    "Unable to start container.",
     running,
   )
   .map(|_| ())
@@ -162,10 +270,10 @@ pub fn stop_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Stopping container {}…", container.user_str());
+  debug!("Stopping container {}\u{2026}", container.user_str());
   run_quiet(
     &["container", "stop", container],
-    &format!("Unable to stop container {}.", container.user_str()),
+    "Unable to stop container.",
     running,
   )
   .map(|_| ())
@@ -178,17 +286,13 @@ pub fn commit_container(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
-    "Committing container {} to image {}…",
+    "Committing container {} to image {}\u{2026}",
     container.user_str(),
     image.user_str()
   );
   run_quiet(
     &["container", "commit", container, image],
-    &format!(
-      "Unable to commit container {} to image {}.",
-      container.user_str(),
-      image.user_str()
-    ),
+    "Unable to commit container.",
     running,
   )
   .map(|_| ())
@@ -199,10 +303,10 @@ pub fn delete_container(
   container: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  debug!("Deleting container {}…", container.user_str());
+  debug!("Deleting container {}\u{2026}", container.user_str());
   run_quiet(
     &["container", "rm", "--force", container],
-    &format!("Unable to delete container {}.", container.user_str()),
+    "Unable to delete container.",
     running,
   )
   .map(|_| ())
@@ -214,7 +318,7 @@ pub fn spawn_shell(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
-    "Spawning an interactive shell for image {}…",
+    "Spawning an interactive shell for image {}\u{2026}",
     image.user_str()
   );
   run_attach(
