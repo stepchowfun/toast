@@ -1,5 +1,4 @@
 use crate::{cache, format::CodeStr};
-use ignore::Walk;
 use std::{
   fs,
   fs::{File, Metadata},
@@ -8,6 +7,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use tar::{Builder, Header};
+use walkdir::WalkDir;
 
 // Add a file to a tar archive.
 fn add_file<W: Write>(
@@ -113,7 +113,7 @@ pub fn create<W: Write>(
     // Check if the path is a directory.
     if metadata.is_dir() {
       // The path is a directory, so we need to traverse it.
-      for entry in Walk::new(&source_path) {
+      for entry in WalkDir::new(&source_path) {
         // Fetch the filesystem metadata for this entry.
         let entry = entry.map_err(|e| {
           format!(
@@ -130,11 +130,8 @@ pub fn create<W: Write>(
           )
         })?;
 
-        // Only add files to the archive. Here, `file_type()` should always
-        // return a `Some`. It could only return `None` if the file represents
-        // STDIN, and that isn't the case here.
-        if entry.file_type().unwrap().is_file() {
-          // Add the file to the archive.
+        // If this entry is a file, add it to the archive.
+        if entry.file_type().is_file() {
           add_file(
             &mut builder,
             &entry_metadata,
