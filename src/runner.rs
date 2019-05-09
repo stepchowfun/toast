@@ -86,7 +86,7 @@ pub fn run<R: Read>(
         shell_escape(&task.user)
       ));
 
-      info!("Command:\n{}", command.blue());
+      eprintln!("{}", command.blue());
     }
 
     // Create the container.
