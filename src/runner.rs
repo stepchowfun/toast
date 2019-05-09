@@ -3,6 +3,7 @@ use colored::Colorize;
 use std::{
   collections::{HashMap, HashSet},
   io::Read,
+  path::Path,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -16,92 +17,135 @@ pub fn run<R: Read>(
   to_image: &str,
   environment: &HashMap<String, String>,
   mut tar: R,
+  bakefile_dir: &Path,
+  cache_hit: bool,
   running: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
-  // Construct the command to run inside the container.
-  let mut commands_to_run = vec![];
+  // If the task was cached, we just need to get the output files.
+  if cache_hit {
+    // If there are no output files, we're done.
+    if task.output_paths.is_empty() {
+      return Ok(());
+    }
 
-  // Ensure the task's location exists within the container and that the user
-  // can access it.
-  commands_to_run.push(format!(
-    "mkdir -p {}",
-    shell_escape(&task.location.to_string_lossy())
-  ));
-  commands_to_run.push(format!(
-    "chmod 777 {}",
-    shell_escape(&task.location.to_string_lossy())
-  ));
+    // Create a container to extract the files from.
+    let container = docker::create_container(to_image, "true", running)?;
 
-  // Construct a small script to execute the task's command in the task's
-  // location as the task's user with the task's environment variables.
-  if let Some(command) = &task.command {
+    // Delete the container when this function returns.
+    defer! {{
+      if let Err(e) = docker::delete_container(&container, running) {
+        error!("{}", e);
+      }
+    }};
+
+    // Copy files from the container, if applicable.
+    let mut output_paths = task.output_paths.clone();
+    output_paths.sort();
+    docker::copy_from_container(
+      &container,
+      output_paths.as_ref(),
+      &task.location,
+      bakefile_dir,
+      running,
+    )?;
+  } else {
+    // Construct the command to run inside the container.
+    let mut commands_to_run = vec![];
+
+    // Ensure the task's location exists within the container and that the user
+    // can access it.
     commands_to_run.push(format!(
-      "cd {}",
+      "mkdir -p {}",
+      shell_escape(&task.location.to_string_lossy())
+    ));
+    commands_to_run.push(format!(
+      "chmod 777 {}",
       shell_escape(&task.location.to_string_lossy())
     ));
 
-    for variable in task.environment.keys() {
+    // Construct a small script to execute the task's command in the task's
+    // location as the task's user with the task's environment variables.
+    if let Some(command) = &task.command {
       commands_to_run.push(format!(
-        "export {}={}",
-        shell_escape(variable),
-        shell_escape(&environment[variable]), // [ref:environment_valid]
+        "cd {}",
+        shell_escape(&task.location.to_string_lossy())
       ));
+
+      for variable in task.environment.keys() {
+        commands_to_run.push(format!(
+          "export {}={}",
+          shell_escape(variable),
+          shell_escape(&environment[variable]), // [ref:environment_valid]
+        ));
+      }
+
+      commands_to_run.push(format!(
+        "su -c {} {}",
+        shell_escape(&command),
+        shell_escape(&task.user)
+      ));
+
+      info!("Command:\n{}", command.blue());
     }
 
-    commands_to_run.push(format!(
-      "su -c {} {}",
-      shell_escape(&command),
-      shell_escape(&task.user)
-    ));
-  }
+    // Create the container.
+    let container = docker::create_container(
+      from_image,
+      &commands_to_run.join(" && "),
+      running,
+    )?;
 
-  // Create the container.
-  let container = docker::create_container(
-    from_image,
-    &commands_to_run.join(" && "),
-    running,
-  )?;
-
-  // If the user interrupts the program, kill the container. The `unwrap`
-  // will only fail if a panic already occurred.
-  {
-    active_containers.lock().unwrap().insert(container.clone());
-  }
-
-  // Delete the container when this function returns.
-  defer! {{
+    // If the user interrupts the program, kill the container. The `unwrap`
+    // will only fail if a panic already occurred.
     {
-      // If the user interrupts the program, don't bother killing the
-      // container. We're about to kill it here.
-      active_containers.lock().unwrap().remove(&container);
+      active_containers.lock().unwrap().insert(container.clone());
     }
 
-    if let Err(e) = docker::delete_container(&container, running) {
-      error!("{}", e);
-    }
-  }};
+    // Delete the container when this function returns.
+    defer! {{
+      {
+        // If the user interrupts the program, don't bother killing the
+        // container. We're about to kill it here.
+        active_containers.lock().unwrap().remove(&container);
+      }
 
-  // Copy files into the container, if applicable.
-  if !task.paths.is_empty() {
-    docker::copy_into_container(&container, &mut tar, running)?;
+      if let Err(e) = docker::delete_container(&container, running) {
+        error!("{}", e);
+      }
+    }};
+
+    // Copy files into the container, if applicable.
+    if !task.input_paths.is_empty() {
+      docker::copy_into_container(&container, &mut tar, running)?;
+    }
+
+    // Start the container to run the command.
+    docker::start_container(&container, running).map_err(|_| {
+      if running.load(Ordering::SeqCst) {
+        "Task failed."
+      } else {
+        super::INTERRUPT_MESSAGE
+      }
+      .to_owned()
+    })?;
+
+    // Copy files from the container, if applicable.
+    if !task.output_paths.is_empty() {
+      let mut output_paths = task.output_paths.clone();
+      output_paths.sort();
+      docker::copy_from_container(
+        &container,
+        output_paths.as_ref(),
+        &task.location,
+        bakefile_dir,
+        running,
+      )?;
+    }
+
+    // Create an image from the container if needed.
+    docker::commit_container(&container, to_image, running)?;
   }
-
-  // Start the container to run the command.
-  if let Some(command) = &task.command {
-    info!("{}", command.blue());
-  }
-  docker::start_container(&container, running).map_err(|_| {
-    if running.load(Ordering::SeqCst) {
-      "Task failed."
-    } else {
-      super::INTERRUPT_MESSAGE
-    }
-    .to_owned()
-  })?;
-
-  // Create an image from the container.
-  docker::commit_container(&container, to_image, running)?;
 
   Ok(())
 }

@@ -2,6 +2,7 @@ image: ubuntu:18.04
 tasks:
   install_packages:
     command: |
+      set -euxo pipefail
       apt-get update
       apt-get install --yes build-essential curl
 
@@ -9,11 +10,13 @@ tasks:
     dependencies:
       - install_packages
     command: |
-      set -o pipefail
+      set -euxo pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.1.0 sh
 
   create_user:
-    command: adduser --disabled-password --gecos '' user
+    command: |
+      set -euxo pipefail
+      adduser --disabled-password --gecos '' user
 
   install_rust:
     dependencies:
@@ -21,7 +24,7 @@ tasks:
       - create_user
     user: user
     command: |
-      set -o pipefail
+      set -euxo pipefail
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable-2019-04-25-x86_64-unknown-linux-gnu
       . $HOME/.cargo/env
       rustup component add clippy
@@ -41,6 +44,7 @@ tasks:
       - Cargo.toml
     user: user
     command: |
+      set -euxo pipefail
       . $HOME/.cargo/env
       mv Cargo.lock Cargo.lock.og
       mv Cargo.toml Cargo.toml.og
@@ -58,14 +62,18 @@ tasks:
       - src
     user: user
     command: |
+      set -euxo pipefail
       . $HOME/.cargo/env
       cargo build
+      mkdir output
+      echo 'Hello, World!' > output/foo.txt
 
   test:
     dependencies:
       - build
     user: user
     command: |
+      set -euxo pipefail
       . $HOME/.cargo/env
       cargo test
 
@@ -74,9 +82,11 @@ tasks:
       - build
     paths:
       - .ignore # Used by `tagref`
+      - clippy.toml # Used by `cargo clippy`
       - rustfmt.toml # Used by `cargo fmt`
     user: user
     command: |
+      set -euxo pipefail
       . $HOME/.cargo/env
       cargo fmt --all -- --check
       cargo clippy -- --deny clippy::pedantic
