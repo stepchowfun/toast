@@ -39,7 +39,7 @@ tasks:
   fetch_crates:
     dependencies:
       - install_tools
-    paths:
+    input_paths:
       - Cargo.lock
       - Cargo.toml
     user: user
@@ -58,7 +58,7 @@ tasks:
   build:
     dependencies:
       - fetch_crates
-    paths:
+    input_paths:
       - src
     user: user
     command: |
@@ -78,7 +78,7 @@ tasks:
   lint:
     dependencies:
       - build
-    paths:
+    input_paths:
       - .ignore # Used by `tagref`
       - clippy.toml # Used by `cargo clippy`
       - rustfmt.toml # Used by `cargo fmt`
