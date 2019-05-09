@@ -1,4 +1,4 @@
-use crate::{cache, format::UserStr};
+use crate::{cache, format::CodeStr};
 use ignore::Walk;
 use std::{
   fs,
@@ -42,7 +42,7 @@ fn add_file<W: Write>(
   let mut file = File::open(&source).map_err(|e| {
     format!(
       "Unable to open file {}. Details: {}",
-      &source.to_string_lossy().user_str(),
+      &source.to_string_lossy().code_str(),
       e
     )
   })?;
@@ -60,7 +60,7 @@ fn add_file<W: Write>(
   file.seek(SeekFrom::Start(0)).map_err(|e| {
     format!(
       "Unable to seek file {}. Details: {}",
-      &source.to_string_lossy().user_str(),
+      &source.to_string_lossy().code_str(),
       e
     )
   })?;
@@ -82,7 +82,7 @@ pub fn create<W: Write>(
   let source_dir = source_dir.canonicalize().map_err(|e| {
     format!(
       "Unable to canonicalize path {}. Details: {}",
-      source_dir.to_string_lossy().user_str(),
+      source_dir.to_string_lossy().code_str(),
       e
     )
   })?;
@@ -105,7 +105,7 @@ pub fn create<W: Write>(
     let metadata = fs::metadata(&source_path).map_err(|e| {
       format!(
         "Unable to fetch filesystem metadata for {}. Details: {}",
-        &source_path.to_string_lossy().user_str(),
+        &source_path.to_string_lossy().code_str(),
         e
       )
     })?;
@@ -118,14 +118,14 @@ pub fn create<W: Write>(
         let entry = entry.map_err(|e| {
           format!(
             "Unable to traverse directory {}. Details: {}",
-            &source_path.to_string_lossy().user_str(),
+            &source_path.to_string_lossy().code_str(),
             e
           )
         })?;
         let entry_metadata = entry.metadata().map_err(|e| {
           format!(
             "Unable to fetch filesystem metadata for {}. Details: {}",
-            &source_path.to_string_lossy().user_str(),
+            &source_path.to_string_lossy().code_str(),
             e
           )
         })?;
@@ -144,7 +144,7 @@ pub fn create<W: Write>(
               .map_err(|e| {
                 format!(
                   "Unable to canonicalize path {}. Details: {}",
-                  &entry.path().to_string_lossy().user_str(),
+                  &entry.path().to_string_lossy().code_str(),
                   e
                 )
               })?
@@ -152,8 +152,8 @@ pub fn create<W: Write>(
               .map_err(|e| {
                 format!(
                   "Unable to relativize path {} with respect to {}. Details: {}",
-                  &entry.path().to_string_lossy().user_str(),
-                  &source_dir.to_string_lossy().user_str(),
+                  &entry.path().to_string_lossy().code_str(),
+                  &source_dir.to_string_lossy().code_str(),
                   e
                 )
               })?,

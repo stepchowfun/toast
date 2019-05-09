@@ -7,7 +7,7 @@ mod runner;
 mod schedule;
 mod tar;
 
-use crate::format::UserStr;
+use crate::format::CodeStr;
 use atty::Stream;
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
@@ -133,7 +133,7 @@ fn parse_bool(s: &str) -> Result<bool, String> {
   match normalized.as_ref() {
     "true" | "yes" => Ok(true),
     "false" | "no" => Ok(false),
-    _ => Err(format!("{} is not a Boolean.", s.user_str())),
+    _ => Err(format!("{} is not a Boolean.", s.code_str())),
   }
 }
 
@@ -244,7 +244,7 @@ fn settings() -> Result<Settings, String> {
         if !candidate_dir.pop() {
           return Err(format!(
             "Unable to locate file {}.",
-            BAKEFILE_DEFAULT_NAME.user_str()
+            BAKEFILE_DEFAULT_NAME.code_str()
           ));
         }
       }
@@ -266,7 +266,7 @@ fn settings() -> Result<Settings, String> {
     .and_then(|path| {
       debug!(
         "Attempting to load configuration file {}\u{2026}",
-        path.to_string_lossy().user_str()
+        path.to_string_lossy().code_str()
       );
       fs::read_to_string(path).ok()
     })
@@ -289,7 +289,7 @@ fn settings() -> Result<Settings, String> {
         .as_ref()
         .unwrap()
         .to_string_lossy()
-        .user_str(), // Manually verified safe
+        .code_str(), // Manually verified safe
       e
     )
   })?;
@@ -344,7 +344,7 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
   let bakefile_data = fs::read_to_string(bakefile_path).map_err(|e| {
     format!(
       "Unable to read file {}. Details: {}",
-      bakefile_path.to_string_lossy().user_str(),
+      bakefile_path.to_string_lossy().code_str(),
       e
     )
   })?;
@@ -353,7 +353,7 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
   bakefile::parse(&bakefile_data).map_err(|e| {
     format!(
       "Unable to parse file {}. Details: {}",
-      bakefile_path.to_string_lossy().user_str(),
+      bakefile_path.to_string_lossy().code_str(),
       e
     )
   })
@@ -382,8 +382,8 @@ fn get_roots<'a>(
           // [tag:tasks_valid]
           return Err(format!(
             "No task named {} in {}.",
-            task.user_str(),
-            settings.bakefile_path.to_string_lossy().user_str()
+            task.code_str(),
+            settings.bakefile_path.to_string_lossy().code_str()
           ));
         }
       }
@@ -422,11 +422,11 @@ fn fetch_env(
           .iter()
           .map(|(task, vars)| format!(
             "{} ({})",
-            task.user_str(),
+            task.code_str(),
             format::series(
               vars
                 .iter()
-                .map(|var| format!("{}", var.user_str()))
+                .map(|var| format!("{}", var.code_str()))
                 .collect::<Vec<_>>().as_ref()
             )
           ))
@@ -453,7 +453,7 @@ fn run_tasks<'a>(
   let base_image_already_existed =
     docker::image_exists(&bakefile.image, running)?;
   if !base_image_already_existed {
-    info!("Pulling image {}\u{2026}", bakefile.image.user_str());
+    info!("Pulling image {}\u{2026}", bakefile.image.code_str());
     docker::pull_image(&bakefile.image, running)?;
   }
 
@@ -463,7 +463,7 @@ fn run_tasks<'a>(
   let from_image = RefCell::new(bakefile.image.clone());
   let from_image_cacheable = Cell::new(true);
   for task in schedule {
-    info!("Running task {}\u{2026}", task.user_str());
+    info!("Running task {}\u{2026}", task.code_str());
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
     // At the end of this iteration, delete the image from the previous step if
@@ -620,7 +620,7 @@ fn entry() -> Result<(), String> {
       format::series(
         schedule
           .iter()
-          .map(|task| format!("{}", task.user_str()))
+          .map(|task| format!("{}", task.code_str()))
           .collect::<Vec<_>>()
           .as_ref()
       )
