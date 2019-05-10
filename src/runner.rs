@@ -1,5 +1,4 @@
 use crate::{bakefile::Task, docker};
-use colored::Colorize;
 use std::{
   collections::{HashMap, HashSet},
   io::Read,
@@ -85,8 +84,6 @@ pub fn run<R: Read>(
         shell_escape(&command),
         shell_escape(&task.user)
       ));
-
-      eprintln!("{}", command.blue());
     }
 
     // Create the container.
