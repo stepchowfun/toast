@@ -3,7 +3,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::{
   fs::{create_dir_all, metadata, rename},
   io,
-  io::Read,
+  io::{Read, Write},
   path::{Path, PathBuf},
   process::{ChildStdin, Command, Stdio},
   sync::{
@@ -75,14 +75,9 @@ pub fn delete_image(
 // Create a container and return its ID.
 pub fn create_container(
   image: &str,
-  command: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
-  debug!(
-    "Creating container from image {} with command {}\u{2026}",
-    image.code_str(),
-    command.code_str()
-  );
+  debug!("Creating container from image {}\u{2026}", image.code_str(),);
 
   // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes,
   // otherwise they can accumulate. Bash does this, but we run `/bin/sh` in the
@@ -99,10 +94,9 @@ pub fn create_container(
         "container",
         "create",
         "--init",
+        "--interactive",
         image,
         "/bin/sh",
-        "-c",
-        command,
       ]
       .as_ref(),
       "Unable to create container.",
@@ -128,7 +122,7 @@ pub fn copy_into_container<R: Read>(
     "Unable to copy files into the container.",
     |mut stdin| {
       io::copy(&mut tar, &mut stdin).map_err(|e| {
-        format!("Unable to copy files into the container.. Details: {}", e)
+        format!("Unable to copy files into the container. Details: {}", e)
       })?;
 
       Ok(())
@@ -254,12 +248,24 @@ pub fn copy_from_container(
 // Start a container.
 pub fn start_container(
   container: &str,
+  command: &str,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Starting container {}\u{2026}", container.code_str());
-  run_loud(
-    &["container", "start", "--attach", container],
+  run_loud_stdin(
+    &["container", "start", "--attach", "--interactive", container],
     "Unable to start container.",
+    |stdin| {
+      write!(stdin, "{}", command).map_err(|e| {
+        format!(
+          "Unable to send command {} to the container. Details: {}",
+          command.code_str(),
+          e
+        )
+      })?;
+
+      Ok(())
+    },
     running,
   )
   .map(|_| ())
@@ -338,7 +344,8 @@ pub fn spawn_shell(
   )
 }
 
-// Run a command and return its standard output.
+// Run a command, forward its standard error stream, and return its standard
+// output.
 fn run_quiet(
   args: &[&str],
   error: &str,
@@ -369,8 +376,9 @@ fn run_quiet(
   }
 }
 
-// Run a command and return its standard output. Accepts a closure which
-// receives a pipe to the standard input stream of the child process.
+// Run a command, forward its standard error stream, and return its standard
+// output. Accepts a closure which receives a pipe to the standard input stream
+// of the child process.
 fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   args: &[&str],
   error: &str,
@@ -383,12 +391,12 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   }}
 
   let mut child = command(args)
-    .stdin(Stdio::piped()) // [tag:stdin_piped]
+    .stdin(Stdio::piped()) // [tag:run_quiet_stdin_piped]
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .spawn()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
-  writer(child.stdin.as_mut().unwrap())?; // [ref:stdin_piped]
+  writer(child.stdin.as_mut().unwrap())?; // [ref:run_quiet_stdin_piped]
   let output = child
     .wait_with_output()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
@@ -408,16 +416,24 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   }
 }
 
-// Run a command and forward its standard output and error streams.
-fn run_loud(
+// Run a command and forward its standard output and error streams. Accepts a
+// closure which receives a pipe to the standard input stream of the child
+// process.
+fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   args: &[&str],
   error: &str,
+  writer: W,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  let status = command(args)
-    .stdin(Stdio::null())
-    .status()
+  let mut child = command(args)
+    .stdin(Stdio::piped()) // [tag:run_loud_stdin_piped]
+    .spawn()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  writer(child.stdin.as_mut().unwrap())?; // [ref:run_loud_stdin_piped]
+  let status = child
+    .wait()
+    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+
   if status.success() {
     Ok(())
   } else {
@@ -441,6 +457,7 @@ fn run_attach(
   let status = command(args)
     .status()
     .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+
   if status.success() {
     Ok(())
   } else {

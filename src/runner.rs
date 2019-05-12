@@ -29,7 +29,7 @@ pub fn run<R: Read>(
     }
 
     // Create a container to extract the files from.
-    let container = docker::create_container(to_image, "true", running)?;
+    let container = docker::create_container(to_image, running)?;
 
     // Delete the container when this function returns.
     defer! {{
@@ -87,11 +87,7 @@ pub fn run<R: Read>(
     }
 
     // Create the container.
-    let container = docker::create_container(
-      from_image,
-      &commands_to_run.join(" && "),
-      running,
-    )?;
+    let container = docker::create_container(from_image, running)?;
 
     // If the user interrupts the program, kill the container. The `unwrap`
     // will only fail if a panic already occurred.
@@ -118,7 +114,12 @@ pub fn run<R: Read>(
     }
 
     // Start the container to run the command.
-    docker::start_container(&container, running).map_err(|_| {
+    docker::start_container(
+      &container,
+      &commands_to_run.join(" && "),
+      running,
+    )
+    .map_err(|_| {
       if running.load(Ordering::SeqCst) {
         "Task failed."
       } else {
