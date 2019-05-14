@@ -214,7 +214,20 @@ pub fn copy_from_container(
       )
     };
     if metadata(&intermediate).map_err(metadata_err_map)?.is_file() {
-      // It's a file. Just move it to the destination.
+      // It's a file. Determine the destination directory. The `unwrap` is safe
+      // because the root of the filesystem cannot be a file.
+      let destination_dir = destination.parent().unwrap().to_owned();
+
+      // Make sure the destination directory exists.
+      create_dir_all(&destination_dir).map_err(|e| {
+        format!(
+          "Unable to create directory {}. Details: {}",
+          destination_dir.to_string_lossy().code_str(),
+          e
+        )
+      })?;
+
+      // Move it to the destination.
       rename(&intermediate, &destination).map_err(|e| {
         format!(
           "Unable to move file {} to destination {}. Details: {}",

@@ -1,4 +1,5 @@
 image: ubuntu:18.04
+default: ci
 tasks:
   install_packages:
     command: |-
@@ -52,6 +53,7 @@ tasks:
       mv Cargo.lock.og Cargo.lock
       mv Cargo.toml.og Cargo.toml
       cargo build
+      cargo build --release
       cargo clippy
       rm -rf src
 
@@ -88,3 +90,24 @@ tasks:
       cargo fmt --all -- --check
       cargo clippy --all-targets --all-features -- --deny warnings --deny clippy::all --deny clippy::pedantic
       tagref
+
+  ci:
+    dependencies:
+      - build
+      - lint
+      - test
+
+  release:
+    dependencies:
+      - fetch_crates
+    input_paths:
+      - src
+    output_paths:
+      - artifacts
+    user: user
+    command: |-
+      set -euo pipefail
+      . $HOME/.cargo/env
+      cargo build --release
+      mkdir artifacts
+      cp target/release/bake artifacts/bake-x86_64-unknown-linux-gnu
