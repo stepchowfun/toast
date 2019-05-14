@@ -33,8 +33,9 @@ pub fn image_exists(
 ) -> Result<bool, String> {
   debug!("Checking existence of image {}\u{2026}", image.code_str());
   if let Err(e) = run_quiet(
-    &["image", "inspect", image],
+    "Checking existence of image...",
     "The image doesn't exist.",
+    &["image", "inspect", image],
     running,
   ) {
     if running.load(Ordering::SeqCst) {
@@ -53,8 +54,13 @@ pub fn push_image(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Pushing image {}\u{2026}", image.code_str());
-  run_quiet(&["image", "push", image], "Unable to push image.", running)
-    .map(|_| ())
+  run_quiet(
+    "Pushing image...",
+    "Unable to push image.",
+    &["image", "push", image],
+    running,
+  )
+  .map(|_| ())
 }
 
 // Pull an image.
@@ -63,8 +69,13 @@ pub fn pull_image(
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Pulling image {}\u{2026}", image.code_str());
-  run_quiet(&["image", "pull", image], "Unable to pull image.", running)
-    .map(|_| ())
+  run_quiet(
+    "Pulling image...",
+    "Unable to pull image.",
+    &["image", "pull", image],
+    running,
+  )
+  .map(|_| ())
 }
 
 // Delete an image.
@@ -74,8 +85,9 @@ pub fn delete_image(
 ) -> Result<(), String> {
   debug!("Deleting image {}\u{2026}", image.code_str());
   run_quiet(
-    &["image", "rm", "--force", image],
+    "Deleting image...",
     "Unable to delete image.",
+    &["image", "rm", "--force", image],
     running,
   )
   .map(|_| ())
@@ -99,6 +111,8 @@ pub fn create_container(
   // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
   Ok(
     run_quiet(
+      "Creating container...",
+      "Unable to create container.",
       vec![
         "container",
         "create",
@@ -108,7 +122,6 @@ pub fn create_container(
         "/bin/sh",
       ]
       .as_ref(),
-      "Unable to create container.",
       running,
     )?
     .trim()
@@ -127,8 +140,9 @@ pub fn copy_into_container<R: Read>(
     container.code_str()
   );
   run_quiet_stdin(
-    &["container", "cp", "-", &format!("{}:{}", container, "/")],
+    "Copying files into container...",
     "Unable to copy files into the container.",
+    &["container", "cp", "-", &format!("{}:{}", container, "/")],
     |mut stdin| {
       io::copy(&mut tar, &mut stdin).map_err(|e| {
         format!("Unable to copy files into the container. Details: {}", e)
@@ -179,13 +193,14 @@ pub fn copy_from_container(
 
     // Get the path from the container.
     run_quiet(
+      "Copying files from the container...",
+      "Unable to copy files from the container.",
       &[
         "container",
         "cp",
         &format!("{}:{}", container, source.to_string_lossy()),
         &intermediate.to_string_lossy(),
       ],
-      "Unable to copy files from the container.",
       running,
     )
     .map(|_| ())?;
@@ -262,8 +277,8 @@ pub fn start_container(
 ) -> Result<(), String> {
   debug!("Starting container {}\u{2026}", container.code_str());
   run_loud_stdin(
-    &["container", "start", "--attach", "--interactive", container],
     "Unable to start container.",
+    &["container", "start", "--attach", "--interactive", container],
     |stdin| {
       write!(stdin, "{}", command).map_err(|e| {
         format!(
@@ -287,8 +302,9 @@ pub fn stop_container(
 ) -> Result<(), String> {
   debug!("Stopping container {}\u{2026}", container.code_str());
   run_quiet(
-    &["container", "stop", container],
+    "Stopping container...",
     "Unable to stop container.",
+    &["container", "stop", container],
     running,
   )
   .map(|_| ())
@@ -306,8 +322,9 @@ pub fn commit_container(
     image.code_str()
   );
   run_quiet(
-    &["container", "commit", container, image],
+    "Committing container...",
     "Unable to commit container.",
+    &["container", "commit", container, image],
     running,
   )
   .map(|_| ())
@@ -320,8 +337,9 @@ pub fn delete_container(
 ) -> Result<(), String> {
   debug!("Deleting container {}\u{2026}", container.code_str());
   run_quiet(
-    &["container", "rm", "--force", container],
+    "Deleting container...",
     "Unable to delete container.",
+    &["container", "rm", "--force", container],
     running,
   )
   .map(|_| ())
@@ -337,6 +355,7 @@ pub fn spawn_shell(
     image.code_str()
   );
   run_attach(
+    "The shell exited with a failure.",
     &[
       "container",
       "run",
@@ -348,7 +367,6 @@ pub fn spawn_shell(
       "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
       "-l",
     ],
-    "The shell exited with a failure.",
     running,
   )
 }
@@ -356,11 +374,12 @@ pub fn spawn_shell(
 // Run a command, forward its standard error stream, and return its standard
 // output.
 fn run_quiet(
-  args: &[&str],
+  spinner_message: &str,
   error: &str,
+  args: &[&str],
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
-  let stop_spinning = spin();
+  let stop_spinning = spin(spinner_message);
   defer! {{
     stop_spinning();
   }}
@@ -389,12 +408,13 @@ fn run_quiet(
 // output. Accepts a closure which receives a pipe to the standard input stream
 // of the child process.
 fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
-  args: &[&str],
+  spinner_message: &str,
   error: &str,
+  args: &[&str],
   writer: W,
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
-  let stop_spinning = spin();
+  let stop_spinning = spin(spinner_message);
   defer! {{
     stop_spinning();
   }}
@@ -429,8 +449,8 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
 // closure which receives a pipe to the standard input stream of the child
 // process.
 fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
-  args: &[&str],
   error: &str,
+  args: &[&str],
   writer: W,
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -459,8 +479,8 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
 
 // Run a command and forward its standard input, output, and error streams.
 fn run_attach(
-  args: &[&str],
   error: &str,
+  args: &[&str],
   running: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   let status = command(args)
@@ -491,13 +511,15 @@ fn command(args: &[&str]) -> Command {
 }
 
 // Render a spinner in the terminal and return a closure to kill it.
-fn spin() -> impl FnOnce() {
+fn spin(message: &str) -> impl FnOnce() {
+  let message = message.to_owned();
   let spinning = Arc::new(AtomicBool::new(true));
   let spinning_clone = spinning.clone();
 
   let child = thread::spawn(move || {
     let spinner = ProgressBar::new(1);
     spinner.set_style(ProgressStyle::default_spinner());
+    spinner.set_message(&message);
     while spinning_clone.load(Ordering::SeqCst) {
       spinner.tick();
       sleep(Duration::from_millis(100));
