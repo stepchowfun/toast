@@ -53,7 +53,9 @@ tasks:
       mv Cargo.lock.og Cargo.lock
       mv Cargo.toml.og Cargo.toml
       cargo build
+      cargo clean --package bake
       cargo build --release
+      cargo clean --release --package bake
       cargo clippy
       rm -rf src
 
