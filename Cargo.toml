@@ -36,3 +36,7 @@ features = ["termination"] # [tag:ctrlc_term]
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+
+[dependencies.uuid]
+version = "0.7"
+features = ["v4"]

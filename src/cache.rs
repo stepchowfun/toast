@@ -413,15 +413,15 @@ mod tests {
 
   #[test]
   fn hash_read_pure() {
-    let mut str1 = "foo".as_bytes();
-    let mut str2 = "foo".as_bytes();
+    let mut str1 = b"foo" as &[u8];
+    let mut str2 = b"foo" as &[u8];
     assert_eq!(hash_read(&mut str1), hash_read(&mut str2));
   }
 
   #[test]
   fn hash_read_not_constant() {
-    let mut str1 = "foo".as_bytes();
-    let mut str2 = "bar".as_bytes();
+    let mut str1 = b"foo" as &[u8];
+    let mut str2 = b"bar" as &[u8];
     assert_ne!(hash_read(&mut str1), hash_read(&mut str2));
   }
 

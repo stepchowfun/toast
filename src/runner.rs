@@ -9,47 +9,106 @@ use std::{
   },
 };
 
-// Run a task and return the ID of the resulting Docker image.
-pub fn run<R: Read>(
-  task: &Task,
-  from_image: &str,
-  to_image: &str,
-  environment: &HashMap<String, String>,
-  mut tar: R,
-  bakefile_dir: &Path,
-  cache_hit: bool,
-  running: &Arc<AtomicBool>,
-  active_containers: &Arc<Mutex<HashSet<String>>>,
-) -> Result<(), String> {
-  // If the task was cached, we just need to get the output files.
-  if cache_hit {
-    // If there are no output files, we're done.
-    if task.output_paths.is_empty() {
-      return Ok(());
-    }
+// A task can be run in the context of a container or an image. The `Container`
+// variant "owns" the container in the sense that the destructor deletes the
+// container.
+#[derive(Clone)]
+pub enum Context {
+  Container(
+    String,                      // Container ID
+    Arc<AtomicBool>,             // Whether we are still running
+    Arc<Mutex<HashSet<String>>>, // Active containers
+  ),
+  Image(
+    String, // Image name
+  ),
+}
 
-    // Create a container to extract the files from.
-    let container = docker::create_container(to_image, running)?;
+impl Drop for Context {
+  fn drop(&mut self) {
+    if let Context::Container(container, running, active_containers) = self {
+      // If the user interrupts the program, don't bother killing the
+      // container. We're about to kill it here. The `unwrap` will only fail if
+      // a panic already occurred.
+      {
+        active_containers.lock().unwrap().remove(container);
+      }
 
-    // Delete the container when this function returns.
-    defer! {{
-      if let Err(e) = docker::delete_container(&container, running) {
+      // Delete the container.
+      if let Err(e) = docker::delete_container(container, running) {
         error!("{}", e);
       }
-    }};
+    }
+  }
+}
 
-    // Copy files from the container, if applicable.
-    let mut output_paths = task.output_paths.clone();
-    output_paths.sort();
-    docker::copy_from_container(
-      &container,
-      output_paths.as_ref(),
-      &task.location,
-      bakefile_dir,
-      running,
-    )?;
+// This is a smart constructor for `Context::Container`. It adds the container
+// to the active container set, and the destructor automatically removes it.
+fn container_context(
+  container: &str,
+  running: &Arc<AtomicBool>,
+  active_containers: &Arc<Mutex<HashSet<String>>>,
+) -> Context {
+  // If the user interrupts the program, kill the container. The `unwrap`
+  // will only fail if a panic already occurred.
+  {
+    active_containers
+      .lock()
+      .unwrap()
+      .insert(container.to_owned());
+  }
+
+  // Construct the context.
+  Context::Container(
+    container.to_owned(),
+    running.to_owned(),
+    active_containers.to_owned(),
+  )
+}
+
+// Run a task. The context is assumed to exist locally.
+#[allow(clippy::too_many_arguments)]
+pub fn run<R: Read>(
+  settings: &super::Settings,
+  bakefile_dir: &Path,
+  environment: &HashMap<String, String>,
+  running: &Arc<AtomicBool>,
+  active_containers: &Arc<Mutex<HashSet<String>>>,
+  task: &Task,
+  cache_key: &str,
+  caching_enabled: bool,
+  context: Context,
+  mut tar: R,
+) -> Result<Context, String> {
+  // Check if the task is cached.
+  let image = format!("{}:{}", settings.docker_repo, cache_key);
+  if (settings.read_local_cache && docker::image_exists(&image, running)?)
+    || (settings.read_remote_cache
+      && docker::pull_image(&image, running).is_ok())
+  {
+    // The task is cached. Check if there are any output files.
+    if task.output_paths.is_empty() {
+      // There are no output files, so we're done.
+      Ok(Context::Image(image))
+    } else {
+      // If we made it this far, we need to create a container from which we can
+      // extract the output files.
+      let container = docker::create_container(&image, running)?;
+
+      // Extract the output files from the container.
+      docker::copy_from_container(
+        &container,
+        &task.output_paths,
+        &task.location,
+        bakefile_dir,
+        running,
+      )?;
+
+      // The container becomes the new context.
+      Ok(container_context(&container, running, active_containers))
+    }
   } else {
-    // Construct the command to run inside the container.
+    // The task is not cached. Construct the command to run inside the container.
     let mut commands_to_run = vec![];
 
     // Ensure the task's location exists within the container and that the user
@@ -63,14 +122,15 @@ pub fn run<R: Read>(
       shell_escape(&task.location.to_string_lossy())
     ));
 
-    // Construct a small script to execute the task's command in the task's
-    // location as the task's user with the task's environment variables.
+    // Construct a small script to run the command.
     if let Some(command) = &task.command {
+      // Set the working directory.
       commands_to_run.push(format!(
         "cd {}",
         shell_escape(&task.location.to_string_lossy())
       ));
 
+      // Set the environment variables.
       for variable in task.environment.keys() {
         commands_to_run.push(format!(
           "export {}={}",
@@ -79,6 +139,7 @@ pub fn run<R: Read>(
         ));
       }
 
+      // Run the command as the appropriate user.
       commands_to_run.push(format!(
         "su -c {} {}",
         shell_escape(&command),
@@ -86,27 +147,23 @@ pub fn run<R: Read>(
       ));
     }
 
-    // Create the container.
-    let container = docker::create_container(from_image, running)?;
-
-    // If the user interrupts the program, kill the container. The `unwrap`
-    // will only fail if a panic already occurred.
-    {
-      active_containers.lock().unwrap().insert(container.clone());
-    }
-
-    // Delete the container when this function returns.
-    defer! {{
-      {
-        // If the user interrupts the program, don't bother killing the
-        // container. We're about to kill it here.
-        active_containers.lock().unwrap().remove(&container);
+    // Create a container if needed.
+    let (container, context) = match &context {
+      Context::Container(container, _, _) => {
+        // The context already contains a container. Use it as is.
+        (container.to_owned(), context)
       }
+      Context::Image(context_image) => {
+        // Create a container from the image in the context.
+        let container = docker::create_container(&context_image, running)?;
 
-      if let Err(e) = docker::delete_container(&container, running) {
-        error!("{}", e);
+        // Return the container along with a new context to own it.
+        (
+          container.clone(),
+          container_context(&container, running, active_containers),
+        )
       }
-    }};
+    };
 
     // Copy files into the container, if applicable.
     if !task.input_paths.is_empty() {
@@ -130,22 +187,41 @@ pub fn run<R: Read>(
 
     // Copy files from the container, if applicable.
     if !task.output_paths.is_empty() {
-      let mut output_paths = task.output_paths.clone();
-      output_paths.sort();
       docker::copy_from_container(
         &container,
-        output_paths.as_ref(),
+        &task.output_paths,
         &task.location,
         bakefile_dir,
         running,
       )?;
     }
 
-    // Create an image from the container if needed.
-    docker::commit_container(&container, to_image, running)?;
-  }
+    // Write to cache, if applicable.
+    if caching_enabled {
+      if settings.write_local_cache && settings.write_remote_cache {
+        // Both local and remote cache writes are enabled. Commit the container
+        // to a local image and push it to the remote registry.
+        docker::commit_container(&container, &image, running)?;
+        docker::push_image(&image, running)?;
+      } else if settings.write_local_cache && !settings.write_remote_cache {
+        // Only local cache writes are enabled. Commit the container to a local
+        // image.
+        docker::commit_container(&container, &image, running)?;
+      } else if !settings.write_local_cache && settings.write_remote_cache {
+        // Only remote cache writes are enabled. Commit the container to a
+        // temporary local image, push it to the remote registry, and delete
+        // the local copy.
+        let temp_image =
+          format!("{}:{}", settings.docker_repo, docker::random_tag());
+        docker::commit_container(&container, &temp_image, running)?;
+        docker::push_image(&temp_image, running)?;
+        docker::delete_image(&temp_image, running)?;
+      }
+    }
 
-  Ok(())
+    // Return the context back to the caller.
+    Ok(context)
+  }
 }
 
 // Escape a string for shell interpolation.

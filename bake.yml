@@ -80,12 +80,11 @@ tasks:
       - build
     input_paths:
       - .ignore # Used by `tagref`
-      - clippy.toml # Used by `cargo clippy`
       - rustfmt.toml # Used by `cargo fmt`
     user: user
     command: |-
       set -euo pipefail
       . $HOME/.cargo/env
       cargo fmt --all -- --check
-      cargo clippy -- --deny clippy::pedantic
+      cargo clippy --all-targets --all-features -- --deny warnings --deny clippy::all --deny clippy::pedantic
       tagref

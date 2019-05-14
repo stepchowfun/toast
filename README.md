@@ -322,7 +322,7 @@ The installation script supports the following environment variables:
 - `VERSION=x.y.z` (defaults to the latest version)
 - `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
 
-For example, the following will install Bake into the current directory:
+For example, the following will install Bake into the working directory:
 
 ```sh
 curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | PREFIX=. sh
