@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2019-05-14
+
+### Added
+- Added helpful messages to the spinner animation.
+
+### Changed
+- Changed some log formatting to improve visual appeal.
+- Improved the performance of tasks which aren't cacheable.
+- Bake no longer respects filter files like `.gitignore`. Input paths are taken literally and match the behavior of output paths.
+
+### Fixed
+- Fix a bug where Bake would try to copy an output file to a non-existent directory.
+- Fixed a bug in which Bake would incorrectly delete existing local cache entries when local cache writes are disabled.
+
 ## [0.6.0] - 2019-05-09
 
 ### Added
