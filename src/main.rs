@@ -13,7 +13,6 @@ use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
 use std::{
-  cell::{Cell, RefCell},
   collections::{HashMap, HashSet},
   convert::AsRef,
   env,
@@ -138,7 +137,7 @@ fn parse_bool(s: &str) -> Result<bool, String> {
 }
 
 // This struct represents the command-line arguments.
-struct Settings {
+pub struct Settings {
   bakefile_path: PathBuf,
   docker_repo: String,
   read_local_cache: bool,
@@ -229,10 +228,7 @@ fn settings() -> Result<Settings, String> {
   let bakefile_path = matches.value_of(BAKEFILE_ARG).map_or_else(
     || {
       let mut candidate_dir = current_dir().map_err(|e| {
-        format!(
-          "Unable to determine current working directory. Details: {}",
-          e
-        )
+        format!("Unable to determine working directory. Details: {}", e)
       })?;
       loop {
         let candidate_path = candidate_dir.join(BAKEFILE_DEFAULT_NAME);
@@ -394,7 +390,7 @@ fn get_roots<'a>(
 }
 
 // Fetch all the environment variables used by the tasks in the schedule.
-fn fetch_env(
+fn fetch_environment(
   schedule: &[&str],
   tasks: &HashMap<String, bakefile::Task>,
 ) -> Result<HashMap<String, String>, String> {
@@ -439,51 +435,30 @@ fn fetch_env(
 }
 
 // Run some tasks.
-fn run_tasks<'a>(
-  schedule: &[&'a str],
+fn run_tasks(
+  schedule: &[&str],
   settings: &Settings,
   bakefile: &bakefile::Bakefile,
-  env: &HashMap<String, String>,
+  environment: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
-  // Pull the base image. Docker will do this automatically when we run the
-  // first task, but we do it explicitly here so the user knows what's
-  // happening and when it's done.
-  let base_image_already_existed =
-    docker::image_exists(&bakefile.image, running)?;
-  if !base_image_already_existed {
+  // Pull the base image.
+  if !docker::image_exists(&bakefile.image, running)? {
     info!("Pulling image {}\u{2026}", bakefile.image.code_str());
     docker::pull_image(&bakefile.image, running)?;
   }
 
-  // Run each task in sequence.
+  // Run each task in the schedule.
+  let mut caching_enabled = true;
   let mut cache_key = cache::hash_str(&bakefile.image);
-  let mut first_task = true;
-  let from_image = RefCell::new(bakefile.image.clone());
-  let from_image_cacheable = Cell::new(true);
+  let mut context = runner::Context::Image(bakefile.image.clone());
   for task in schedule {
-    info!("Running task {}\u{2026}", task.code_str());
+    // Fetch the data for the current task.
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
-    // At the end of this iteration, delete the image from the previous step if
-    // it isn't cacheable.
-    let image_to_delete = if (settings.write_local_cache
-      && from_image_cacheable.get())
-      || (first_task && base_image_already_existed)
-    {
-      None
-    } else {
-      Some(from_image.borrow().to_owned())
-    };
-    defer! {{
-      if let Some(image) = image_to_delete {
-        if let Err(e) = docker::delete_image(&image, running) {
-          error!("{}", e);
-        }
-      }
-    }}
-    first_task = false;
+    // If the current task is not cacheable, don't cache it or any future tasks.
+    caching_enabled = caching_enabled && task_data.cache;
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
@@ -506,81 +481,60 @@ fn run_tasks<'a>(
       .seek(SeekFrom::Start(0))
       .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
 
-    // Compute the cache key.
-    cache_key = cache::key(&cache_key, &task_data, &input_files_hash, &env);
-    let to_image =
-      RefCell::new(format!("{}:{}", settings.docker_repo, cache_key));
-
-    // Remember this image for the next task.
-    let this_task_cacheable = task_data.cache && from_image_cacheable.get();
-    defer! {{
-      from_image.replace(to_image.borrow().clone());
-      from_image_cacheable.set(this_task_cacheable);
-    }}
-
-    // Skip the task if it's cached.
-    let mut cache_hit = false;
-    if this_task_cacheable {
-      cache_hit = settings.read_local_cache
-        && docker::image_exists(&to_image.borrow(), running)?;
-
-      if !cache_hit && settings.read_remote_cache {
-        if docker::pull_image(&to_image.borrow(), running).is_ok() {
-          cache_hit = true;
-        } else if !running.load(Ordering::SeqCst) {
-          return Err(INTERRUPT_MESSAGE.to_owned());
-        }
-      }
-    }
-    let cache_hit = cache_hit; // Remove `mut`.
-
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
       return Err(INTERRUPT_MESSAGE.to_owned());
     }
+
+    // Compute the cache key.
+    cache_key =
+      cache::key(&cache_key, &task_data, &input_files_hash, &environment);
 
     // Run the task.
-    runner::run(
-      task_data,
-      &from_image.borrow(),
-      &to_image.borrow(),
-      &env,
-      tar_file,
+    info!("Running task {}\u{2026}", task.code_str());
+    context = runner::run(
+      settings,
       &bakefile_dir,
-      cache_hit,
+      &environment,
       &running,
       &active_containers,
+      task_data,
+      &cache_key,
+      caching_enabled,
+      context,
+      tar_file,
     )?;
-
-    // If the user wants to stop the job, quit now.
-    if !running.load(Ordering::SeqCst) {
-      return Err(INTERRUPT_MESSAGE.to_owned());
-    }
-
-    // Push the image to a remote cache if applicable.
-    if !cache_hit && settings.write_remote_cache && this_task_cacheable {
-      if let Err(e) = docker::push_image(&to_image.borrow(), running) {
-        warn!("{}", e);
-      }
-    }
   }
-
-  // Delete the final image if it isn't cacheable.
-  defer! {{
-    if !settings.write_local_cache || !from_image_cacheable.get() {
-      if let Err(e) = docker::delete_image(&from_image.borrow(), running) {
-        error!("{}", e);
-      }
-    }
-  }}
 
   // Tell the user the good news!
   info!("Done.");
 
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
+    // Make sure we have an image to spawn the shell from.
+    let image = match &context {
+      runner::Context::Container(container, _, _) => {
+        let image =
+          format!("{}:{}", settings.docker_repo, docker::random_tag());
+        docker::commit_container(&container, &image, running)?;
+        image
+      }
+      runner::Context::Image(image) => image.to_owned(),
+    };
+
+    // If we created a temporary image from a container, be sure to delete it
+    // when we're done.
+    defer! {{
+      if let runner::Context::Container(_, _, _) = context {
+        if let Err(e) = docker::delete_image(&image, running) {
+          error!("{}", e);
+        }
+      }
+    }}
+
+    // Spawn the shell.
     info!("Here's a shell in the context of the tasks that were executed:");
-    docker::spawn_shell(&from_image.borrow(), running)?;
+    docker::spawn_shell(&image, running)?;
   }
 
   // Everything succeeded.
@@ -628,14 +582,14 @@ fn entry() -> Result<(), String> {
   }
 
   // Fetch all the environment variables used by the tasks in the schedule.
-  let env = fetch_env(&schedule, &bakefile.tasks)?;
+  let environment = fetch_environment(&schedule, &bakefile.tasks)?;
 
   // Execute the schedule.
   run_tasks(
     &schedule,
     &settings,
     &bakefile,
-    &env,
+    &environment,
     &running,
     &active_containers,
   )?;
