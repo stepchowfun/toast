@@ -114,11 +114,12 @@ pub fn run<R: Read>(
     // Ensure the task's location exists within the container and that the user
     // can access it.
     commands_to_run.push(format!(
-      "mkdir -p {}",
+      "mkdir --parents {}",
       shell_escape(&task.location.to_string_lossy())
     ));
     commands_to_run.push(format!(
-      "chmod 777 {}",
+      "chown --recursive --no-dereference {} {}",
+      shell_escape(&task.user),
       shell_escape(&task.location.to_string_lossy())
     ));
 
@@ -141,7 +142,7 @@ pub fn run<R: Read>(
 
       // Run the command as the appropriate user.
       commands_to_run.push(format!(
-        "su -c {} {}",
+        "su --command={} {}",
         shell_escape(&command),
         shell_escape(&task.user)
       ));
