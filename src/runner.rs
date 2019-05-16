@@ -80,12 +80,28 @@ pub fn run<R: Read>(
   context: Context,
   mut tar: R,
 ) -> Result<Context, String> {
-  // Check if the task is cached.
+  // This is the image we'll look for in the caches.
   let image = format!("{}:{}", settings.docker_repo, cache_key);
-  if (settings.read_local_cache && docker::image_exists(&image, running)?)
-    || (settings.read_remote_cache
-      && docker::pull_image(&image, running).is_ok())
-  {
+
+  // Check the local cache.
+  let mut cached =
+    settings.read_local_cache && docker::image_exists(&image, running)?;
+
+  // Check the remote cache.
+  if !cached && settings.read_remote_cache {
+    if let Err(e) = docker::pull_image(&image, running) {
+      // If the pull failed, it could be because the user killed the child
+      // process (e.g., by hitting CTRL+C).
+      if !running.load(Ordering::SeqCst) {
+        return Err(e);
+      }
+    } else {
+      cached = true;
+    }
+  }
+
+  // If the task is cached, extract the output files if applicable.
+  if cached {
     // The task is cached. Check if there are any output files.
     if task.output_paths.is_empty() {
       // There are no output files, so we're done.

@@ -405,14 +405,15 @@ fn run_quiet(
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
-    Err(if running.load(Ordering::SeqCst) {
+    Err(if output.status.code().is_none() {
+      running.store(false, Ordering::SeqCst);
+      super::INTERRUPT_MESSAGE.to_owned()
+    } else {
       format!(
         "{}\nDetails: {}",
         error,
         String::from_utf8_lossy(&output.stderr)
       )
-    } else {
-      super::INTERRUPT_MESSAGE.to_owned()
     })
   }
 }
@@ -446,14 +447,15 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
-    Err(if running.load(Ordering::SeqCst) {
+    Err(if output.status.code().is_none() {
+      running.store(false, Ordering::SeqCst);
+      super::INTERRUPT_MESSAGE.to_owned()
+    } else {
       format!(
         "{}\nDetails: {}",
         error,
         String::from_utf8_lossy(&output.stderr)
       )
-    } else {
-      super::INTERRUPT_MESSAGE.to_owned()
     })
   }
 }
@@ -480,10 +482,11 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
     Ok(())
   } else {
     Err(
-      if running.load(Ordering::SeqCst) {
-        error
-      } else {
+      if status.code().is_none() {
+        running.store(false, Ordering::SeqCst);
         super::INTERRUPT_MESSAGE
+      } else {
+        error
       }
       .to_owned(),
     )
@@ -504,10 +507,11 @@ fn run_attach(
     Ok(())
   } else {
     Err(
-      if running.load(Ordering::SeqCst) {
-        error
-      } else {
+      if status.code().is_none() {
+        running.store(false, Ordering::SeqCst);
         super::INTERRUPT_MESSAGE
+      } else {
+        error
       }
       .to_owned(),
     )
