@@ -6,7 +6,7 @@
 
 Running tasks in containers helps with reproducibility. If a Bake task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
-![Welcome to Bake.](https://s3.amazonaws.com/static.stephanboyer.com/bake/welcome-0.svg)
+![Welcome to Bake.](https://s3.amazonaws.com/static.stephanboyer.com/bake/welcome-3.svg)
 
 Here are two reasons to use Bake on top of vanilla Docker:
 
@@ -35,11 +35,11 @@ tasks:
 
 Now run `bake`. You should see the following:
 
-![A simple task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/simple-task-0.svg)
+![A simple task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/simple-task-3.svg)
 
 If you run it again, Bake will find that nothing has changed and skip the task:
 
-![Caching.](https://s3.amazonaws.com/static.stephanboyer.com/bake/caching-0.svg)
+![Caching.](https://s3.amazonaws.com/static.stephanboyer.com/bake/caching-3.svg)
 
 Bake caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
@@ -71,7 +71,7 @@ tasks:
 
 Run `bake` to see a marvelous greeting:
 
-![Adding a dependency.](https://s3.amazonaws.com/static.stephanboyer.com/bake/dependencies-0.svg)
+![Adding a dependency.](https://s3.amazonaws.com/static.stephanboyer.com/bake/dependencies-3.svg)
 
 ### Using files from the host
 
@@ -112,7 +112,7 @@ Notice the `input_paths` array in the `build` task. Here we are copying a single
 
 Now if you run `bake`, you'll see this:
 
-![Adding files from the host.](https://s3.amazonaws.com/static.stephanboyer.com/bake/input-paths-0.svg)
+![Adding files from the host.](https://s3.amazonaws.com/static.stephanboyer.com/bake/input-paths-3.svg)
 
 ### Exporting files from the container
 
@@ -138,7 +138,7 @@ tasks:
 
 When Bake runs the `build` task, it will copy the `a.out` file to the host.
 
-![Exporting files from the container.](https://s3.amazonaws.com/static.stephanboyer.com/bake/output-paths-0.svg)
+![Exporting files from the container.](https://s3.amazonaws.com/static.stephanboyer.com/bake/output-paths-3.svg)
 
 ### Passing arguments to a task
 
@@ -156,11 +156,11 @@ tasks:
 
 When you run this task, Bake will read the value from the environment:
 
-![Passing arguments to a task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-explicit-0.svg)
+![Passing arguments to a task.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-explicit-3.svg)
 
 If the variable does not exist in the environment, Bake will use the default value:
 
-![Using argument defaults.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-default-0.svg)
+![Using argument defaults.](https://s3.amazonaws.com/static.stephanboyer.com/bake/arguments-default-3.svg)
 
 If you don't want to have a default, set it to `null`:
 
@@ -191,7 +191,7 @@ tasks:
 
 Now you can run `bake --shell` to play with `figlet`.
 
-![Dropping into a shell.](https://s3.amazonaws.com/static.stephanboyer.com/bake/shell-1.svg)
+![Dropping into a shell.](https://s3.amazonaws.com/static.stephanboyer.com/bake/shell-3.svg)
 
 When you're done, the container is deleted automatically.
 
