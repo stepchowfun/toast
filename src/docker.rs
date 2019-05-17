@@ -378,7 +378,6 @@ pub fn spawn_shell(
       "--init", // [ref:--init]
       image,
       "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
-      "-l",
     ],
     running,
   )
