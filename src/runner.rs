@@ -66,7 +66,7 @@ fn container_context(
   )
 }
 
-// Run a task. The context is assumed to exist locally.
+// Run a task.
 #[allow(clippy::too_many_arguments)]
 pub fn run<R: Read>(
   settings: &super::Settings,
@@ -83,20 +83,24 @@ pub fn run<R: Read>(
   // This is the image we'll look for in the caches.
   let image = format!("{}:{}", settings.docker_repo, cache_key);
 
-  // Check the local cache.
-  let mut cached =
-    settings.read_local_cache && docker::image_exists(&image, running)?;
+  // Check the cache, if applicable.
+  let mut cached = false;
+  if caching_enabled {
+    // Check the local cache.
+    cached =
+      settings.read_local_cache && docker::image_exists(&image, running)?;
 
-  // Check the remote cache.
-  if !cached && settings.read_remote_cache {
-    if let Err(e) = docker::pull_image(&image, running) {
-      // If the pull failed, it could be because the user killed the child
-      // process (e.g., by hitting CTRL+C).
-      if !running.load(Ordering::SeqCst) {
-        return Err(e);
+    // Check the remote cache.
+    if !cached && settings.read_remote_cache {
+      if let Err(e) = docker::pull_image(&image, running) {
+        // If the pull failed, it could be because the user killed the child
+        // process (e.g., by hitting CTRL+C).
+        if !running.load(Ordering::SeqCst) {
+          return Err(e);
+        }
+      } else {
+        cached = true;
       }
-    } else {
-      cached = true;
     }
   }
 
@@ -171,7 +175,13 @@ pub fn run<R: Read>(
         (container.to_owned(), context)
       }
       Context::Image(context_image) => {
-        // Create a container from the image in the context.
+        // If the context is an image, pull it if necessary. Note that this is
+        // not considered reading from the remote cache.
+        if !docker::image_exists(&context_image, running)? {
+          docker::pull_image(&context_image, running)?;
+        }
+
+        // Create a container from the image.
         let container = docker::create_container(&context_image, running)?;
 
         // Return the container along with a new context to own it.
