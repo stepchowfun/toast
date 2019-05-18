@@ -443,21 +443,17 @@ fn run_tasks(
   running: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
-  // Pull the base image.
-  if !docker::image_exists(&bakefile.image, running)? {
-    info!("Pulling image {}\u{2026}", bakefile.image.code_str());
-    docker::pull_image(&bakefile.image, running)?;
-  }
-
-  // Run each task in the schedule.
   let mut caching_enabled = true;
   let mut cache_key = cache::hash_str(&bakefile.image);
   let mut context = runner::Context::Image(bakefile.image.clone());
+
+  // Run each task in the schedule.
   for task in schedule {
     // Fetch the data for the current task.
     let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
 
-    // If the current task is not cacheable, don't cache it or any future tasks.
+    // If the current task is not cacheable, don't read or write to any form of
+    // cache from now on.
     caching_enabled = caching_enabled && task_data.cache;
 
     // If the user wants to stop the job, quit now.
