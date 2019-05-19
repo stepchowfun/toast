@@ -38,7 +38,7 @@ extern crate lazy_static;
 extern crate log;
 
 // The program version
-const VERSION: &str = "0.12.0";
+const VERSION: &str = "0.13.0";
 
 // Defaults
 const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
