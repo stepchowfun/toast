@@ -194,7 +194,7 @@ Bake can be used for more than just building a project. Suppose you're developin
 
 We can use a web server like [nginx](https://www.nginx.com/). The official `nginx` Docker image works well for this, but you could also use a more general image and define a Bake task to install nginx.
 
-In the our `bake.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also set the `watch` flag to enable filesystem watching.
+In our `bake.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also set the `watch` flag to enable filesystem watching.
 
 ```yml
 image: nginx
