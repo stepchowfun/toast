@@ -25,9 +25,6 @@ pub struct Task {
   #[serde(default)]
   pub environment: HashMap<String, Option<String>>,
 
-  #[serde(default = "default_task_watch")]
-  pub watch: bool,
-
   #[serde(default)]
   pub input_paths: Vec<PathBuf>,
 
@@ -48,10 +45,6 @@ pub struct Task {
 
 fn default_task_cache() -> bool {
   true
-}
-
-fn default_task_watch() -> bool {
-  false
 }
 
 fn default_task_location() -> PathBuf {
@@ -340,7 +333,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -376,7 +368,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -424,7 +415,6 @@ tasks:
       SPAM: null
       HAM: null
       EGGS: null
-    watch: true
     input_paths:
       - qux
       - quux
@@ -455,7 +445,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -470,7 +459,6 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment,
-        watch: true,
         input_paths: vec![
           Path::new("qux").to_owned(),
           Path::new("quux").to_owned(),
@@ -503,7 +491,6 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
-      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -527,7 +514,6 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -556,7 +542,6 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -585,7 +570,6 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
-      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -621,7 +605,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -649,7 +632,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -664,7 +646,6 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -692,7 +673,6 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -707,7 +687,6 @@ tasks:
         dependencies: vec!["foo".to_owned(), "baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -737,7 +716,6 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -767,7 +745,6 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -782,7 +759,6 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -812,7 +788,6 @@ tasks:
         dependencies: vec!["baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -827,7 +802,6 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -842,7 +816,6 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
-        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
