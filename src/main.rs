@@ -12,6 +12,7 @@ use atty::Stream;
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
+use notify::{watcher, RecommendedWatcher, RecursiveMode, Watcher};
 use scopeguard::guard;
 use std::{
   collections::{HashMap, HashSet},
@@ -26,8 +27,11 @@ use std::{
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
+    mpsc::channel,
     Arc, Mutex,
   },
+  thread,
+  time::Duration,
 };
 use tempfile::tempfile;
 
@@ -100,7 +104,7 @@ fn set_up_logging() {
 
 // Set up the signal handlers.
 fn set_up_signal_handlers(
-  running: Arc<AtomicBool>,
+  interrupted: Arc<AtomicBool>,
   active_containers: Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
   // If Bake is in the foreground process group for some TTY, the process will
@@ -111,11 +115,11 @@ fn set_up_signal_handlers(
   // the `termination` feature [ref:ctrlc_term].
   ctrlc::set_handler(move || {
     // Let the rest of the program know the user wants to quit.
-    if running.swap(false, Ordering::SeqCst) {
+    if interrupted.swap(true, Ordering::SeqCst) {
       // Stop any active containers. The `unwrap` will only fail if a panic
       // already occurred.
       for container in &*active_containers.lock().unwrap() {
-        if let Err(e) = docker::stop_container(&container, &running) {
+        if let Err(e) = docker::stop_container(&container, &interrupted) {
           error!("{}", e);
         }
       }
@@ -437,12 +441,15 @@ fn fetch_environment(
 }
 
 // Run some tasks.
+#[allow(clippy::too_many_arguments)]
 fn run_tasks(
   schedule: &[&str],
   settings: &Settings,
   bakefile: &bakefile::Bakefile,
   environment: &HashMap<String, String>,
-  running: &Arc<AtomicBool>,
+  watcher: &mut RecommendedWatcher,
+  watching: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Result<runner::Context, (String, runner::Context)> {
   // This variable will be `true` as long as we're executing tasks that have
@@ -467,8 +474,27 @@ fn run_tasks(
     caching_enabled = caching_enabled && task_data.cache;
 
     // If the user wants to stop the job, quit now.
-    if !running.load(Ordering::SeqCst) {
+    if interrupted.load(Ordering::SeqCst) {
       return Err((INTERRUPT_MESSAGE.to_owned(), context));
+    }
+
+    // Start responding to filesystem events if the task requests it. Note that
+    // this applies to all subsequent tasks as well.
+    if task_data.watch {
+      watching.store(true, Ordering::SeqCst);
+    }
+
+    // Add the `input_paths` from this task to the filesystem watcher.
+    for path in &task_data.input_paths {
+      if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
+        return Err((
+          format!(
+            "Unable to register a filesystem watch path. Details: {}",
+            e
+          ),
+          context,
+        ));
+      }
     }
 
     // Tar up the files to be copied into the container.
@@ -500,7 +526,7 @@ fn run_tasks(
     };
 
     // If the user wants to stop the job, quit now.
-    if !running.load(Ordering::SeqCst) {
+    if interrupted.load(Ordering::SeqCst) {
       return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
 
@@ -514,7 +540,7 @@ fn run_tasks(
       settings,
       &bakefile_dir,
       &environment,
-      &running,
+      &interrupted,
       &active_containers,
       task_data,
       &cache_key,
@@ -537,11 +563,11 @@ fn entry() -> Result<(), String> {
   set_up_logging();
 
   // Set up global mutable state (yum!).
-  let running = Arc::new(AtomicBool::new(true));
+  let interrupted = Arc::new(AtomicBool::new(false));
   let active_containers = Arc::new(Mutex::new(HashSet::<String>::new()));
 
   // Set up the signal handlers.
-  set_up_signal_handlers(running.clone(), active_containers.clone())?;
+  set_up_signal_handlers(interrupted.clone(), active_containers.clone())?;
 
   // Parse the command-line arguments;
   let settings = settings()?;
@@ -571,47 +597,122 @@ fn entry() -> Result<(), String> {
   // Fetch all the environment variables used by the tasks in the schedule.
   let environment = fetch_environment(&schedule, &bakefile.tasks)?;
 
-  // Execute the schedule.
-  let (succeeded, context) = match run_tasks(
-    &schedule,
-    &settings,
-    &bakefile,
-    &environment,
-    &running,
-    &active_containers,
-  ) {
-    Ok(context) => {
-      info!("Done.");
-      (true, context)
-    }
-    Err((e, context)) => {
-      // If the user wants to stop the job, quit now.
-      if !running.load(Ordering::SeqCst) {
-        return Err(INTERRUPT_MESSAGE.to_owned());
-      }
+  // This flag is permanently set when we encounter a task with `watch: true`.
+  let watching = Arc::new(AtomicBool::new(false));
 
-      // Otherwise, log the error and proceed in case the user wants a shell.
-      error!("{}", e);
-      (false, context)
+  // This flag is set when a filesystem event is received and `watching` is
+  // set. It is cleared once the schedule has been restarted. We also set it
+  // initially so the schedule can run the first time.
+  let should_restart = Arc::new(AtomicBool::new(true));
+
+  // Create a channel for publishing and listening for filesystem events.
+  let (notify_sender, notify_receiver) = channel();
+
+  // Spawn a thread to listen for filesystem events.
+  let watching_clone = watching.clone();
+  let should_restart_clone = should_restart.clone();
+  let interrupted_clone = interrupted.clone();
+  let active_containers_clone = active_containers.clone();
+  thread::spawn(move || {
+    // Wait for events.
+    while let Ok(_) = notify_receiver.recv() {
+      // Only respond to the event if we've encountered a task with
+      // `watch: true`.
+      if watching_clone.load(Ordering::SeqCst) {
+        // Signal that the server should restart (rather than quit).
+        if !should_restart_clone.swap(true, Ordering::SeqCst) {
+          // Stop any active containers. The `unwrap` will only fail if a panic
+          // already occurred.
+          for container in &*active_containers_clone.lock().unwrap() {
+            if let Err(e) =
+              docker::stop_container(&container, &interrupted_clone)
+            {
+              error!("{}", e);
+            }
+          }
+
+          // We may have been in the middle of printing a line of output. Here
+          // we print a newline to prepare for further printing.
+          let _ = stdout().write(b"\n");
+        }
+      }
     }
-  };
+  });
+
+  // Set up a filesystem watcher.
+  let mut watcher = watcher(notify_sender, Duration::from_millis(200))
+    .map_err(|e| {
+      format!("Unable to initialize filesystem watcher. Details: {}", e)
+    })?;
+
+  // If the job fails, we don't necessarily want to return immediately. We
+  // might need to drop the user into a shell or restart the job because some
+  // files changed.
+  let mut succeeded = true;
+
+  // We remember the context of the most recent task in case the user wants to
+  // drop into a shell with that context.
+  let mut shell_context = None;
+
+  // This code is wrapped in a loop to support the filesystem watching feature.
+  while should_restart.load(Ordering::SeqCst) {
+    // Don't restart the schedule unless its execution was terminated due to a
+    // filesystem event.
+    should_restart.store(false, Ordering::SeqCst);
+
+    // Execute the schedule.
+    match run_tasks(
+      &schedule,
+      &settings,
+      &bakefile,
+      &environment,
+      &mut watcher,
+      &watching,
+      &interrupted,
+      &active_containers,
+    ) {
+      Ok(context) => {
+        info!("Done.");
+        shell_context = Some(context);
+        should_restart.store(false, Ordering::SeqCst);
+      }
+      Err((e, context)) => {
+        // If the job failed because the user interrupted the job, quit now.
+        if interrupted.load(Ordering::SeqCst) {
+          return Err(INTERRUPT_MESSAGE.to_owned());
+        }
+
+        // If the job failed because we're watching the filesystem and there
+        // was an event, start over. Otherwise, log the error and proceed in
+        // case the user wants to be dropped into a shell.
+        if !should_restart.load(Ordering::SeqCst) {
+          error!("{}", e);
+          succeeded = false;
+          shell_context = Some(context);
+        }
+      }
+    };
+  }
 
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
     // Inform the user of what's about to happen.
     info!("Preparing a shell\u{2026}");
 
-    // Make sure we have an image to spawn the shell from.
-    let (image, _guard) = match &context {
+    // Make sure we have an image to spawn the shell from. The `unwrap` is safe
+    // because each iteration of the loop above sets `shell_context`, and the
+    // loop is guaranteed to execute at least one iteration.
+    let (image, _guard) = match &shell_context.unwrap() {
+      // safe because wat
       runner::Context::Container(container, _, _) => {
         let image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
-        docker::commit_container(&container, &image, &running)?;
-        let running = running.clone();
+        docker::commit_container(&container, &image, &interrupted)?;
+        let interrupted = interrupted.clone();
         (
           image.clone(),
           Some(guard((), move |_| {
-            if let Err(e) = docker::delete_image(&image, &running) {
+            if let Err(e) = docker::delete_image(&image, &interrupted) {
               error!("{}", e);
             }
           })),
@@ -621,7 +722,7 @@ fn entry() -> Result<(), String> {
     };
 
     // Spawn the shell.
-    docker::spawn_shell(&image, &running)?;
+    docker::spawn_shell(&image, &interrupted)?;
   }
 
   // Throw an error if any of the tasks failed.

@@ -16,7 +16,7 @@ use std::{
 pub enum Context {
   Container(
     String,                      // Container ID
-    Arc<AtomicBool>,             // Whether we are still running
+    Arc<AtomicBool>,             // Whether the job has been interrupted
     Arc<Mutex<HashSet<String>>>, // Active containers
   ),
   Image(
@@ -26,7 +26,8 @@ pub enum Context {
 
 impl Drop for Context {
   fn drop(&mut self) {
-    if let Context::Container(container, running, active_containers) = self {
+    if let Context::Container(container, interrupted, active_containers) = self
+    {
       // If the user interrupts the program, don't bother killing the
       // container. We're about to kill it here. The `unwrap` will only fail if
       // a panic already occurred.
@@ -35,7 +36,7 @@ impl Drop for Context {
       }
 
       // Delete the container.
-      if let Err(e) = docker::delete_container(container, running) {
+      if let Err(e) = docker::delete_container(container, interrupted) {
         error!("{}", e);
       }
     }
@@ -46,7 +47,7 @@ impl Drop for Context {
 // to the active container set, and the destructor automatically removes it.
 fn container_context(
   container: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Context {
   // If the user interrupts the program, kill the container. The `unwrap`
@@ -61,7 +62,7 @@ fn container_context(
   // Construct the context.
   Context::Container(
     container.to_owned(),
-    running.to_owned(),
+    interrupted.to_owned(),
     active_containers.to_owned(),
   )
 }
@@ -72,7 +73,7 @@ pub fn run<R: Read>(
   settings: &super::Settings,
   bakefile_dir: &Path,
   environment: &HashMap<String, String>,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
   task: &Task,
   cache_key: &str,
@@ -88,17 +89,17 @@ pub fn run<R: Read>(
   if caching_enabled {
     // Check the local cache.
     cached = settings.read_local_cache
-      && match docker::image_exists(&image, running) {
+      && match docker::image_exists(&image, interrupted) {
         Ok(exists) => exists,
         Err(e) => return Err((e, context)),
       };
 
     // Check the remote cache.
     if !cached && settings.read_remote_cache {
-      if let Err(e) = docker::pull_image(&image, running) {
+      if let Err(e) = docker::pull_image(&image, interrupted) {
         // If the pull failed, it could be because the user killed the child
         // process (e.g., by hitting CTRL+C).
-        if !running.load(Ordering::SeqCst) {
+        if interrupted.load(Ordering::SeqCst) {
           return Err((e, context));
         }
       } else {
@@ -117,11 +118,12 @@ pub fn run<R: Read>(
       // If we made it this far, we need to create a container from which we can
       // extract the output files.
       let container =
-        match docker::create_container(&image, &task.ports, running) {
+        match docker::create_container(&image, &task.ports, interrupted) {
           Ok(container) => container,
           Err(e) => return Err((e, context)),
         };
-      let context = container_context(&container, running, active_containers);
+      let context =
+        container_context(&container, interrupted, active_containers);
 
       // Extract the output files from the container.
       if let Err(e) = docker::copy_from_container(
@@ -129,7 +131,7 @@ pub fn run<R: Read>(
         &task.output_paths,
         &task.location,
         bakefile_dir,
-        running,
+        interrupted,
       ) {
         return Err((e, context));
       }
@@ -191,24 +193,24 @@ pub fn run<R: Read>(
       Context::Image(context_image) => {
         // If the context is an image, pull it if necessary. Note that this is
         // not considered reading from the remote cache.
-        if !match docker::image_exists(&context_image, running) {
+        if !match docker::image_exists(&context_image, interrupted) {
           Ok(exists) => exists,
           Err(e) => return Err((e, context)),
         } {
-          if let Err(e) = docker::pull_image(&context_image, running) {
+          if let Err(e) = docker::pull_image(&context_image, interrupted) {
             return Err((e, context));
           }
         }
 
         // Create a container from the image.
         let container =
-          docker::create_container(&context_image, &task.ports, running)
+          docker::create_container(&context_image, &task.ports, interrupted)
             .map_err(|e| (e, context))?;
 
         // Return the container along with a new context to own it.
         (
           container.clone(),
-          container_context(&container, running, active_containers),
+          container_context(&container, interrupted, active_containers),
         )
       }
     };
@@ -216,7 +218,7 @@ pub fn run<R: Read>(
     // Copy files into the container, if applicable.
     if !task.input_paths.is_empty() {
       if let Err(e) =
-        docker::copy_into_container(&container, &mut tar, running)
+        docker::copy_into_container(&container, &mut tar, interrupted)
       {
         return Err((e, context));
       }
@@ -226,15 +228,15 @@ pub fn run<R: Read>(
     if docker::start_container(
       &container,
       &commands_to_run.join(" && "),
-      running,
+      interrupted,
     )
     .is_err()
     {
       return Err((
-        if running.load(Ordering::SeqCst) {
-          "Command failed."
-        } else {
+        if interrupted.load(Ordering::SeqCst) {
           super::INTERRUPT_MESSAGE
+        } else {
+          "Command failed."
         }
         .to_owned(),
         context,
@@ -248,7 +250,7 @@ pub fn run<R: Read>(
         &task.output_paths,
         &task.location,
         bakefile_dir,
-        running,
+        interrupted,
       ) {
         return Err((e, context));
       }
@@ -259,16 +261,20 @@ pub fn run<R: Read>(
       if settings.write_local_cache && settings.write_remote_cache {
         // Both local and remote cache writes are enabled. Commit the container
         // to a local image and push it to the remote registry.
-        if let Err(e) = docker::commit_container(&container, &image, running) {
+        if let Err(e) =
+          docker::commit_container(&container, &image, interrupted)
+        {
           return Err((e, context));
         }
-        if let Err(e) = docker::push_image(&image, running) {
+        if let Err(e) = docker::push_image(&image, interrupted) {
           return Err((e, context));
         }
       } else if settings.write_local_cache && !settings.write_remote_cache {
         // Only local cache writes are enabled. Commit the container to a local
         // image.
-        if let Err(e) = docker::commit_container(&container, &image, running) {
+        if let Err(e) =
+          docker::commit_container(&container, &image, interrupted)
+        {
           return Err((e, context));
         }
       } else if !settings.write_local_cache && settings.write_remote_cache {
@@ -278,14 +284,14 @@ pub fn run<R: Read>(
         let temp_image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
         if let Err(e) =
-          docker::commit_container(&container, &temp_image, running)
+          docker::commit_container(&container, &temp_image, interrupted)
         {
           return Err((e, context));
         }
-        if let Err(e) = docker::push_image(&temp_image, running) {
+        if let Err(e) = docker::push_image(&temp_image, interrupted) {
           return Err((e, context));
         }
-        if let Err(e) = docker::delete_image(&temp_image, running) {
+        if let Err(e) = docker::delete_image(&temp_image, interrupted) {
           return Err((e, context));
         }
       }

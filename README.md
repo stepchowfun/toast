@@ -176,7 +176,7 @@ tasks:
 
 Now if you run `bake deploy` without specifying a `CLUSTER`, Bake will complain about the missing variable and refuse to run the task.
 
-### Running a server
+### Running a server and watching the filesystem
 
 Bake can be used for more than just building a project. Suppose you're developing a website. You can define a Bake task to run your web server! Create a file called `index.html` with the following contents:
 
@@ -194,13 +194,14 @@ Bake can be used for more than just building a project. Suppose you're developin
 
 We can use a web server like [nginx](https://www.nginx.com/). The official `nginx` Docker image works well for this, but you could also use a more general image and define a Bake task to install nginx.
 
-In the our `bake.yml` file, we'll use the `ports` field to make the website accessible outside the container:
+In the our `bake.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also set the `watch` flag to enable filesystem watching.
 
 ```yml
 image: nginx
 tasks:
   serve:
     cache: false # It doesn't make sense to cache this task.
+    watch: true # Restart the server if `index.html` changes.
     input_paths:
       - index.html
     ports:
@@ -259,6 +260,7 @@ Tasks have the following schema and defaults:
 dependencies: []   # Names of dependencies
 cache: true        # Whether a task can be cached
 environment: {}    # Map from environment variable to optional default
+watch: false       # Whether to automatically restart when input files change
 input_paths: []    # Paths to copy into the container
 output_paths: []   # Paths to copy out of the container
 ports: []          # Port mappings to publish
