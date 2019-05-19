@@ -10,8 +10,10 @@ pub fn key(
   input_files_hash: &str,
   environment: &HashMap<String, String>,
 ) -> String {
+  // Start with the previous key.
   let mut cache_key = previous_key.to_owned();
 
+  // Environment variables
   let mut variables = task.environment.keys().collect::<Vec<_>>();
   variables.sort();
   for variable in variables {
@@ -19,22 +21,23 @@ pub fn key(
     cache_key = extend(&cache_key, &environment[variable]); // [ref:environment_valid]
   }
 
+  // Input paths and contents
   cache_key = extend(&cache_key, &input_files_hash);
 
-  let mut output_paths = task.output_paths.clone();
-  output_paths.sort();
-  for path in output_paths {
-    cache_key = extend(&cache_key, &path.to_string_lossy());
-  }
-
+  // Location
   cache_key = extend(&cache_key, &task.location.to_string_lossy());
 
+  // User
   cache_key = extend(&cache_key, &task.user);
 
+  // Command
   if let Some(command) = &task.command {
     cache_key = extend(&cache_key, &command);
   }
 
+  // We add this "bake-" prefix because Docker has a rule that tags cannot be
+  // 64-byte hexadecimal strings. See this for more details:
+  //   https://github.com/moby/moby/issues/20972
   format!("bake-{}", cache_key)
 }
 

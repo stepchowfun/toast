@@ -16,7 +16,7 @@ use std::{
 pub enum Context {
   Container(
     String,                      // Container ID
-    Arc<AtomicBool>,             // Whether the job has been interrupted
+    Arc<AtomicBool>,             // Whether the schedule has been interrupted
     Arc<Mutex<HashSet<String>>>, // Active containers
   ),
   Image(
