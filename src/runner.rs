@@ -169,10 +169,11 @@ pub fn run<R: Read>(
         ));
       }
 
-      // Run the command as the appropriate user. For readability, we usually
-      // use the long form of command-line options. However, we have to use
+      // Run the command as the appropriate user. For readability, we prefer to
+      // use the long forms of command-line options. However, we have to use
       // `-c COMMAND` rather than `--command=COMMAND` because BusyBox's `su`
-      // utility doesn't support the latter form.
+      // utility doesn't support the latter form, and we want to support
+      // BusyBox.
       commands_to_run.push(format!(
         "su -c {} {}",
         shell_escape(&command),
