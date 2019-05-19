@@ -261,6 +261,7 @@ cache: true        # Whether a task can be cached
 environment: {}    # Map from environment variable to optional default
 input_paths: []    # Paths to copy into the container
 output_paths: []   # Paths to copy out of the container
+ports: []          # Port mappings to publish
 location: /scratch # Path in the container for running this task
 user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container
