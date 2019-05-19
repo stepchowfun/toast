@@ -1,5 +1,6 @@
 use crate::format::CodeStr;
 use indicatif::{ProgressBar, ProgressStyle};
+use scopeguard::guard;
 use std::{
   fs::{create_dir_all, metadata, rename},
   io,
@@ -391,10 +392,7 @@ fn run_quiet(
   args: &[&str],
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
-  let stop_spinning = spin(spinner_message);
-  defer! {{
-    stop_spinning();
-  }}
+  let _guard = spin(spinner_message);
 
   let output = command(args)
     .stdin(Stdio::null())
@@ -427,10 +425,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   writer: W,
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
-  let stop_spinning = spin(spinner_message);
-  defer! {{
-    stop_spinning();
-  }}
+  let _guard = spin(spinner_message);
 
   let mut child = command(args)
     .stdin(Stdio::piped()) // [tag:run_quiet_stdin_piped]
@@ -526,8 +521,9 @@ fn command(args: &[&str]) -> Command {
   command
 }
 
-// Render a spinner in the terminal and return a closure to kill it.
-fn spin(message: &str) -> impl FnOnce() {
+// Render a spinner in the terminal. When the returned value is dropped, the
+// spinner is terminated.
+fn spin(message: &str) -> impl Drop {
   let message = message.to_owned();
   let spinning = Arc::new(AtomicBool::new(true));
   let spinning_clone = spinning.clone();
@@ -543,10 +539,10 @@ fn spin(message: &str) -> impl FnOnce() {
     spinner.finish_and_clear();
   });
 
-  move || {
+  guard((), move |_| {
     spinning.store(false, Ordering::SeqCst);
     let _ = child.join();
-  }
+  })
 }
 
 #[cfg(test)]

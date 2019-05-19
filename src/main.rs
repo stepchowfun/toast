@@ -12,6 +12,7 @@ use atty::Stream;
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
+use scopeguard::guard;
 use std::{
   collections::{HashMap, HashSet},
   convert::AsRef,
@@ -32,8 +33,6 @@ use tempfile::tempfile;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate scopeguard;
 
 // The program version
 const VERSION: &str = "0.11.0";
@@ -508,25 +507,22 @@ fn run_tasks(
   // Drop the user into a shell if requested.
   if settings.spawn_shell {
     // Make sure we have an image to spawn the shell from.
-    let image = match &context {
+    let (image, _guard) = match &context {
       runner::Context::Container(container, _, _) => {
         let image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
         docker::commit_container(&container, &image, running)?;
-        image
+        (
+          image.clone(),
+          Some(guard((), move |_| {
+            if let Err(e) = docker::delete_image(&image, running) {
+              error!("{}", e);
+            }
+          })),
+        )
       }
-      runner::Context::Image(image) => image.to_owned(),
+      runner::Context::Image(image) => (image.to_owned(), None),
     };
-
-    // If we created a temporary image from a container, be sure to delete it
-    // when we're done.
-    defer! {{
-      if let runner::Context::Container(_, _, _) = context {
-        if let Err(e) = docker::delete_image(&image, running) {
-          error!("{}", e);
-        }
-      }
-    }}
 
     // Spawn the shell.
     info!("Here's a shell in the context of the tasks that were executed:");
