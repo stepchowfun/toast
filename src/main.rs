@@ -473,7 +473,7 @@ fn run_tasks(
     // cache from now on.
     caching_enabled = caching_enabled && task_data.cache;
 
-    // If the user wants to stop the job, quit now.
+    // If the user wants to stop the schedule, quit now.
     if interrupted.load(Ordering::SeqCst) {
       return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
@@ -525,7 +525,7 @@ fn run_tasks(
       ));
     };
 
-    // If the user wants to stop the job, quit now.
+    // If the user wants to stop the schedule, quit now.
     if interrupted.load(Ordering::SeqCst) {
       return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
@@ -597,57 +597,14 @@ fn entry() -> Result<(), String> {
   // Fetch all the environment variables used by the tasks in the schedule.
   let environment = fetch_environment(&schedule, &bakefile.tasks)?;
 
-  // This flag is permanently set when we encounter a task with `watch: true`.
-  let watching = Arc::new(AtomicBool::new(false));
-
-  // This flag is set when a filesystem event is received and `watching` is
-  // set. It is cleared once the schedule has been restarted. We also set it
-  // initially so the schedule can run the first time.
+  // This flag is set in response to filesystem events. It's cleared once the
+  // schedule has been restarted. We also set it initially so the schedule can
+  // run the first time.
   let should_restart = Arc::new(AtomicBool::new(true));
 
-  // Create a channel for publishing and listening for filesystem events.
-  let (notify_sender, notify_receiver) = channel();
-
-  // Spawn a thread to listen for filesystem events.
-  let watching_clone = watching.clone();
-  let should_restart_clone = should_restart.clone();
-  let interrupted_clone = interrupted.clone();
-  let active_containers_clone = active_containers.clone();
-  thread::spawn(move || {
-    // Wait for events.
-    while let Ok(_) = notify_receiver.recv() {
-      // Only respond to the event if we've encountered a task with
-      // `watch: true`.
-      if watching_clone.load(Ordering::SeqCst) {
-        // Signal that the server should restart (rather than quit).
-        if !should_restart_clone.swap(true, Ordering::SeqCst) {
-          // Stop any active containers. The `unwrap` will only fail if a panic
-          // already occurred.
-          for container in &*active_containers_clone.lock().unwrap() {
-            if let Err(e) =
-              docker::stop_container(&container, &interrupted_clone)
-            {
-              error!("{}", e);
-            }
-          }
-
-          // We may have been in the middle of printing a line of output. Here
-          // we print a newline to prepare for further printing.
-          let _ = stdout().write(b"\n");
-        }
-      }
-    }
-  });
-
-  // Set up a filesystem watcher.
-  let mut watcher = watcher(notify_sender, Duration::from_millis(200))
-    .map_err(|e| {
-      format!("Unable to initialize filesystem watcher. Details: {}", e)
-    })?;
-
-  // If the job fails, we don't necessarily want to return immediately. We
-  // might need to drop the user into a shell or restart the job because some
-  // files changed.
+  // If the schedule fails, we don't necessarily want to return immediately. We
+  // might need to drop the user into a shell or restart the schedule because
+  // some files changed.
   let mut succeeded = true;
 
   // We remember the context of the most recent task in case the user wants to
@@ -659,6 +616,50 @@ fn entry() -> Result<(), String> {
     // Don't restart the schedule unless its execution was terminated due to a
     // filesystem event.
     should_restart.store(false, Ordering::SeqCst);
+
+    // This flag is permanently set when we encounter a task with
+    // `watch: true`.
+    let watching = Arc::new(AtomicBool::new(false));
+
+    // Create a channel for publishing and listening for filesystem events.
+    let (notify_sender, notify_receiver) = channel();
+
+    // Spawn a thread to listen for filesystem events.
+    let watching_clone = watching.clone();
+    let should_restart_clone = should_restart.clone();
+    let interrupted_clone = interrupted.clone();
+    let active_containers_clone = active_containers.clone();
+    thread::spawn(move || {
+      // Wait for events.
+      while let Ok(_) = notify_receiver.recv() {
+        // Only respond to the event if we've encountered a task with
+        // `watch: true`.
+        if watching_clone.load(Ordering::SeqCst) {
+          // Signal that the server should restart (rather than quit).
+          if !should_restart_clone.swap(true, Ordering::SeqCst) {
+            // Stop any active containers. The `unwrap` will only fail if a
+            // panic already occurred.
+            for container in &*active_containers_clone.lock().unwrap() {
+              if let Err(e) =
+                docker::stop_container(&container, &interrupted_clone)
+              {
+                error!("{}", e);
+              }
+            }
+
+            // We may have been in the middle of printing a line of output.
+            // Here we print a newline to prepare for further printing.
+            let _ = stdout().write(b"\n");
+          }
+        }
+      }
+    });
+
+    // Set up a filesystem watcher.
+    let mut watcher = watcher(notify_sender, Duration::from_millis(200))
+      .map_err(|e| {
+        format!("Unable to initialize filesystem watcher. Details: {}", e)
+      })?;
 
     // Execute the schedule.
     match run_tasks(
@@ -677,14 +678,14 @@ fn entry() -> Result<(), String> {
         should_restart.store(false, Ordering::SeqCst);
       }
       Err((e, context)) => {
-        // If the job failed because the user interrupted the job, quit now.
+        // If the schedule failed because the user interrupted a task, quit now.
         if interrupted.load(Ordering::SeqCst) {
           return Err(INTERRUPT_MESSAGE.to_owned());
         }
 
-        // If the job failed because we're watching the filesystem and there
-        // was an event, start over. Otherwise, log the error and proceed in
-        // case the user wants to be dropped into a shell.
+        // If the schedule failed because we're watching the filesystem and
+        // there was an event, start over. Otherwise, log the error and proceed
+        // in case the user wants to be dropped into a shell.
         if !should_restart.load(Ordering::SeqCst) {
           error!("{}", e);
           succeeded = false;
