@@ -5,7 +5,7 @@ install:
     if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
       echo "$DOCKER_HUB_PASSWORD" | docker login --username stephanmisc --password-stdin
     fi
-  - curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | VERSION=0.13.0 sh
+  - curl https://raw.githubusercontent.com/stepchowfun/bake/master/install.sh -LSfs | VERSION=0.14.0 sh
 script:
   - |
     if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
