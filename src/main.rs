@@ -31,6 +31,7 @@ use std::{
     Arc, Mutex,
   },
   thread,
+  thread::sleep,
   time::Duration,
 };
 use tempfile::tempfile;
@@ -612,11 +613,7 @@ fn entry() -> Result<(), String> {
   let mut shell_context = None;
 
   // This code is wrapped in a loop to support the filesystem watching feature.
-  while should_restart.load(Ordering::SeqCst) {
-    // Don't restart the schedule unless its execution was terminated due to a
-    // filesystem event.
-    should_restart.store(false, Ordering::SeqCst);
-
+  while should_restart.swap(false, Ordering::SeqCst) {
     // This flag is permanently set when we encounter a task with
     // `watch: true`.
     let watching = Arc::new(AtomicBool::new(false));
@@ -636,7 +633,11 @@ fn entry() -> Result<(), String> {
         // `watch: true`.
         if watching_clone.load(Ordering::SeqCst) {
           // Signal that the server should restart (rather than quit).
-          if !should_restart_clone.swap(true, Ordering::SeqCst) {
+          should_restart_clone.store(true, Ordering::SeqCst);
+
+          // Keep trying to kill whatever is going on until the schedule has
+          // restarted.
+          while should_restart_clone.load(Ordering::SeqCst) {
             // Stop any active containers. The `unwrap` will only fail if a
             // panic already occurred.
             for container in &*active_containers_clone.lock().unwrap() {
@@ -650,6 +651,9 @@ fn entry() -> Result<(), String> {
             // We may have been in the middle of printing a line of output.
             // Here we print a newline to prepare for further printing.
             let _ = stdout().write(b"\n");
+
+            // Wait a little before trying again.
+            sleep(Duration::from_millis(500));
           }
         }
       }
