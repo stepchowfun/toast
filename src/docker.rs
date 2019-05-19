@@ -168,8 +168,8 @@ pub fn copy_from_container(
   // Copy each path from the container to the host.
   for path in paths {
     debug!(
-      "Copying `{}` from container {}\u{2026}",
-      path.to_string_lossy(),
+      "Copying {} from container {}\u{2026}",
+      path.to_string_lossy().code_str(),
       container.code_str()
     );
 
