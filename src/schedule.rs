@@ -89,6 +89,7 @@ mod tests {
       dependencies,
       cache: true,
       environment: HashMap::new(),
+      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],

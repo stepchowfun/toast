@@ -32,19 +32,19 @@ pub fn random_tag() -> String {
 // Query whether an image exists locally.
 pub fn image_exists(
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<bool, String> {
   debug!("Checking existence of image {}\u{2026}", image.code_str());
   if let Err(e) = run_quiet(
     "Checking existence of image\u{2026}",
     "The image doesn't exist.",
     &["image", "inspect", image],
-    running,
+    interrupted,
   ) {
-    if running.load(Ordering::SeqCst) {
-      Ok(false)
-    } else {
+    if interrupted.load(Ordering::SeqCst) {
       Err(e)
+    } else {
+      Ok(false)
     }
   } else {
     Ok(true)
@@ -54,14 +54,14 @@ pub fn image_exists(
 // Push an image.
 pub fn push_image(
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Pushing image {}\u{2026}", image.code_str());
   run_quiet(
     "Pushing image\u{2026}",
     "Unable to push image.",
     &["image", "push", image],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -69,14 +69,14 @@ pub fn push_image(
 // Pull an image.
 pub fn pull_image(
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Pulling image {}\u{2026}", image.code_str());
   run_quiet(
     "Pulling image\u{2026}",
     "Unable to pull image.",
     &["image", "pull", image],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -84,14 +84,14 @@ pub fn pull_image(
 // Delete an image.
 pub fn delete_image(
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Deleting image {}\u{2026}", image.code_str());
   run_quiet(
     "Deleting image\u{2026}",
     "Unable to delete image.",
     &["image", "rm", "--force", image],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -100,7 +100,7 @@ pub fn delete_image(
 pub fn create_container(
   image: &str,
   ports: &[String],
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   debug!("Creating container from image {}\u{2026}", image.code_str(),);
 
@@ -126,7 +126,7 @@ pub fn create_container(
       "Creating container\u{2026}",
       "Unable to create container.",
       &command,
-      running,
+      interrupted,
     )?
     .trim()
     .to_owned(),
@@ -137,7 +137,7 @@ pub fn create_container(
 pub fn copy_into_container<R: Read>(
   container: &str,
   mut tar: R,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
     "Copying files into container {}\u{2026}",
@@ -154,7 +154,7 @@ pub fn copy_into_container<R: Read>(
 
       Ok(())
     },
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -165,7 +165,7 @@ pub fn copy_from_container(
   paths: &[PathBuf],
   source_dir: &Path,
   destination_dir: &Path,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   // Copy each path from the container to the host.
   for path in paths {
@@ -205,7 +205,7 @@ pub fn copy_from_container(
         &format!("{}:{}", container, source.to_string_lossy()),
         &intermediate.to_string_lossy(),
       ],
-      running,
+      interrupted,
     )
     .map(|_| ())?;
 
@@ -290,7 +290,7 @@ pub fn copy_from_container(
 pub fn start_container(
   container: &str,
   command: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Starting container {}\u{2026}", container.code_str());
   run_loud_stdin(
@@ -307,7 +307,7 @@ pub fn start_container(
 
       Ok(())
     },
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -315,14 +315,14 @@ pub fn start_container(
 // Stop a container.
 pub fn stop_container(
   container: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Stopping container {}\u{2026}", container.code_str());
   run_quiet(
     "Stopping container\u{2026}",
     "Unable to stop container.",
     &["container", "stop", container],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -331,7 +331,7 @@ pub fn stop_container(
 pub fn commit_container(
   container: &str,
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
     "Committing container {} to image {}\u{2026}",
@@ -342,7 +342,7 @@ pub fn commit_container(
     "Committing container\u{2026}",
     "Unable to commit container.",
     &["container", "commit", container, image],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -350,14 +350,14 @@ pub fn commit_container(
 // Delete a container.
 pub fn delete_container(
   container: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!("Deleting container {}\u{2026}", container.code_str());
   run_quiet(
     "Deleting container\u{2026}",
     "Unable to delete container.",
     &["container", "rm", "--force", container],
-    running,
+    interrupted,
   )
   .map(|_| ())
 }
@@ -365,7 +365,7 @@ pub fn delete_container(
 // Run an interactive shell.
 pub fn spawn_shell(
   image: &str,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   debug!(
     "Spawning an interactive shell for image {}\u{2026}",
@@ -383,7 +383,7 @@ pub fn spawn_shell(
       image,
       "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
     ],
-    running,
+    interrupted,
   )
 }
 
@@ -393,7 +393,7 @@ fn run_quiet(
   spinner_message: &str,
   error: &str,
   args: &[&str],
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   let _guard = spin(spinner_message);
 
@@ -406,7 +406,7 @@ fn run_quiet(
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
     Err(if output.status.code().is_none() {
-      running.store(false, Ordering::SeqCst);
+      interrupted.store(true, Ordering::SeqCst);
       super::INTERRUPT_MESSAGE.to_owned()
     } else {
       format!(
@@ -426,7 +426,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   error: &str,
   args: &[&str],
   writer: W,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   let _guard = spin(spinner_message);
 
@@ -445,7 +445,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
   } else {
     Err(if output.status.code().is_none() {
-      running.store(false, Ordering::SeqCst);
+      interrupted.store(true, Ordering::SeqCst);
       super::INTERRUPT_MESSAGE.to_owned()
     } else {
       format!(
@@ -464,7 +464,7 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   error: &str,
   args: &[&str],
   writer: W,
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   let mut child = command(args)
     .stdin(Stdio::piped()) // [tag:run_loud_stdin_piped]
@@ -480,7 +480,7 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   } else {
     Err(
       if status.code().is_none() {
-        running.store(false, Ordering::SeqCst);
+        interrupted.store(true, Ordering::SeqCst);
         super::INTERRUPT_MESSAGE
       } else {
         error
@@ -494,7 +494,7 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
 fn run_attach(
   error: &str,
   args: &[&str],
-  running: &Arc<AtomicBool>,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
   let status = command(args)
     .status()
@@ -505,7 +505,7 @@ fn run_attach(
   } else {
     Err(
       if status.code().is_none() {
-        running.store(false, Ordering::SeqCst);
+        interrupted.store(true, Ordering::SeqCst);
         super::INTERRUPT_MESSAGE
       } else {
         error
