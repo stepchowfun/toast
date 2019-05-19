@@ -457,9 +457,9 @@ fn run_tasks(
   // variable will be permanently set to `false`.
   let mut caching_enabled = true;
 
-  // This is the cache key for the current task. We initialize it with a hash
-  // of the base image name.
-  let mut cache_key = cache::hash_str(&bakefile.image);
+  // This is the cache key for the current task. We initialize it with the base
+  // image name.
+  let mut cache_key = bakefile.image.clone();
 
   // The context is either an image or a container. We start with an image.
   let mut context = runner::Context::Image(bakefile.image.clone());

@@ -35,7 +35,7 @@ pub fn key(
     cache_key = extend(&cache_key, &command);
   }
 
-  cache_key[..48].to_owned()
+  format!("bake-{}", cache_key)
 }
 
 // Compute the hash of a readable object (e.g., a file). This function does not
