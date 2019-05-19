@@ -8,6 +8,7 @@ use std::{
   io::{Read, Write},
   path::{Path, PathBuf},
   process::{ChildStdin, Command, Stdio},
+  string::ToString,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -98,6 +99,7 @@ pub fn delete_image(
 // Create a container and return its ID.
 pub fn create_container(
   image: &str,
+  ports: &[String],
   running: &Arc<AtomicBool>,
 ) -> Result<String, String> {
   debug!("Creating container from image {}\u{2026}", image.code_str(),);
@@ -111,19 +113,19 @@ pub fn create_container(
   // signals by explicitly trapping them. Tini traps these signals and forwards
   // them to the child process. Then the default signal handling behavior of
   // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
+  let mut command = vec!["container", "create", "--init", "--interactive"];
+
+  for port in ports {
+    command.extend(vec!["--publish", port]);
+  }
+
+  command.extend(vec![image, "/bin/sh"]);
+
   Ok(
     run_quiet(
       "Creating container\u{2026}",
       "Unable to create container.",
-      vec![
-        "container",
-        "create",
-        "--init",
-        "--interactive",
-        image,
-        "/bin/sh",
-      ]
-      .as_ref(),
+      &command,
       running,
     )?
     .trim()

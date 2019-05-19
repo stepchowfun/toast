@@ -116,10 +116,11 @@ pub fn run<R: Read>(
     } else {
       // If we made it this far, we need to create a container from which we can
       // extract the output files.
-      let container = match docker::create_container(&image, running) {
-        Ok(container) => container,
-        Err(e) => return Err((e, context)),
-      };
+      let container =
+        match docker::create_container(&image, &task.ports, running) {
+          Ok(container) => container,
+          Err(e) => return Err((e, context)),
+        };
       let context = container_context(&container, running, active_containers);
 
       // Extract the output files from the container.
@@ -200,8 +201,9 @@ pub fn run<R: Read>(
         }
 
         // Create a container from the image.
-        let container = docker::create_container(&context_image, running)
-          .map_err(|e| (e, context))?;
+        let container =
+          docker::create_container(&context_image, &task.ports, running)
+            .map_err(|e| (e, context))?;
 
         // Return the container along with a new context to own it.
         (

@@ -31,6 +31,9 @@ pub struct Task {
   #[serde(default)]
   pub output_paths: Vec<PathBuf>,
 
+  #[serde(default)]
+  pub ports: Vec<String>,
+
   #[serde(default = "default_task_location")]
   pub location: PathBuf,
 
@@ -332,6 +335,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -366,6 +370,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -418,6 +423,10 @@ tasks:
       - corge
       - grault
       - garply
+    ports:
+      - 3000
+      - 3001
+      - 3002
     location: /code
     user: waldo
     command: wibble
@@ -438,6 +447,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -459,6 +469,7 @@ tasks:
           Path::new("grault").to_owned(),
           Path::new("garply").to_owned(),
         ],
+        ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
         location: Path::new("/code").to_owned(),
         user: "waldo".to_owned(),
         command: Some("wibble".to_owned()),
@@ -482,6 +493,7 @@ tasks:
       environment: HashMap::new(),
       input_paths: vec![],
       output_paths: vec![],
+      ports: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -504,6 +516,7 @@ tasks:
       environment: env_map,
       input_paths: vec![],
       output_paths: vec![],
+      ports: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -531,6 +544,7 @@ tasks:
       environment: env_map,
       input_paths: vec![],
       output_paths: vec![],
+      ports: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -558,6 +572,7 @@ tasks:
       environment: env_map,
       input_paths: vec![],
       output_paths: vec![],
+      ports: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
@@ -592,6 +607,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -618,6 +634,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -631,6 +648,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -657,6 +675,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -670,6 +689,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -698,6 +718,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -726,6 +747,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -739,6 +761,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -767,6 +790,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -780,6 +804,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
@@ -793,6 +818,7 @@ tasks:
         environment: HashMap::new(),
         input_paths: vec![],
         output_paths: vec![],
+        ports: vec![],
         location: Path::new(DEFAULT_LOCATION).to_owned(),
         user: DEFAULT_USER.to_owned(),
         command: None,
