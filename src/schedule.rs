@@ -91,6 +91,7 @@ mod tests {
       environment: HashMap::new(),
       input_paths: vec![],
       output_paths: vec![],
+      ports: vec![],
       location: Path::new(DEFAULT_LOCATION).to_owned(),
       user: DEFAULT_USER.to_owned(),
       command: None,
