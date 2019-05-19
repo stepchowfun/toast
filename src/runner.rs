@@ -79,7 +79,7 @@ pub fn run<R: Read>(
   caching_enabled: bool,
   context: Context,
   mut tar: R,
-) -> Result<Context, String> {
+) -> Result<Context, (String, Context)> {
   // This is the image we'll look for in the caches.
   let image = format!("{}:{}", settings.docker_repo, cache_key);
 
@@ -87,8 +87,11 @@ pub fn run<R: Read>(
   let mut cached = false;
   if caching_enabled {
     // Check the local cache.
-    cached =
-      settings.read_local_cache && docker::image_exists(&image, running)?;
+    cached = settings.read_local_cache
+      && match docker::image_exists(&image, running) {
+        Ok(exists) => exists,
+        Err(e) => return Err((e, context)),
+      };
 
     // Check the remote cache.
     if !cached && settings.read_remote_cache {
@@ -96,7 +99,7 @@ pub fn run<R: Read>(
         // If the pull failed, it could be because the user killed the child
         // process (e.g., by hitting CTRL+C).
         if !running.load(Ordering::SeqCst) {
-          return Err(e);
+          return Err((e, context));
         }
       } else {
         cached = true;
@@ -113,19 +116,25 @@ pub fn run<R: Read>(
     } else {
       // If we made it this far, we need to create a container from which we can
       // extract the output files.
-      let container = docker::create_container(&image, running)?;
+      let container = match docker::create_container(&image, running) {
+        Ok(container) => container,
+        Err(e) => return Err((e, context)),
+      };
+      let context = container_context(&container, running, active_containers);
 
       // Extract the output files from the container.
-      docker::copy_from_container(
+      if let Err(e) = docker::copy_from_container(
         &container,
         &task.output_paths,
         &task.location,
         bakefile_dir,
         running,
-      )?;
+      ) {
+        return Err((e, context));
+      }
 
       // The container becomes the new context.
-      Ok(container_context(&container, running, active_containers))
+      Ok(context)
     }
   } else {
     // The task is not cached. Construct the command to run inside the container.
@@ -180,12 +189,18 @@ pub fn run<R: Read>(
       Context::Image(context_image) => {
         // If the context is an image, pull it if necessary. Note that this is
         // not considered reading from the remote cache.
-        if !docker::image_exists(&context_image, running)? {
-          docker::pull_image(&context_image, running)?;
+        if !match docker::image_exists(&context_image, running) {
+          Ok(exists) => exists,
+          Err(e) => return Err((e, context)),
+        } {
+          if let Err(e) = docker::pull_image(&context_image, running) {
+            return Err((e, context));
+          }
         }
 
         // Create a container from the image.
-        let container = docker::create_container(&context_image, running)?;
+        let container = docker::create_container(&context_image, running)
+          .map_err(|e| (e, context))?;
 
         // Return the container along with a new context to own it.
         (
@@ -197,33 +212,43 @@ pub fn run<R: Read>(
 
     // Copy files into the container, if applicable.
     if !task.input_paths.is_empty() {
-      docker::copy_into_container(&container, &mut tar, running)?;
+      if let Err(e) =
+        docker::copy_into_container(&container, &mut tar, running)
+      {
+        return Err((e, context));
+      }
     }
 
     // Start the container to run the command.
-    docker::start_container(
+    if docker::start_container(
       &container,
       &commands_to_run.join(" && "),
       running,
     )
-    .map_err(|_| {
-      if running.load(Ordering::SeqCst) {
-        "Task failed."
-      } else {
-        super::INTERRUPT_MESSAGE
-      }
-      .to_owned()
-    })?;
+    .is_err()
+    {
+      return Err((
+        if running.load(Ordering::SeqCst) {
+          "Command failed."
+        } else {
+          super::INTERRUPT_MESSAGE
+        }
+        .to_owned(),
+        context,
+      ));
+    }
 
     // Copy files from the container, if applicable.
     if !task.output_paths.is_empty() {
-      docker::copy_from_container(
+      if let Err(e) = docker::copy_from_container(
         &container,
         &task.output_paths,
         &task.location,
         bakefile_dir,
         running,
-      )?;
+      ) {
+        return Err((e, context));
+      }
     }
 
     // Write to cache, if applicable.
@@ -231,21 +256,35 @@ pub fn run<R: Read>(
       if settings.write_local_cache && settings.write_remote_cache {
         // Both local and remote cache writes are enabled. Commit the container
         // to a local image and push it to the remote registry.
-        docker::commit_container(&container, &image, running)?;
-        docker::push_image(&image, running)?;
+        if let Err(e) = docker::commit_container(&container, &image, running) {
+          return Err((e, context));
+        }
+        if let Err(e) = docker::push_image(&image, running) {
+          return Err((e, context));
+        }
       } else if settings.write_local_cache && !settings.write_remote_cache {
         // Only local cache writes are enabled. Commit the container to a local
         // image.
-        docker::commit_container(&container, &image, running)?;
+        if let Err(e) = docker::commit_container(&container, &image, running) {
+          return Err((e, context));
+        }
       } else if !settings.write_local_cache && settings.write_remote_cache {
         // Only remote cache writes are enabled. Commit the container to a
         // temporary local image, push it to the remote registry, and delete
         // the local copy.
         let temp_image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
-        docker::commit_container(&container, &temp_image, running)?;
-        docker::push_image(&temp_image, running)?;
-        docker::delete_image(&temp_image, running)?;
+        if let Err(e) =
+          docker::commit_container(&container, &temp_image, running)
+        {
+          return Err((e, context));
+        }
+        if let Err(e) = docker::push_image(&temp_image, running) {
+          return Err((e, context));
+        }
+        if let Err(e) = docker::delete_image(&temp_image, running) {
+          return Err((e, context));
+        }
       }
     }
 
