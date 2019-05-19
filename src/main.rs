@@ -444,9 +444,17 @@ fn run_tasks(
   environment: &HashMap<String, String>,
   running: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
-) -> Result<(), String> {
+) -> Result<runner::Context, (String, runner::Context)> {
+  // This variable will be `true` as long as we're executing tasks that have
+  // `cache: true`. As soon as we encounter a task with `cache: false`, this
+  // variable will be permanently set to `false`.
   let mut caching_enabled = true;
+
+  // This is the cache key for the current task. We initialize it with a hash
+  // of the base image name.
   let mut cache_key = cache::hash_str(&bakefile.image);
+
+  // The context is either an image or a container. We start with an image.
   let mut context = runner::Context::Image(bakefile.image.clone());
 
   // Run each task in the schedule.
@@ -460,28 +468,40 @@ fn run_tasks(
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      return Err(INTERRUPT_MESSAGE.to_owned());
+      return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
 
     // Tar up the files to be copied into the container.
-    let tar_file = tempfile().map_err(|e| {
-      format!("Unable to create temporary file. Details: {}", e)
-    })?;
+    let tar_file = match tempfile() {
+      Ok(tar_file) => tar_file,
+      Err(e) => {
+        return Err((
+          format!("Unable to create temporary file. Details: {}", e),
+          context,
+        ))
+      }
+    };
     let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
     bakefile_dir.pop();
-    let (mut tar_file, input_files_hash) = tar::create(
+    let (mut tar_file, input_files_hash) = match tar::create(
       tar_file,
       &task_data.input_paths,
       &bakefile_dir,
       &task_data.location,
-    )?;
-    tar_file
-      .seek(SeekFrom::Start(0))
-      .map_err(|e| format!("Unable to seek temporary file. Details: {}", e))?;
+    ) {
+      Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
+      Err(e) => return Err((e, context)),
+    };
+    if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
+      return Err((
+        format!("Unable to seek temporary file. Details: {}", e),
+        context,
+      ));
+    };
 
     // If the user wants to stop the job, quit now.
     if !running.load(Ordering::SeqCst) {
-      return Err(INTERRUPT_MESSAGE.to_owned());
+      return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
 
     // Compute the cache key.
@@ -504,36 +524,8 @@ fn run_tasks(
     )?;
   }
 
-  // Tell the user the good news!
-  info!("Done.");
-
-  // Drop the user into a shell if requested.
-  if settings.spawn_shell {
-    // Make sure we have an image to spawn the shell from.
-    let (image, _guard) = match &context {
-      runner::Context::Container(container, _, _) => {
-        let image =
-          format!("{}:{}", settings.docker_repo, docker::random_tag());
-        docker::commit_container(&container, &image, running)?;
-        (
-          image.clone(),
-          Some(guard((), move |_| {
-            if let Err(e) = docker::delete_image(&image, running) {
-              error!("{}", e);
-            }
-          })),
-        )
-      }
-      runner::Context::Image(image) => (image.to_owned(), None),
-    };
-
-    // Spawn the shell.
-    info!("Here's a shell in the context of the tasks that were executed:");
-    docker::spawn_shell(&image, running)?;
-  }
-
   // Everything succeeded.
-  Ok(())
+  Ok(context)
 }
 
 // Program entrypoint
@@ -580,17 +572,64 @@ fn entry() -> Result<(), String> {
   let environment = fetch_environment(&schedule, &bakefile.tasks)?;
 
   // Execute the schedule.
-  run_tasks(
+  let (succeeded, context) = match run_tasks(
     &schedule,
     &settings,
     &bakefile,
     &environment,
     &running,
     &active_containers,
-  )?;
+  ) {
+    Ok(context) => {
+      info!("Done.");
+      (true, context)
+    }
+    Err((e, context)) => {
+      // If the user wants to stop the job, quit now.
+      if !running.load(Ordering::SeqCst) {
+        return Err(INTERRUPT_MESSAGE.to_owned());
+      }
 
-  // Everything succeeded.
-  Ok(())
+      // Otherwise, log the error and proceed in case the user wants a shell.
+      error!("{}", e);
+      (false, context)
+    }
+  };
+
+  // Drop the user into a shell if requested.
+  if settings.spawn_shell {
+    // Inform the user of what's about to happen.
+    info!("Preparing a shell\u{2026}");
+
+    // Make sure we have an image to spawn the shell from.
+    let (image, _guard) = match &context {
+      runner::Context::Container(container, _, _) => {
+        let image =
+          format!("{}:{}", settings.docker_repo, docker::random_tag());
+        docker::commit_container(&container, &image, &running)?;
+        let running = running.clone();
+        (
+          image.clone(),
+          Some(guard((), move |_| {
+            if let Err(e) = docker::delete_image(&image, &running) {
+              error!("{}", e);
+            }
+          })),
+        )
+      }
+      runner::Context::Image(image) => (image.to_owned(), None),
+    };
+
+    // Spawn the shell.
+    docker::spawn_shell(&image, &running)?;
+  }
+
+  // Throw an error if any of the tasks failed.
+  if succeeded {
+    Ok(())
+  } else {
+    Err("One of the tasks failed.".to_owned())
+  }
 }
 
 // Let the fun begin!

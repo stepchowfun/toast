@@ -35,7 +35,7 @@ pub fn image_exists(
 ) -> Result<bool, String> {
   debug!("Checking existence of image {}\u{2026}", image.code_str());
   if let Err(e) = run_quiet(
-    "Checking existence of image...",
+    "Checking existence of image\u{2026}",
     "The image doesn't exist.",
     &["image", "inspect", image],
     running,
@@ -57,7 +57,7 @@ pub fn push_image(
 ) -> Result<(), String> {
   debug!("Pushing image {}\u{2026}", image.code_str());
   run_quiet(
-    "Pushing image...",
+    "Pushing image\u{2026}",
     "Unable to push image.",
     &["image", "push", image],
     running,
@@ -72,7 +72,7 @@ pub fn pull_image(
 ) -> Result<(), String> {
   debug!("Pulling image {}\u{2026}", image.code_str());
   run_quiet(
-    "Pulling image...",
+    "Pulling image\u{2026}",
     "Unable to pull image.",
     &["image", "pull", image],
     running,
@@ -87,7 +87,7 @@ pub fn delete_image(
 ) -> Result<(), String> {
   debug!("Deleting image {}\u{2026}", image.code_str());
   run_quiet(
-    "Deleting image...",
+    "Deleting image\u{2026}",
     "Unable to delete image.",
     &["image", "rm", "--force", image],
     running,
@@ -113,7 +113,7 @@ pub fn create_container(
   // the child process (in our case, `/bin/sh`) works normally. [tag:--init]
   Ok(
     run_quiet(
-      "Creating container...",
+      "Creating container\u{2026}",
       "Unable to create container.",
       vec![
         "container",
@@ -142,7 +142,7 @@ pub fn copy_into_container<R: Read>(
     container.code_str()
   );
   run_quiet_stdin(
-    "Copying files into container...",
+    "Copying files into container\u{2026}",
     "Unable to copy files into the container.",
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
     |mut stdin| {
@@ -195,7 +195,7 @@ pub fn copy_from_container(
 
     // Get the path from the container.
     run_quiet(
-      "Copying files from the container...",
+      "Copying files from the container\u{2026}",
       "Unable to copy files from the container.",
       &[
         "container",
@@ -317,7 +317,7 @@ pub fn stop_container(
 ) -> Result<(), String> {
   debug!("Stopping container {}\u{2026}", container.code_str());
   run_quiet(
-    "Stopping container...",
+    "Stopping container\u{2026}",
     "Unable to stop container.",
     &["container", "stop", container],
     running,
@@ -337,7 +337,7 @@ pub fn commit_container(
     image.code_str()
   );
   run_quiet(
-    "Committing container...",
+    "Committing container\u{2026}",
     "Unable to commit container.",
     &["container", "commit", container, image],
     running,
@@ -352,7 +352,7 @@ pub fn delete_container(
 ) -> Result<(), String> {
   debug!("Deleting container {}\u{2026}", container.code_str());
   run_quiet(
-    "Deleting container...",
+    "Deleting container\u{2026}",
     "Unable to delete container.",
     &["container", "rm", "--force", container],
     running,
