@@ -32,6 +32,9 @@ use std::{
 use tempfile::tempfile;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 extern crate log;
 
 // The program version
