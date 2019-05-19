@@ -2,7 +2,7 @@ image: ubuntu:18.04
 default: ci
 tasks:
   install_packages:
-    command: |-
+    command: |
       set -euo pipefail
       apt-get update
       apt-get install --yes build-essential curl
@@ -10,12 +10,12 @@ tasks:
   install_tagref:
     dependencies:
       - install_packages
-    command: |-
+    command: |
       set -euo pipefail
       curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.1.0 sh
 
   create_user:
-    command: |-
+    command: |
       set -euo pipefail
       adduser --disabled-password --gecos '' user
 
@@ -24,7 +24,7 @@ tasks:
       - install_packages
       - create_user
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable-2019-04-25-x86_64-unknown-linux-gnu
       . $HOME/.cargo/env
@@ -44,7 +44,7 @@ tasks:
       - Cargo.lock
       - Cargo.toml
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       . $HOME/.cargo/env
       mv Cargo.lock Cargo.lock.og
@@ -65,7 +65,7 @@ tasks:
     input_paths:
       - src
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       . $HOME/.cargo/env
       cargo build
@@ -74,7 +74,7 @@ tasks:
     dependencies:
       - build
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       . $HOME/.cargo/env
       cargo test
@@ -86,7 +86,7 @@ tasks:
       - .ignore # Used by `tagref`
       - rustfmt.toml # Used by `cargo fmt`
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       . $HOME/.cargo/env
       cargo fmt --all -- --check
@@ -107,7 +107,7 @@ tasks:
     output_paths:
       - artifacts
     user: user
-    command: |-
+    command: |
       set -euo pipefail
       . $HOME/.cargo/env
       cargo build --release
