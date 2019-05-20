@@ -38,6 +38,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate scopeguard;
+
 // The program version
 const VERSION: &str = "0.14.0";
 
@@ -610,15 +613,15 @@ fn entry() -> Result<(), String> {
 
     // Make sure we have an image to spawn the shell from.
     let (image, _guard) = match &context {
-      runner::Context::Container(container, _, _) => {
-        let image =
+      runner::Context::Container(container, _, _, _) => {
+        let temp_image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
-        docker::commit_container(&container, &image, &interrupted)?;
+        docker::commit_container(&container, &temp_image, &interrupted)?;
         let interrupted = interrupted.clone();
         (
-          image.clone(),
+          temp_image.clone(),
           Some(guard((), move |_| {
-            if let Err(e) = docker::delete_image(&image, &interrupted) {
+            if let Err(e) = docker::delete_image(&temp_image, &interrupted) {
               error!("{}", e);
             }
           })),
