@@ -1,6 +1,6 @@
 [package]
 name = "bake"
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 description = "A containerized build system."
 license = "MIT"

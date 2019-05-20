@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2019-05-20
+
+### Changed
+- Improved the performance of tasks that have no input paths and no command.
+- Revamped the filesystem watching feature.
+- Bake no longer depends on `chown` and `mkdir` in the container.
+- Bake now renders a spinner animation when reading files from the host.
+- Bake now requires that caching be disabled for tasks that expose ports or use filesystem watching.
+
+### Fixed
+- Fixed a bug that would cause the incorrect ports to be exposed in some situations.
+
 ## [0.14.0] - 2019-05-19
 
 ### Added
