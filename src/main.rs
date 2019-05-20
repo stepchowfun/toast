@@ -5,6 +5,7 @@ mod docker;
 mod format;
 mod runner;
 mod schedule;
+mod spinner;
 mod tar;
 
 use crate::format::CodeStr;
@@ -485,10 +486,12 @@ fn run_tasks(
     let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
     bakefile_dir.pop();
     let (mut tar_file, input_files_hash) = match tar::create(
+      "Reading files\u{2026}",
       tar_file,
       &task_data.input_paths,
       &bakefile_dir,
       &task_data.location,
+      &interrupted,
     ) {
       Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
       Err(e) => return Err((e, context)),
