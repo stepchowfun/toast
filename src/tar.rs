@@ -127,7 +127,7 @@ pub fn create<W: Write>(
       })?;
 
       // Relativize the host path.
-      let relative_host_path = absolute_host_path
+      let relative_path = absolute_host_path
         .strip_prefix(&source_dir)
         .map_err(|e| {
           format!(
@@ -158,7 +158,7 @@ pub fn create<W: Write>(
         // Compute the hash of the file contents and metadata.
         file_hashes.push(cache::extend(
           &cache::extend(
-            &cache::hash_str(&relative_host_path.to_string_lossy()),
+            &cache::hash_str(&relative_path.to_string_lossy()),
             &cache::hash_read(&mut file)?,
           ),
           if executable { "+x" } else { "-x" },
@@ -176,17 +176,20 @@ pub fn create<W: Write>(
         // Add the file to the archive and return.
         append(
           &mut builder,
-          &destination_dir.join(&relative_host_path),
+          &destination_dir.join(&relative_path),
           file,
           entry_metadata.len(),
           EntryType::Regular,
           executable,
         );
       } else if entry.file_type().is_dir() {
-        // It's a directory. Add it to the archive.
+        // It's a directory. Only its name is relevant for the cache key.
+        file_hashes.push(cache::hash_str(&relative_path.to_string_lossy()));
+
+        // Add the directory to the archive.
         append(
           &mut builder,
-          &destination_dir.join(&relative_host_path),
+          &destination_dir.join(&relative_path),
           empty(),
           0,
           EntryType::Directory,

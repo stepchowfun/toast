@@ -20,7 +20,7 @@ use std::{
   env,
   env::current_dir,
   fs,
-  io::{stdout, Seek, SeekFrom, Write},
+  io::{stdout, Write},
   path::Path,
   path::PathBuf,
   process::exit,
@@ -30,7 +30,6 @@ use std::{
     Arc, Mutex,
   },
 };
-use tempfile::tempfile;
 
 #[macro_use]
 extern crate lazy_static;
@@ -476,50 +475,10 @@ fn run_tasks(
       return Err((INTERRUPT_MESSAGE.to_owned(), context));
     }
 
-    // Tar up the files to be copied into the container.
-    let tar_file = match tempfile() {
-      Ok(tar_file) => tar_file,
-      Err(e) => {
-        return Err((
-          format!("Unable to create temporary file. Details: {}", e),
-          context,
-        ))
-      }
-    };
-    let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
-    bakefile_dir.pop();
-    let (mut tar_file, input_files_hash) = match tar::create(
-      "Reading files\u{2026}",
-      tar_file,
-      &task_data.input_paths,
-      &bakefile_dir,
-      &task_data.location,
-      &interrupted,
-    ) {
-      Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
-      Err(e) => return Err((e, context)),
-    };
-    if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
-      return Err((
-        format!("Unable to seek temporary file. Details: {}", e),
-        context,
-      ));
-    };
-
-    // If the user wants to stop the schedule, quit now.
-    if interrupted.load(Ordering::SeqCst) {
-      return Err((INTERRUPT_MESSAGE.to_owned(), context));
-    }
-
-    // Compute the cache key.
-    cache_key =
-      cache::key(&cache_key, &task_data, &input_files_hash, &environment);
-
     // Run the task.
     info!("Running task {}\u{2026}", task.code_str());
-    context = runner::run(
+    let (new_cache_key, new_context) = runner::run(
       settings,
-      &bakefile_dir,
       &environment,
       &interrupted,
       &active_containers,
@@ -527,8 +486,11 @@ fn run_tasks(
       &cache_key,
       caching_enabled,
       context,
-      tar_file,
     )?;
+
+    // Remember the cache key and context for the next task.
+    cache_key = new_cache_key;
+    context = new_context;
   }
 
   // Everything succeeded.
