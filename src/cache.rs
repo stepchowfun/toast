@@ -13,6 +13,12 @@ pub fn key(
   // Start with the previous key.
   let mut cache_key = previous_key.to_owned();
 
+  // If there are no input paths and no command to run, we can just use the
+  // cache key from the previous task.
+  if task.input_paths.is_empty() && task.command.is_none() {
+    return cache_key;
+  }
+
   // Environment variables
   let mut variables = task.environment.keys().collect::<Vec<_>>();
   variables.sort();
