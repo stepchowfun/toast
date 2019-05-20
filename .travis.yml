@@ -13,7 +13,7 @@ script:
     else
       WRITE_REMOTE_CACHE=false
     fi
-    LOG_LEVEL=debug bake \
+    bake \
       --repo stephanmisc/bake \
       --read-remote-cache true \
       --write-remote-cache "$WRITE_REMOTE_CACHE"
