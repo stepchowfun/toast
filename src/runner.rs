@@ -16,6 +16,7 @@ use std::{
 pub enum Context {
   Container(
     String,                      // Container ID
+    Vec<String>,                 // Ports
     Arc<AtomicBool>,             // Whether the schedule has been interrupted
     Arc<Mutex<HashSet<String>>>, // Active containers
   ),
@@ -26,7 +27,8 @@ pub enum Context {
 
 impl Drop for Context {
   fn drop(&mut self) {
-    if let Context::Container(container, interrupted, active_containers) = self
+    if let Context::Container(container, _, interrupted, active_containers) =
+      self
     {
       // If the user interrupts the program, don't bother killing the
       // container. We're about to kill it here. The `unwrap` will only fail if
@@ -47,6 +49,7 @@ impl Drop for Context {
 // to the active container set, and the destructor automatically removes it.
 fn container_context(
   container: &str,
+  ports: &[String],
   interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
 ) -> Context {
@@ -62,6 +65,7 @@ fn container_context(
   // Construct the context.
   Context::Container(
     container.to_owned(),
+    ports.to_owned(),
     interrupted.to_owned(),
     active_containers.to_owned(),
   )
@@ -122,8 +126,12 @@ pub fn run<R: Read>(
           Ok(container) => container,
           Err(e) => return Err((e, context)),
         };
-      let context =
-        container_context(&container, interrupted, active_containers);
+      let context = container_context(
+        &container,
+        &task.ports,
+        interrupted,
+        active_containers,
+      );
 
       // Extract the output files from the container.
       if let Err(e) = docker::copy_from_container(
@@ -174,9 +182,38 @@ pub fn run<R: Read>(
 
     // Create a container if needed.
     let (container, context) = match &context {
-      Context::Container(container, _, _) => {
-        // The context already contains a container. Use it as is.
-        (container.to_owned(), context)
+      Context::Container(container, ports, _, _) => {
+        // The context already contains a container. Check if it has the right
+        // ports exposed.
+        if *ports == task.ports {
+          // The ports are correct. Use the container as is.
+          (container.to_owned(), context)
+        } else {
+          // We need to create a new container to expose the correct ports.
+          // First, commit the existing container to a temporary image.
+          let temp_image =
+            format!("{}:{}", settings.docker_repo, docker::random_tag());
+          if let Err(e) =
+            docker::commit_container(&container, &temp_image, interrupted)
+          {
+            return Err((e, context));
+          }
+
+          // Now create a new container based on that temporary image with the
+          // correct ports exposed.
+          let container =
+            docker::create_container(&temp_image, &task.ports, interrupted)
+              .map_err(|e| (e, context))?;
+          (
+            container.clone(),
+            container_context(
+              &container,
+              &task.ports,
+              interrupted,
+              active_containers,
+            ),
+          )
+        }
       }
       Context::Image(context_image) => {
         // If the context is an image, pull it if necessary. Note that this is
@@ -198,7 +235,12 @@ pub fn run<R: Read>(
         // Return the container along with a new context to own it.
         (
           container.clone(),
-          container_context(&container, interrupted, active_containers),
+          container_context(
+            &container,
+            &task.ports,
+            interrupted,
+            active_containers,
+          ),
         )
       }
     };
@@ -270,15 +312,19 @@ pub fn run<R: Read>(
         // the local copy.
         let temp_image =
           format!("{}:{}", settings.docker_repo, docker::random_tag());
+        defer! {{
+          if let Err(e) = docker::delete_image(&temp_image, interrupted) {
+            error!("{}", e);
+          }
+        }}
+
         if let Err(e) =
           docker::commit_container(&container, &temp_image, interrupted)
         {
           return Err((e, context));
         }
+
         if let Err(e) = docker::push_image(&temp_image, interrupted) {
-          return Err((e, context));
-        }
-        if let Err(e) = docker::delete_image(&temp_image, interrupted) {
           return Err((e, context));
         }
       }
