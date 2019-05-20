@@ -1,8 +1,7 @@
 use crate::{cache, format::CodeStr, spinner::spin};
 use std::{
-  fs,
-  fs::{File, Metadata},
-  io::{Seek, SeekFrom, Write},
+  fs::File,
+  io::{empty, Read, Seek, SeekFrom, Write},
   os::unix::fs::PermissionsExt,
   path::{Path, PathBuf},
   sync::{
@@ -10,75 +9,48 @@ use std::{
     Arc,
   },
 };
-use tar::{Builder, Header};
+use tar::{Builder, EntryType, Header};
 use walkdir::WalkDir;
 
-// Add a file to a tar archive.
-fn add_file<W: Write>(
+// Add a file or directory to a tar archive.
+pub fn append<R: Read, W: Write>(
   builder: &mut Builder<W>,
-  metadata: &Metadata,
   path: &Path,
-  source_dir: &Path,
-  destination_dir: &Path,
-  file_hashes: &mut Vec<String>,
-) -> Result<(), String> {
-  // Compute the source and destination paths.
-  let source = source_dir.join(&path);
-  let mut destination = destination_dir.join(&path);
-
+  data: R,
+  size: u64,
+  entry_type: EntryType,
+  executable: bool,
+) {
   // Tar archives must contain only relative paths. But for our purposes, the
-  // paths will be relative to the filesystem root. [tag:destination_absolute]
-  if destination.starts_with("/") {
-    // The `unwrap` is safe due to [ref:destination_absolute]
-    destination = destination.strip_prefix("/").unwrap().to_owned();
+  // paths will be relative to the filesystem root, so we can just strip the
+  // leading `/`. The `unwrap` is safe due to the prefix check.
+  let destination = if path.starts_with("/") {
+    path.strip_prefix("/").unwrap().to_owned()
+  } else {
+    path.to_owned()
+  };
+
+  // If destination is the root path `/`, there is nothing to do. That path
+  // already exists in any file system.
+  if destination.parent().is_none() {
+    return;
   }
 
-  // Determine if the file has the executable bit set.
-  let mode = metadata.permissions().mode();
-  let executable = mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0;
-
-  // Construct a tar header for this file.
+  // Construct a tar header for this entry.
   let mut header = Header::new_gnu();
   header.set_mode(if executable { 0o777 } else { 0o666 });
-  header.set_size(metadata.len());
+  header.set_size(size);
 
-  // Open the file so we can compute the hash of its contents.
-  let mut file = File::open(&source).map_err(|e| {
-    format!(
-      "Unable to open file {}. Details: {}",
-      &source.to_string_lossy().code_str(),
-      e
-    )
-  })?;
-
-  // Compute the hash of the file contents and metadata.
-  file_hashes.push(cache::extend(
-    &cache::extend(
-      &cache::hash_str(&path.to_string_lossy()),
-      &cache::hash_read(&mut file)?,
-    ),
-    if executable { "+x" } else { "-x" },
-  ));
-
-  // Jump back to the beginning of the file so the tar builder can read it.
-  file.seek(SeekFrom::Start(0)).map_err(|e| {
-    format!(
-      "Unable to seek file {}. Details: {}",
-      &source.to_string_lossy().code_str(),
-      e
-    )
-  })?;
-
-  // Add the file to the archive and return.
-  builder.append_data(&mut header, destination, file).unwrap();
-  Ok(())
+  // Add the entry to the archive.
+  header.set_entry_type(entry_type);
+  builder.append_data(&mut header, destination, data).unwrap();
 }
 
 // Construct a tar archive and return a hash of its contents.
 pub fn create<W: Write>(
   spinner_message: &str,
   writer: W,
-  paths: &[PathBuf],
+  input_paths: &[PathBuf],
   source_dir: &Path,
   destination_dir: &Path,
   interrupted: &Arc<AtomicBool>,
@@ -103,92 +75,124 @@ pub fn create<W: Write>(
 
   // This builder will be responsible for writing to the tar file.
   let mut builder = Builder::new(writer);
-  builder.follow_symlinks(false);
+  builder.follow_symlinks(false); // [tag:symlinks]
+
+  // Add `destination_dir` to the archive.
+  append(
+    &mut builder,
+    &destination_dir,
+    empty(),
+    0,
+    EntryType::Directory,
+    true,
+  );
 
   // Add each path to the archive.
-  for path in paths {
-    // If the user wants to stop the operation, quit now.
-    if interrupted.load(Ordering::SeqCst) {
-      return Err(super::INTERRUPT_MESSAGE.to_owned());
-    }
-
+  for relative_input_path in input_paths {
     // Compute the source path.
-    let source_path = source_dir.join(path);
+    let absolute_input_path = source_dir.join(relative_input_path);
 
-    // Fetch the filesystem metadata for this path.
-    let metadata = fs::metadata(&source_path).map_err(|e| {
-      format!(
-        "Unable to fetch filesystem metadata for {}. Details: {}",
-        &source_path.to_string_lossy().code_str(),
-        e
-      )
-    })?;
-
-    // Check if the path is a directory.
-    if metadata.is_dir() {
-      // The path is a directory, so we need to traverse it.
-      for entry in WalkDir::new(&source_path) {
-        // If the user wants to stop the operation, quit now.
-        if interrupted.load(Ordering::SeqCst) {
-          return Err(super::INTERRUPT_MESSAGE.to_owned());
-        }
-
-        // Fetch the filesystem metadata for this entry.
-        let entry = entry.map_err(|e| {
-          format!(
-            "Unable to traverse directory {}. Details: {}",
-            &source_path.to_string_lossy().code_str(),
-            e
-          )
-        })?;
-        let entry_metadata = entry.metadata().map_err(|e| {
-          format!(
-            "Unable to fetch filesystem metadata for {}. Details: {}",
-            &source_path.to_string_lossy().code_str(),
-            e
-          )
-        })?;
-
-        // If this entry is a file, add it to the archive.
-        if entry.file_type().is_file() {
-          add_file(
-            &mut builder,
-            &entry_metadata,
-            entry
-              .path()
-              .canonicalize()
-              .map_err(|e| {
-                format!(
-                  "Unable to canonicalize path {}. Details: {}",
-                  &entry.path().to_string_lossy().code_str(),
-                  e
-                )
-              })?
-              .strip_prefix(&source_dir)
-              .map_err(|e| {
-                format!(
-                  "Unable to relativize path {} with respect to {}. Details: {}",
-                  &entry.path().to_string_lossy().code_str(),
-                  &source_dir.to_string_lossy().code_str(),
-                  e
-                )
-              })?,
-            &source_dir,
-            &destination_dir,
-            &mut file_hashes,
-          )?;
-        }
+    // The path is a directory, so we need to traverse it.
+    for entry in WalkDir::new(&absolute_input_path) {
+      // If the user wants to stop the operation, quit now.
+      if interrupted.load(Ordering::SeqCst) {
+        return Err(super::INTERRUPT_MESSAGE.to_owned());
       }
-    } else {
-      // The path is a file. Add it to the archive.
-      add_file(
-        &mut builder,
-        &metadata,
-        path,
-        &source_dir,
-        &destination_dir,
-        &mut file_hashes,
-      )?;
+
+      // Unwrap the entry.
+      let entry = entry.map_err(|e| {
+        format!(
+          "Unable to traverse path {}. Details: {}",
+          &absolute_input_path.to_string_lossy().code_str(),
+          e
+        )
+      })?;
+
+      // Fetch the metadata for this entry.
+      let entry_metadata = entry.metadata().map_err(|e| {
+        format!(
+          "Unable to fetch filesystem metadata for {}. Details: {}",
+          &absolute_input_path.to_string_lossy().code_str(),
+          e
+        )
+      })?;
+
+      // Fetch the host path.
+      let absolute_host_path = entry.path().canonicalize().map_err(|e| {
+        format!(
+          "Unable to canonicalize path {}. Details: {}",
+          &entry.path().to_string_lossy().code_str(),
+          e
+        )
+      })?;
+
+      // Relativize the host path.
+      let relative_host_path = absolute_host_path
+        .strip_prefix(&source_dir)
+        .map_err(|e| {
+          format!(
+            "Unable to relativize path {} with respect to {}. Details: {}",
+            &entry.path().to_string_lossy().code_str(),
+            &source_dir.to_string_lossy().code_str(),
+            e
+          )
+        })?
+        .to_owned();
+
+      // Check the type of the entry. Note that Bake ignores symbolic links.
+      // [ref:symlinks]
+      if entry.file_type().is_file() {
+        // Determine if the file has the executable bit set.
+        let mode = entry_metadata.permissions().mode();
+        let executable = mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0;
+
+        // It's a file. Open it so we can compute the hash of its contents.
+        let mut file = File::open(&absolute_host_path).map_err(|e| {
+          format!(
+            "Unable to open file {}. Details: {}",
+            &absolute_host_path.to_string_lossy().code_str(),
+            e
+          )
+        })?;
+
+        // Compute the hash of the file contents and metadata.
+        file_hashes.push(cache::extend(
+          &cache::extend(
+            &cache::hash_str(&relative_host_path.to_string_lossy()),
+            &cache::hash_read(&mut file)?,
+          ),
+          if executable { "+x" } else { "-x" },
+        ));
+
+        // Jump back to the beginning of the file so the tar builder can read it.
+        file.seek(SeekFrom::Start(0)).map_err(|e| {
+          format!(
+            "Unable to seek file {}. Details: {}",
+            &absolute_host_path.to_string_lossy().code_str(),
+            e
+          )
+        })?;
+
+        // Add the file to the archive and return.
+        append(
+          &mut builder,
+          &destination_dir.join(&relative_host_path),
+          file,
+          entry_metadata.len(),
+          EntryType::Regular,
+          executable,
+        );
+      } else if entry.file_type().is_dir() {
+        // It's a directory. Add it to the archive.
+        append(
+          &mut builder,
+          &destination_dir.join(&relative_host_path),
+          empty(),
+          0,
+          EntryType::Directory,
+          true,
+        );
+      }
     }
   }
 

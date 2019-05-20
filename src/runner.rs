@@ -143,18 +143,6 @@ pub fn run<R: Read>(
     // The task is not cached. Construct the command to run inside the container.
     let mut commands_to_run = vec![];
 
-    // Ensure the task's location exists within the container and that the user
-    // can access it.
-    commands_to_run.push(format!(
-      "mkdir --parents {}",
-      shell_escape(&task.location.to_string_lossy())
-    ));
-    commands_to_run.push(format!(
-      "chown --recursive --no-dereference {} {}",
-      shell_escape(&task.user),
-      shell_escape(&task.location.to_string_lossy())
-    ));
-
     // Construct a small script to run the command.
     if let Some(command) = &task.command {
       // Set the working directory.
@@ -215,13 +203,12 @@ pub fn run<R: Read>(
       }
     };
 
-    // Copy files into the container, if applicable.
-    if !task.input_paths.is_empty() {
-      if let Err(e) =
-        docker::copy_into_container(&container, &mut tar, interrupted)
-      {
-        return Err((e, context));
-      }
+    // Copy files into the container. If `task.input_paths` is empty, then this
+    // will just create a directory for `task.location`.
+    if let Err(e) =
+      docker::copy_into_container(&container, &mut tar, interrupted)
+    {
+      return Err((e, context));
     }
 
     // Start the container to run the command.
