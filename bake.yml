@@ -1,5 +1,5 @@
 image: ubuntu:18.04
-default: ci
+default: build-test-lint
 tasks:
   install_packages:
     command: |
@@ -93,7 +93,7 @@ tasks:
       cargo fmt --all -- --check
       tagref
 
-  ci:
+  build-test-lint:
     dependencies:
       - build
       - lint
