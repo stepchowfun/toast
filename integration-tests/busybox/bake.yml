@@ -1,0 +1,24 @@
+image: busybox
+tasks:
+  i_am_root:
+    command: |
+      set -euo pipefail
+      touch /i-am-root.txt
+  create_user:
+    command: |
+      set -euo pipefail
+      adduser --disabled-password --gecos '' user
+  greet:
+    dependencies:
+      - i_am_root
+      - create_user
+    input_paths:
+      - greet.sh
+    output_paths:
+      - output.txt
+    user: user
+    command: |
+      set -euo pipefail
+      pwd | grep scratch
+      whoami | grep user
+      ./greet.sh > output.txt
