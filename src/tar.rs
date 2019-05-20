@@ -1,10 +1,14 @@
-use crate::{cache, format::CodeStr};
+use crate::{cache, format::CodeStr, spinner::spin};
 use std::{
   fs,
   fs::{File, Metadata},
   io::{Seek, SeekFrom, Write},
   os::unix::fs::PermissionsExt,
   path::{Path, PathBuf},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
 };
 use tar::{Builder, Header};
 use walkdir::WalkDir;
@@ -72,11 +76,16 @@ fn add_file<W: Write>(
 
 // Construct a tar archive and return a hash of its contents.
 pub fn create<W: Write>(
+  spinner_message: &str,
   writer: W,
   paths: &[PathBuf],
   source_dir: &Path,
   destination_dir: &Path,
+  interrupted: &Arc<AtomicBool>,
 ) -> Result<(W, String), String> {
+  // Render a spinner animation in the terminal.
+  let _guard = spin(spinner_message);
+
   // Canonicalize the source directory such that other paths can be relativized
   // with respect to it.
   let source_dir = source_dir.canonicalize().map_err(|e| {
@@ -98,6 +107,11 @@ pub fn create<W: Write>(
 
   // Add each path to the archive.
   for path in paths {
+    // If the user wants to stop the operation, quit now.
+    if interrupted.load(Ordering::SeqCst) {
+      return Err(super::INTERRUPT_MESSAGE.to_owned());
+    }
+
     // Compute the source path.
     let source_path = source_dir.join(path);
 
@@ -114,6 +128,11 @@ pub fn create<W: Write>(
     if metadata.is_dir() {
       // The path is a directory, so we need to traverse it.
       for entry in WalkDir::new(&source_path) {
+        // If the user wants to stop the operation, quit now.
+        if interrupted.load(Ordering::SeqCst) {
+          return Err(super::INTERRUPT_MESSAGE.to_owned());
+        }
+
         // Fetch the filesystem metadata for this entry.
         let entry = entry.map_err(|e| {
           format!(
