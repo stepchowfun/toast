@@ -128,7 +128,7 @@ fn set_up_signal_handlers(
       let _ = stdout().write(b"\n");
     }
   })
-  .map_err(|e| format!("Error installing signal handler. Details: {}", e))
+  .map_err(|e| format!("Error installing signal handler. Details: {}.", e))
 }
 
 // Convert a string (from a command-line argument) into a Boolean.
@@ -233,7 +233,7 @@ fn settings() -> Result<Settings, String> {
   let bakefile_path = matches.value_of(BAKEFILE_ARG).map_or_else(
     || {
       let mut candidate_dir = current_dir().map_err(|e| {
-        format!("Unable to determine working directory. Details: {}", e)
+        format!("Unable to determine working directory. Details: {}.", e)
       })?;
       loop {
         let candidate_path = candidate_dir.join(BAKEFILE_DEFAULT_NAME);
@@ -344,7 +344,7 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
   // Read the file from disk.
   let bakefile_data = fs::read_to_string(bakefile_path).map_err(|e| {
     format!(
-      "Unable to read file {}. Details: {}",
+      "Unable to read file {}. Details: {}.",
       bakefile_path.to_string_lossy().code_str(),
       e
     )

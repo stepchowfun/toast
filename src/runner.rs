@@ -97,7 +97,7 @@ pub fn run(
     Ok(tar_file) => tar_file,
     Err(e) => {
       return Err((
-        format!("Unable to create temporary file. Details: {}", e),
+        format!("Unable to create temporary file. Details: {}.", e),
         context,
       ))
     }
@@ -120,7 +120,7 @@ pub fn run(
   // the container.
   if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
     return Err((
-      format!("Unable to seek temporary file. Details: {}", e),
+      format!("Unable to seek temporary file. Details: {}.", e),
       context,
     ));
   };
@@ -303,7 +303,7 @@ pub fn run(
     // Set up a filesystem watcher.
     let mut watcher = match watcher(notify_sender, Duration::from_millis(200))
       .map_err(|e| {
-        format!("Unable to initialize filesystem watcher. Details: {}", e)
+        format!("Unable to initialize filesystem watcher. Details: {}.", e)
       }) {
       Ok(watcher) => watcher,
       Err(e) => {
@@ -328,7 +328,7 @@ pub fn run(
           let tar_file = match tempfile() {
             Ok(tar_file) => tar_file,
             Err(e) => {
-              error!("Unable to create temporary file. Details: {}", e);
+              error!("Unable to create temporary file. Details: {}.", e);
               break;
             }
           };
@@ -352,7 +352,7 @@ pub fn run(
           // Seek back to the beginning of the archive to prepare for copying
           // it into the container.
           if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
-            error!("Unable to seek temporary file. Details: {}", e);
+            error!("Unable to seek temporary file. Details: {}.", e);
             break;
           };
 
@@ -377,7 +377,7 @@ pub fn run(
         if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
           return Err((
             format!(
-              "Unable to register a filesystem watch path. Details: {}",
+              "Unable to register a filesystem watch path. Details: {}.",
               e
             ),
             context,
