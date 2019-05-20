@@ -62,7 +62,7 @@ pub fn create<W: Write>(
   // with respect to it.
   let source_dir = source_dir.canonicalize().map_err(|e| {
     format!(
-      "Unable to canonicalize path {}. Details: {}",
+      "Unable to canonicalize path {}. Details: {}.",
       source_dir.to_string_lossy().code_str(),
       e
     )
@@ -102,7 +102,7 @@ pub fn create<W: Write>(
       // Unwrap the entry.
       let entry = entry.map_err(|e| {
         format!(
-          "Unable to traverse path {}. Details: {}",
+          "Unable to traverse path {}. Details: {}.",
           &absolute_input_path.to_string_lossy().code_str(),
           e
         )
@@ -111,7 +111,7 @@ pub fn create<W: Write>(
       // Fetch the metadata for this entry.
       let entry_metadata = entry.metadata().map_err(|e| {
         format!(
-          "Unable to fetch filesystem metadata for {}. Details: {}",
+          "Unable to fetch filesystem metadata for {}. Details: {}.",
           &absolute_input_path.to_string_lossy().code_str(),
           e
         )
@@ -120,7 +120,7 @@ pub fn create<W: Write>(
       // Fetch the host path.
       let absolute_host_path = entry.path().canonicalize().map_err(|e| {
         format!(
-          "Unable to canonicalize path {}. Details: {}",
+          "Unable to canonicalize path {}. Details: {}.",
           &entry.path().to_string_lossy().code_str(),
           e
         )
@@ -131,7 +131,7 @@ pub fn create<W: Write>(
         .strip_prefix(&source_dir)
         .map_err(|e| {
           format!(
-            "Unable to relativize path {} with respect to {}. Details: {}",
+            "Unable to relativize path {} with respect to {}. Details: {}.",
             &entry.path().to_string_lossy().code_str(),
             &source_dir.to_string_lossy().code_str(),
             e
@@ -149,7 +149,7 @@ pub fn create<W: Write>(
         // It's a file. Open it so we can compute the hash of its contents.
         let mut file = File::open(&absolute_host_path).map_err(|e| {
           format!(
-            "Unable to open file {}. Details: {}",
+            "Unable to open file {}. Details: {}.",
             &absolute_host_path.to_string_lossy().code_str(),
             e
           )
@@ -167,7 +167,7 @@ pub fn create<W: Write>(
         // Jump back to the beginning of the file so the tar builder can read it.
         file.seek(SeekFrom::Start(0)).map_err(|e| {
           format!(
-            "Unable to seek file {}. Details: {}",
+            "Unable to seek file {}. Details: {}.",
             &absolute_host_path.to_string_lossy().code_str(),
             e
           )
@@ -207,7 +207,7 @@ pub fn create<W: Write>(
   Ok((
     builder
       .into_inner()
-      .map_err(|e| format!("Error writing tar archive. Details: {}", e))?,
+      .map_err(|e| format!("Error writing tar archive. Details: {}.", e))?,
     file_hashes
       .iter()
       .fold(cache::hash_str(""), |acc, x| cache::extend(&acc, x)),

@@ -52,7 +52,7 @@ pub fn key(
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
   let mut hasher = Sha256::new();
   io::copy(input, &mut hasher)
-    .map_err(|e| format!("Unable to compute hash. Details: {}", e))?;
+    .map_err(|e| format!("Unable to compute hash. Details: {}.", e))?;
   Ok(hex::encode(hasher.result()))
 }
 

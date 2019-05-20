@@ -143,7 +143,7 @@ pub fn copy_into_container<R: Read>(
     &["container", "cp", "-", &format!("{}:{}", container, "/")],
     |mut stdin| {
       io::copy(&mut tar, &mut stdin).map_err(|e| {
-        format!("Unable to copy files into the container. Details: {}", e)
+        format!("Unable to copy files into the container. Details: {}.", e)
       })?;
 
       Ok(())
@@ -181,7 +181,7 @@ pub fn copy_from_container(
     // the target path is guaranteed to not exist). Then we copy/move that to
     // the final destination.
     let temp_dir = tempdir().map_err(|e| {
-      format!("Unable to create temporary directory. Details: {}", e)
+      format!("Unable to create temporary directory. Details: {}.", e)
     })?;
 
     // Figure out what needs to go where.
@@ -206,7 +206,7 @@ pub fn copy_from_container(
     // Check if what we got from the container is a file or a directory.
     let metadata_err_map = |e| {
       format!(
-        "Unable to retrieve filesystem metadata for path {}. Details: {}",
+        "Unable to retrieve filesystem metadata for path {}. Details: {}.",
         intermediate.to_string_lossy().code_str(),
         e
       )
@@ -219,7 +219,7 @@ pub fn copy_from_container(
       // Make sure the destination directory exists.
       create_dir_all(&destination_dir).map_err(|e| {
         format!(
-          "Unable to create directory {}. Details: {}",
+          "Unable to create directory {}. Details: {}.",
           destination_dir.to_string_lossy().code_str(),
           e
         )
@@ -228,7 +228,7 @@ pub fn copy_from_container(
       // Move it to the destination.
       rename(&intermediate, &destination).map_err(|e| {
         format!(
-          "Unable to move file {} to destination {}. Details: {}",
+          "Unable to move file {} to destination {}. Details: {}.",
           intermediate.to_string_lossy().code_str(),
           destination.to_string_lossy().code_str(),
           e
@@ -240,7 +240,7 @@ pub fn copy_from_container(
         // If we run into an error traversing the filesystem, report it.
         let entry = entry.map_err(|e| {
           format!(
-            "Unable to traverse directory {}. Details: {}",
+            "Unable to traverse directory {}. Details: {}.",
             intermediate.to_string_lossy().code_str(),
             e
           )
@@ -257,7 +257,7 @@ pub fn copy_from_container(
           // It's a directory. Create a directory at the destination.
           create_dir_all(&destination_path).map_err(|e| {
             format!(
-              "Unable to create directory {}. Details: {}",
+              "Unable to create directory {}. Details: {}.",
               destination_path.to_string_lossy().code_str(),
               e
             )
@@ -266,7 +266,7 @@ pub fn copy_from_container(
           // It's a file. Move it to the destination.
           rename(entry_path, &destination_path).map_err(|e| {
             format!(
-              "Unable to move file {} to destination {}. Details: {}",
+              "Unable to move file {} to destination {}. Details: {}.",
               entry_path.to_string_lossy().code_str(),
               destination_path.to_string_lossy().code_str(),
               e
@@ -293,7 +293,7 @@ pub fn start_container(
     |stdin| {
       write!(stdin, "{}", command).map_err(|e| {
         format!(
-          "Unable to send command {} to the container. Details: {}",
+          "Unable to send command {} to the container. Details: {}.",
           command.code_str(),
           e
         )
@@ -391,10 +391,12 @@ fn run_quiet(
 ) -> Result<String, String> {
   let _guard = spin(spinner_message);
 
-  let output = command(args)
-    .stdin(Stdio::null())
-    .output()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  let output = command(args).stdin(Stdio::null()).output().map_err(|e| {
+    format!(
+      "{} Perhaps you don't have Docker installed. Details: {}.",
+      error, e
+    )
+  })?;
 
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -404,7 +406,7 @@ fn run_quiet(
       super::INTERRUPT_MESSAGE.to_owned()
     } else {
       format!(
-        "{}\nDetails: {}",
+        "{} Details:\n{}",
         error,
         String::from_utf8_lossy(&output.stderr)
       )
@@ -429,11 +431,19 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .spawn()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+    .map_err(|e| {
+      format!(
+        "{} Perhaps you don't have Docker installed. Details: {}.",
+        error, e
+      )
+    })?;
   writer(child.stdin.as_mut().unwrap())?; // [ref:run_quiet_stdin_piped]
-  let output = child
-    .wait_with_output()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  let output = child.wait_with_output().map_err(|e| {
+    format!(
+      "{} Perhaps you don't have Docker installed. Details: {}.",
+      error, e
+    )
+  })?;
 
   if output.status.success() {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -443,7 +453,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
       super::INTERRUPT_MESSAGE.to_owned()
     } else {
       format!(
-        "{}\nDetails: {}",
+        "{} Details:\n{}",
         error,
         String::from_utf8_lossy(&output.stderr)
       )
@@ -463,11 +473,19 @@ fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), String>>(
   let mut child = command(args)
     .stdin(Stdio::piped()) // [tag:run_loud_stdin_piped]
     .spawn()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+    .map_err(|e| {
+      format!(
+        "{} Perhaps you don't have Docker installed. Details: {}.",
+        error, e
+      )
+    })?;
   writer(child.stdin.as_mut().unwrap())?; // [ref:run_loud_stdin_piped]
-  let status = child
-    .wait()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  let status = child.wait().map_err(|e| {
+    format!(
+      "{} Perhaps you don't have Docker installed. Details: {}.",
+      error, e
+    )
+  })?;
 
   if status.success() {
     Ok(())
@@ -490,9 +508,12 @@ fn run_attach(
   args: &[&str],
   interrupted: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-  let status = command(args)
-    .status()
-    .map_err(|e| format!("{}\nDetails: {}", error, e))?;
+  let status = command(args).status().map_err(|e| {
+    format!(
+      "{} Perhaps you don't have Docker installed. Details: {}.",
+      error, e
+    )
+  })?;
 
   if status.success() {
     Ok(())
