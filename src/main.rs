@@ -41,7 +41,7 @@ extern crate log;
 extern crate scopeguard;
 
 // The program version
-const VERSION: &str = "0.15.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Defaults
 const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
