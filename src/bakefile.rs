@@ -73,6 +73,9 @@ pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
   // Make sure the paths are valid.
   check_paths(&bakefile)?;
 
+  // Make sure caching is disabled when appropriate.
+  check_caching(&bakefile)?;
+
   // Make sure the dependencies are valid.
   check_dependencies(&bakefile)?;
 
@@ -141,6 +144,23 @@ fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
         name.code_str(),
         "location".code_str(),
         task.location.to_string_lossy().code_str()
+      ));
+    }
+  }
+
+  Ok(())
+}
+
+// Check that caching is disabled when appropriate.
+fn check_caching(bakefile: &Bakefile) -> Result<(), String> {
+  for (name, task) in &bakefile.tasks {
+    // If a task exposes ports, then caching should be disabled.
+    if !&task.ports.is_empty() && task.cache {
+      return Err(format!(
+        "Task {} exposes ports but does not disable caching. \
+         To fix this, set {} for this task.",
+        name.code_str(),
+        "cache: false".code_str(),
       ));
     }
   }
@@ -295,8 +315,8 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
   use crate::bakefile::{
-    check_dependencies, environment, parse, Bakefile, Task, DEFAULT_LOCATION,
-    DEFAULT_USER,
+    check_caching, check_dependencies, check_paths, environment, parse,
+    Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
   };
   use std::{collections::HashMap, env, path::Path};
 
@@ -410,7 +430,7 @@ tasks:
   bar:
     dependencies:
       - foo
-    cache: true
+    cache: false
     environment:
       SPAM: null
       HAM: null
@@ -457,7 +477,7 @@ tasks:
       "bar".to_owned(),
       Task {
         dependencies: vec!["foo".to_owned()],
-        cache: true,
+        cache: false,
         environment,
         input_paths: vec![
           Path::new("qux").to_owned(),
@@ -583,6 +603,230 @@ tasks:
     let result = environment(&task);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err()[0].to_owned(), "foo3");
+  }
+
+  #[test]
+  fn paths_none() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec![],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    assert!(check_paths(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn paths_ok() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![Path::new("bar").to_owned()],
+        output_paths: vec![Path::new("baz").to_owned()],
+        ports: vec![],
+        location: Path::new("/qux").to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    assert!(check_paths(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn absolute_input_paths() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![Path::new("/bar").to_owned()],
+        output_paths: vec![Path::new("baz").to_owned()],
+        ports: vec![],
+        location: Path::new("/qux").to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_paths(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("/bar"));
+  }
+
+  #[test]
+  fn absolute_output_paths() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![Path::new("bar").to_owned()],
+        output_paths: vec![Path::new("/baz").to_owned()],
+        ports: vec![],
+        location: Path::new("/qux").to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_paths(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("/baz"));
+  }
+
+  #[test]
+  fn relative_location() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![Path::new("bar").to_owned()],
+        output_paths: vec![Path::new("baz").to_owned()],
+        ports: vec![],
+        location: Path::new("qux").to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_paths(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("qux"));
+  }
+
+  #[test]
+  fn caching_enabled_with_no_ports() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec![],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    assert!(check_caching(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn caching_enabled_with_ports() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec!["3000:80".to_owned()],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_caching(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("caching"));
+  }
+
+  #[test]
+  fn caching_disabled_with_ports() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: false,
+        environment: HashMap::new(),
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec!["3000:80".to_owned()],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    assert!(check_caching(&bakefile).is_ok());
   }
 
   #[test]
