@@ -25,6 +25,9 @@ pub struct Task {
   #[serde(default)]
   pub environment: HashMap<String, Option<String>>,
 
+  #[serde(default = "default_task_watch")]
+  pub watch: bool,
+
   #[serde(default)]
   pub input_paths: Vec<PathBuf>,
 
@@ -45,6 +48,10 @@ pub struct Task {
 
 fn default_task_cache() -> bool {
   true
+}
+
+fn default_task_watch() -> bool {
+  false
 }
 
 fn default_task_location() -> PathBuf {
@@ -158,6 +165,16 @@ fn check_caching(bakefile: &Bakefile) -> Result<(), String> {
     if !&task.ports.is_empty() && task.cache {
       return Err(format!(
         "Task {} exposes ports but does not disable caching. \
+         To fix this, set {} for this task.",
+        name.code_str(),
+        "cache: false".code_str(),
+      ));
+    }
+
+    // If a task uses file watching, then caching should be disabled.
+    if task.watch && task.cache {
+      return Err(format!(
+        "Task {} watches the filesystem but does not disable caching. \
          To fix this, set {} for this task.",
         name.code_str(),
         "cache: false".code_str(),
@@ -353,6 +370,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -388,6 +406,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -435,6 +454,7 @@ tasks:
       SPAM: null
       HAM: null
       EGGS: null
+    watch: true
     input_paths:
       - qux
       - quux
@@ -465,6 +485,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -479,6 +500,7 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: false,
         environment,
+        watch: true,
         input_paths: vec![
           Path::new("qux").to_owned(),
           Path::new("quux").to_owned(),
@@ -511,6 +533,7 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: HashMap::new(),
+      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -534,6 +557,7 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
+      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -562,6 +586,7 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
+      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -590,6 +615,7 @@ tasks:
       dependencies: vec![],
       cache: true,
       environment: env_map,
+      watch: false,
       input_paths: vec![],
       output_paths: vec![],
       ports: vec![],
@@ -614,6 +640,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -641,6 +668,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![Path::new("bar").to_owned()],
         output_paths: vec![Path::new("baz").to_owned()],
         ports: vec![],
@@ -668,6 +696,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![Path::new("/bar").to_owned()],
         output_paths: vec![Path::new("baz").to_owned()],
         ports: vec![],
@@ -697,6 +726,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![Path::new("bar").to_owned()],
         output_paths: vec![Path::new("/baz").to_owned()],
         ports: vec![],
@@ -726,6 +756,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![Path::new("bar").to_owned()],
         output_paths: vec![Path::new("baz").to_owned()],
         ports: vec![],
@@ -747,7 +778,7 @@ tasks:
   }
 
   #[test]
-  fn caching_enabled_with_no_ports() {
+  fn caching_enabled_with_no_ports_no_watch() {
     let mut tasks = HashMap::new();
     tasks.insert(
       "foo".to_owned(),
@@ -755,6 +786,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -782,6 +814,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec!["3000:80".to_owned()],
@@ -811,6 +844,65 @@ tasks:
         dependencies: vec![],
         cache: false,
         environment: HashMap::new(),
+        watch: false,
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec!["3000:80".to_owned()],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    assert!(check_caching(&bakefile).is_ok());
+  }
+
+  #[test]
+  fn caching_enabled_with_watch() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: true,
+        environment: HashMap::new(),
+        watch: true,
+        input_paths: vec![],
+        output_paths: vec![],
+        ports: vec![],
+        location: Path::new(DEFAULT_LOCATION).to_owned(),
+        user: DEFAULT_USER.to_owned(),
+        command: None,
+      },
+    );
+
+    let bakefile = Bakefile {
+      image: "encom:os-12".to_owned(),
+      default: None,
+      tasks,
+    };
+
+    let result = check_caching(&bakefile);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("watches"));
+  }
+
+  #[test]
+  fn caching_disabled_with_watch() {
+    let mut tasks = HashMap::new();
+    tasks.insert(
+      "foo".to_owned(),
+      Task {
+        dependencies: vec![],
+        cache: false,
+        environment: HashMap::new(),
+        watch: true,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec!["3000:80".to_owned()],
@@ -849,6 +941,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -876,6 +969,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -890,6 +984,7 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -917,6 +1012,7 @@ tasks:
         dependencies: vec![],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -931,6 +1027,7 @@ tasks:
         dependencies: vec!["foo".to_owned(), "baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -960,6 +1057,7 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -989,6 +1087,7 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -1003,6 +1102,7 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -1032,6 +1132,7 @@ tasks:
         dependencies: vec!["baz".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -1046,6 +1147,7 @@ tasks:
         dependencies: vec!["foo".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],
@@ -1060,6 +1162,7 @@ tasks:
         dependencies: vec!["bar".to_owned()],
         cache: true,
         environment: HashMap::new(),
+        watch: false,
         input_paths: vec![],
         output_paths: vec![],
         ports: vec![],

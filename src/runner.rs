@@ -1,13 +1,18 @@
-use crate::{bakefile::Task, docker};
+use crate::{bakefile::Task, cache, docker, tar};
+use notify::{watcher, RecursiveMode, Watcher};
 use std::{
   collections::{HashMap, HashSet},
-  io::Read,
-  path::Path,
+  io::{Seek, SeekFrom},
+  path::PathBuf,
   sync::{
     atomic::{AtomicBool, Ordering},
+    mpsc::channel,
     Arc, Mutex,
   },
+  thread,
+  time::Duration,
 };
+use tempfile::tempfile;
 
 // A task can be run in the context of a container or an image. The `Container`
 // variant "owns" the container in the sense that the destructor deletes the
@@ -71,20 +76,59 @@ fn container_context(
   )
 }
 
-// Run a task.
+// Run a task and return the new cache key and context.
 #[allow(clippy::too_many_arguments)]
-pub fn run<R: Read>(
+pub fn run(
   settings: &super::Settings,
-  bakefile_dir: &Path,
   environment: &HashMap<String, String>,
   interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
   task: &Task,
-  cache_key: &str,
+  previous_cache_key: &str,
   caching_enabled: bool,
   context: Context,
-  mut tar: R,
-) -> Result<Context, (String, Context)> {
+) -> Result<(String, Context), (String, Context)> {
+  // All relative paths are relative to where the bakefile lives.
+  let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
+  bakefile_dir.pop();
+
+  // Create a temporary archive for the input file contents.
+  let tar_file = match tempfile() {
+    Ok(tar_file) => tar_file,
+    Err(e) => {
+      return Err((
+        format!("Unable to create temporary file. Details: {}", e),
+        context,
+      ))
+    }
+  };
+
+  // Write to the archive.
+  let (mut tar_file, input_files_hash) = match tar::create(
+    "Reading files\u{2026}",
+    tar_file,
+    &task.input_paths,
+    &bakefile_dir,
+    &task.location,
+    &interrupted,
+  ) {
+    Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
+    Err(e) => return Err((e, context)),
+  };
+
+  // Seek back to the beginning of the archive to prepare for copying it into
+  // the container.
+  if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
+    return Err((
+      format!("Unable to seek temporary file. Details: {}", e),
+      context,
+    ));
+  };
+
+  // Compute the cache key.
+  let cache_key =
+    cache::key(previous_cache_key, &task, &input_files_hash, &environment);
+
   // This is the image we'll look for in the caches.
   let image = format!("{}:{}", settings.docker_repo, cache_key);
 
@@ -117,7 +161,7 @@ pub fn run<R: Read>(
     // The task is cached. Check if there are any output files.
     if task.output_paths.is_empty() {
       // There are no output files, so we're done.
-      Ok(Context::Image(image))
+      Ok((cache_key, Context::Image(image)))
     } else {
       // If we made it this far, we need to create a container from which we can
       // extract the output files.
@@ -138,14 +182,14 @@ pub fn run<R: Read>(
         &container,
         &task.output_paths,
         &task.location,
-        bakefile_dir,
+        &bakefile_dir,
         interrupted,
       ) {
         return Err((e, context));
       }
 
       // The container becomes the new context.
-      Ok(context)
+      Ok((cache_key, context))
     }
   } else {
     // The task is not cached. Construct the command to run inside the container.
@@ -248,9 +292,98 @@ pub fn run<R: Read>(
     // Copy files into the container. If `task.input_paths` is empty, then this
     // will just create a directory for `task.location`.
     if let Err(e) =
-      docker::copy_into_container(&container, &mut tar, interrupted)
+      docker::copy_into_container(&container, &mut tar_file, interrupted)
     {
       return Err((e, context));
+    }
+
+    // Create a channel for publishing and listening for filesystem events.
+    let (notify_sender, notify_receiver) = channel();
+
+    // Set up a filesystem watcher.
+    let mut watcher = match watcher(notify_sender, Duration::from_millis(200))
+      .map_err(|e| {
+        format!("Unable to initialize filesystem watcher. Details: {}", e)
+      }) {
+      Ok(watcher) => watcher,
+      Err(e) => {
+        return Err((e, context));
+      }
+    };
+
+    // If applicable, subscribe to filesystem events.
+    if task.watch {
+      // We'll create a thread to process the events. First, we need to clone
+      // these values so they can be owned by the thread.
+      let bakefile_dir_clone = bakefile_dir.clone();
+      let container_clone = container.clone();
+      let interrupted_clone = interrupted.clone();
+      let task_clone = task.clone();
+
+      // Spawn the thread.
+      thread::spawn(move || {
+        // Wait for events.
+        while let Ok(_) = notify_receiver.recv() {
+          // Create a temporary archive for the input file contents.
+          let tar_file = match tempfile() {
+            Ok(tar_file) => tar_file,
+            Err(e) => {
+              error!("Unable to create temporary file. Details: {}", e);
+              break;
+            }
+          };
+
+          // Write to the archive.
+          let (mut tar_file, _) = match tar::create(
+            "Reading files\u{2026}",
+            tar_file,
+            &task_clone.input_paths,
+            &bakefile_dir_clone,
+            &task_clone.location,
+            &interrupted_clone,
+          ) {
+            Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
+            Err(e) => {
+              error!("{}", e);
+              break;
+            }
+          };
+
+          // Seek back to the beginning of the archive to prepare for copying
+          // it into the container.
+          if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
+            error!("Unable to seek temporary file. Details: {}", e);
+            break;
+          };
+
+          // Copy files into the container. If `task.input_paths` is empty,
+          // then this will just create a directory for `task.location`.
+          if let Err(e) = docker::copy_into_container(
+            &container_clone,
+            &mut tar_file,
+            &interrupted_clone,
+          ) {
+            error!("{}", e);
+            break;
+          }
+
+          // Inform the user that filesystem watching is working.
+          info!("Files synced.");
+        }
+      });
+
+      // Add the `input_paths` from this task to the filesystem watcher.
+      for path in &task.input_paths {
+        if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
+          return Err((
+            format!(
+              "Unable to register a filesystem watch path. Details: {}",
+              e
+            ),
+            context,
+          ));
+        }
+      }
     }
 
     // Start the container to run the command.
@@ -278,7 +411,7 @@ pub fn run<R: Read>(
         &container,
         &task.output_paths,
         &task.location,
-        bakefile_dir,
+        &bakefile_dir,
         interrupted,
       ) {
         return Err((e, context));
@@ -331,7 +464,7 @@ pub fn run<R: Read>(
     }
 
     // Return the context back to the caller.
-    Ok(context)
+    Ok((cache_key, context))
   }
 }
 
