@@ -390,3 +390,5 @@ You can run that command with `--force` to update an existing installation.
 ## Acknowledgements
 
 The inspiration for Bake came from a similar tool used at Airbnb for CI jobs.
+
+Special thanks to Julia Wang ([@juliahw](https://github.com/juliahw)) for valuable early feedback!
