@@ -5,7 +5,7 @@ install:
     if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
       echo "$DOCKER_HUB_PASSWORD" | docker login --username stephanmisc --password-stdin
     fi
-  - curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | VERSION=0.15.0 sh
+  - curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | VERSION=0.16.0 sh
 script:
   - |
     if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
@@ -13,8 +13,8 @@ script:
     else
       WRITE_REMOTE_CACHE=false
     fi
-    bake build-test-lint release \
-      --repo stephanmisc/bake \
+    toast build-test-lint release \
+      --repo stephanmisc/toast \
       --read-remote-cache true \
       --write-remote-cache "$WRITE_REMOTE_CACHE"
   - TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh
