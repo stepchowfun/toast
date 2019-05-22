@@ -6,7 +6,7 @@
 
 Running tasks in containers helps with reproducibility. If a Toast task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
-![Welcome to Toast.](https://s3.amazonaws.com/static.stephanboyer.com/toast/welcome-0.svg)
+![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/welcome-0.svg?sanitize=true)
 
 Here are two reasons to use Toast on top of vanilla Docker:
 
@@ -35,11 +35,11 @@ tasks:
 
 Now run `toast`. You should see the following:
 
-![A simple task.](https://s3.amazonaws.com/static.stephanboyer.com/toast/simple-task-0.svg)
+![A simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/simple-task-0.svg?sanitize=true)
 
 If you run it again, Toast will find that nothing has changed and skip the task:
 
-![Caching.](https://s3.amazonaws.com/static.stephanboyer.com/toast/caching-0.svg)
+![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/master/caching-0.svg?sanitize=true)
 
 Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
@@ -71,7 +71,7 @@ tasks:
 
 Run `toast` to see a marvelous greeting:
 
-![Adding a dependency.](https://s3.amazonaws.com/static.stephanboyer.com/toast/dependencies-0.svg)
+![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/master/dependencies-0.svg?sanitize=true)
 
 ### Using files from the host
 
@@ -112,7 +112,7 @@ Notice the `input_paths` array in the `build` task. Here we are copying a single
 
 Now if you run `toast`, you'll see this:
 
-![Adding files from the host.](https://s3.amazonaws.com/static.stephanboyer.com/toast/input-paths-0.svg)
+![Adding files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/input-paths-0.svg?sanitize=true)
 
 ### Exporting files from the container
 
@@ -138,7 +138,7 @@ tasks:
 
 When Toast runs the `build` task, it will copy the `a.out` file to the host.
 
-![Exporting files from the container.](https://s3.amazonaws.com/static.stephanboyer.com/toast/output-paths-0.svg)
+![Exporting files from the container.](https://raw.githubusercontent.com/stepchowfun/toast/master/output-paths-0.svg?sanitize=true)
 
 ### Passing arguments to a task
 
@@ -156,11 +156,11 @@ tasks:
 
 When you run this task, Toast will read the value from the environment:
 
-![Passing arguments to a task.](https://s3.amazonaws.com/static.stephanboyer.com/toast/arguments-explicit-0.svg)
+![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/master/arguments-explicit-0.svg?sanitize=true)
 
 If the variable does not exist in the environment, Toast will use the default value:
 
-![Using argument defaults.](https://s3.amazonaws.com/static.stephanboyer.com/toast/arguments-default-0.svg)
+![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/master/arguments-default-0.svg?sanitize=true)
 
 If you don't want to have a default, set it to `null`:
 
@@ -212,7 +212,7 @@ tasks:
 
 Now you can use Toast to run the server:
 
-![Running a server.](https://s3.amazonaws.com/static.stephanboyer.com/toast/server-0.svg)
+![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/server-0.svg?sanitize=true)
 
 ### Dropping into a shell
 
@@ -229,7 +229,7 @@ tasks:
 
 Now you can run `toast --shell` to play with `figlet`.
 
-![Dropping into a shell.](https://s3.amazonaws.com/static.stephanboyer.com/toast/shell-0.svg)
+![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/master/shell-0.svg?sanitize=true)
 
 When you're done, the container is deleted automatically.
 
