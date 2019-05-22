@@ -14,66 +14,23 @@ use std::{
 };
 use tempfile::tempfile;
 
-// A task can be run in the context of a container or an image. The `Container`
-// variant "owns" the container in the sense that the destructor deletes the
-// container.
+// A context is an image that may need to be cleaned up.
 #[derive(Clone)]
-pub enum Context {
-  Container(
-    String,                      // Container ID
-    Vec<String>,                 // Ports
-    Arc<AtomicBool>,             // Whether the schedule has been interrupted
-    Arc<Mutex<HashSet<String>>>, // Active containers
-  ),
-  Image(
-    String, // Image name
-  ),
+pub struct Context {
+  pub image: String,
+  pub persist: bool,
+  pub interrupted: Arc<AtomicBool>,
 }
 
 impl Drop for Context {
   fn drop(&mut self) {
-    if let Context::Container(container, _, interrupted, active_containers) =
-      self
-    {
-      // If the user interrupts the program, don't bother killing the
-      // container. We're about to kill it here. The `unwrap` will only fail if
-      // a panic already occurred.
-      {
-        active_containers.lock().unwrap().remove(container);
-      }
-
-      // Delete the container.
-      if let Err(e) = docker::delete_container(container, interrupted) {
+    // Delete the image if needed.
+    if !self.persist {
+      if let Err(e) = docker::delete_image(&self.image, &self.interrupted) {
         error!("{}", e);
       }
     }
   }
-}
-
-// This is a smart constructor for `Context::Container`. It adds the container
-// to the active container set, and the destructor automatically removes it.
-fn container_context(
-  container: &str,
-  ports: &[String],
-  interrupted: &Arc<AtomicBool>,
-  active_containers: &Arc<Mutex<HashSet<String>>>,
-) -> Context {
-  // If the user interrupts the program, kill the container. The `unwrap`
-  // will only fail if a panic already occurred.
-  {
-    active_containers
-      .lock()
-      .unwrap()
-      .insert(container.to_owned());
-  }
-
-  // Construct the context.
-  Context::Container(
-    container.to_owned(),
-    ports.to_owned(),
-    interrupted.to_owned(),
-    active_containers.to_owned(),
-  )
 }
 
 // Run a task and return the new cache key and context.
@@ -161,7 +118,14 @@ pub fn run(
     // The task is cached. Check if there are any output files.
     if task.output_paths.is_empty() {
       // There are no output files, so we're done.
-      Ok((cache_key, Context::Image(image)))
+      Ok((
+        cache_key,
+        Context {
+          image,
+          persist: true,
+          interrupted: interrupted.clone(),
+        },
+      ))
     } else {
       // If we made it this far, we need to create a container from which we can
       // extract the output files.
@@ -170,12 +134,13 @@ pub fn run(
           Ok(container) => container,
           Err(e) => return Err((e, context)),
         };
-      let context = container_context(
-        &container,
-        &task.ports,
-        interrupted,
-        active_containers,
-      );
+
+      // Delete the container when we're done.
+      defer! {{
+        if let Err(e) = docker::delete_container(&container, interrupted) {
+          error!("{}", e);
+        }
+      }}
 
       // Extract the output files from the container.
       if let Err(e) = docker::copy_from_container(
@@ -188,8 +153,15 @@ pub fn run(
         return Err((e, context));
       }
 
-      // The container becomes the new context.
-      Ok((cache_key, context))
+      // The cached image becomes the new context.
+      Ok((
+        cache_key,
+        Context {
+          image,
+          persist: true,
+          interrupted: interrupted.clone(),
+        },
+      ))
     }
   } else {
     // The task is not cached. Construct the command to run inside the container.
@@ -224,70 +196,48 @@ pub fn run(
       ));
     }
 
-    // Create a container if needed.
-    let (container, context) = match &context {
-      Context::Container(container, ports, _, _) => {
-        // The context already contains a container. Check if it has the right
-        // ports exposed.
-        if *ports == task.ports {
-          // The ports are correct. Use the container as is.
-          (container.to_owned(), context)
-        } else {
-          // We need to create a new container to expose the correct ports.
-          // First, commit the existing container to a temporary image.
-          let temp_image =
-            format!("{}:{}", settings.docker_repo, docker::random_tag());
-          if let Err(e) =
-            docker::commit_container(&container, &temp_image, interrupted)
-          {
-            return Err((e, context));
-          }
-
-          // Now create a new container based on that temporary image with the
-          // correct ports exposed.
-          let container =
-            docker::create_container(&temp_image, &task.ports, interrupted)
-              .map_err(|e| (e, context))?;
-          (
-            container.clone(),
-            container_context(
-              &container,
-              &task.ports,
-              interrupted,
-              active_containers,
-            ),
-          )
-        }
+    // Pull the image if necessary. Note that this is not considered reading
+    // from the remote cache.
+    if !match docker::image_exists(&context.image, interrupted) {
+      Ok(exists) => exists,
+      Err(e) => return Err((e, context)),
+    } {
+      if let Err(e) = docker::pull_image(&context.image, interrupted) {
+        return Err((e, context));
       }
-      Context::Image(context_image) => {
-        // If the context is an image, pull it if necessary. Note that this is
-        // not considered reading from the remote cache.
-        if !match docker::image_exists(&context_image, interrupted) {
-          Ok(exists) => exists,
-          Err(e) => return Err((e, context)),
-        } {
-          if let Err(e) = docker::pull_image(&context_image, interrupted) {
-            return Err((e, context));
-          }
-        }
+    }
 
-        // Create a container from the image.
-        let container =
-          docker::create_container(&context_image, &task.ports, interrupted)
-            .map_err(|e| (e, context))?;
+    // Create a container from the image.
+    let container =
+      match docker::create_container(&context.image, &task.ports, interrupted)
+      {
+        Ok(container) => container,
+        Err(e) => return Err((e, context)),
+      };
 
-        // Return the container along with a new context to own it.
-        (
-          container.clone(),
-          container_context(
-            &container,
-            &task.ports,
-            interrupted,
-            active_containers,
-          ),
-        )
+    // If the user interrupts the program, kill the container. The `unwrap`
+    // will only fail if a panic already occurred.
+    {
+      active_containers
+        .lock()
+        .unwrap()
+        .insert(container.to_owned());
+    }
+
+    // Delete the container when we're done.
+    defer! {{
+      // If the user interrupts the program, don't bother killing the
+      // container. We're about to kill it here. The `unwrap` will only fail if
+      // a panic already occurred.
+      {
+        active_containers.lock().unwrap().remove(&container);
       }
-    };
+
+      // Delete the container.
+      if let Err(e) = docker::delete_container(&container, interrupted) {
+        error!("{}", e);
+      }
+    }}
 
     // Copy files into the container. If `task.input_paths` is empty, then this
     // will just create a directory for `task.location`.
@@ -418,53 +368,38 @@ pub fn run(
       }
     }
 
-    // Write to cache, if applicable.
-    if caching_enabled {
-      if settings.write_local_cache && settings.write_remote_cache {
-        // Both local and remote cache writes are enabled. Commit the container
-        // to a local image and push it to the remote registry.
-        if let Err(e) =
-          docker::commit_container(&container, &image, interrupted)
-        {
-          return Err((e, context));
-        }
-        if let Err(e) = docker::push_image(&image, interrupted) {
-          return Err((e, context));
-        }
-      } else if settings.write_local_cache && !settings.write_remote_cache {
-        // Only local cache writes are enabled. Commit the container to a local
-        // image.
-        if let Err(e) =
-          docker::commit_container(&container, &image, interrupted)
-        {
-          return Err((e, context));
-        }
-      } else if !settings.write_local_cache && settings.write_remote_cache {
-        // Only remote cache writes are enabled. Commit the container to a
-        // temporary local image, push it to the remote registry, and delete
-        // the local copy.
-        let temp_image =
-          format!("{}:{}", settings.docker_repo, docker::random_tag());
-        defer! {{
-          if let Err(e) = docker::delete_image(&temp_image, interrupted) {
-            error!("{}", e);
-          }
-        }}
+    // Commit the container.
+    let (new_image, persist) = if caching_enabled && settings.write_local_cache
+    {
+      (image, true)
+    } else {
+      (
+        format!("{}:{}", settings.docker_repo, docker::random_tag()),
+        false,
+      )
+    };
+    if let Err(e) =
+      docker::commit_container(&container, &new_image, interrupted)
+    {
+      return Err((e, context));
+    }
 
-        if let Err(e) =
-          docker::commit_container(&container, &temp_image, interrupted)
-        {
-          return Err((e, context));
-        }
-
-        if let Err(e) = docker::push_image(&temp_image, interrupted) {
-          return Err((e, context));
-        }
+    // Write to remote cache, if applicable.
+    if caching_enabled && settings.write_remote_cache {
+      if let Err(e) = docker::push_image(&new_image, interrupted) {
+        return Err((e, context));
       }
     }
 
-    // Return the context back to the caller.
-    Ok((cache_key, context))
+    // Return the new context.
+    Ok((
+      cache_key,
+      Context {
+        image: new_image,
+        persist,
+        interrupted: interrupted.clone(),
+      },
+    ))
   }
 }
 

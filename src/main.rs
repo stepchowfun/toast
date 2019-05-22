@@ -13,7 +13,6 @@ use atty::Stream;
 use clap::{App, AppSettings, Arg};
 use env_logger::{fmt::Color, Builder};
 use log::{Level, LevelFilter};
-use scopeguard::guard;
 use std::{
   collections::{HashMap, HashSet},
   convert::AsRef,
@@ -466,8 +465,12 @@ fn run_tasks(
   // image name.
   let mut cache_key = toastfile.image.clone();
 
-  // The context is either an image or a container. We start with an image.
-  let mut context = runner::Context::Image(toastfile.image.clone());
+  // We start with the base image.
+  let mut context = runner::Context {
+    image: toastfile.image.clone(),
+    persist: true,
+    interrupted: interrupted.clone(),
+  };
 
   // Run each task in the schedule.
   for task in schedule {
@@ -581,27 +584,8 @@ fn entry() -> Result<(), String> {
     // Inform the user of what's about to happen.
     info!("Preparing a shell\u{2026}");
 
-    // Make sure we have an image to spawn the shell from.
-    let (image, _guard) = match &context {
-      runner::Context::Container(container, _, _, _) => {
-        let temp_image =
-          format!("{}:{}", settings.docker_repo, docker::random_tag());
-        docker::commit_container(&container, &temp_image, &interrupted)?;
-        let interrupted = interrupted.clone();
-        (
-          temp_image.clone(),
-          Some(guard((), move |_| {
-            if let Err(e) = docker::delete_image(&temp_image, &interrupted) {
-              error!("{}", e);
-            }
-          })),
-        )
-      }
-      runner::Context::Image(image) => (image.to_owned(), None),
-    };
-
     // Spawn the shell.
-    docker::spawn_shell(&image, &interrupted)?;
+    docker::spawn_shell(&context.image, &interrupted)?;
   }
 
   // Throw an error if any of the tasks failed.
