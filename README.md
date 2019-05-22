@@ -268,7 +268,7 @@ user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container
 ```
 
-The [toastfile](https://github.com/stepchowfun/toast/blob/master/media/toast.yml) for Toast itself is a comprehensive real-world example.
+The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.
 
 ## Cache configuration
 
