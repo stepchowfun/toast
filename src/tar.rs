@@ -139,7 +139,7 @@ pub fn create<W: Write>(
         })?
         .to_owned();
 
-      // Check the type of the entry. Note that Bake ignores symbolic links.
+      // Check the type of the entry. Note that Toast ignores symbolic links.
       // [ref:symlinks]
       if entry.file_type().is_file() {
         // Determine if the file has the executable bit set.

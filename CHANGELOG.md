@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved the performance of tasks that have no input paths and no command.
 - Revamped the filesystem watching feature.
-- Bake no longer depends on `chown` and `mkdir` in the container.
-- Bake now renders a spinner animation when reading files from the host.
-- Bake now requires that caching be disabled for tasks that expose ports or use filesystem watching.
+- Toast no longer depends on `chown` and `mkdir` in the container.
+- Toast now renders a spinner animation when reading files from the host.
+- Toast now requires that caching be disabled for tasks that expose ports or use filesystem watching.
 
 ### Fixed
 - Fixed a bug that would cause the incorrect ports to be exposed in some situations.
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.12.0] - 2019-05-18
 
 ### Fixed
-- Fixed an issue that caused Bake to not work with Linux distributions which aren't based on GNU.
+- Fixed an issue that caused Toast to not work with Linux distributions which aren't based on GNU.
 
 ### Changed
 - Optimized the spinner animation rendering.
@@ -44,18 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.0] - 2019-05-18
 
 ### Fixed
-- If the first task is a cache hit, Bake no longer pulls the base image.
-- Fixed a bug in which Bake would read from cache for tasks that have `cache: false`.
+- If the first task is a cache hit, Toast no longer pulls the base image.
+- Fixed a bug in which Toast would read from cache for tasks that have `cache: false`.
 
 ## [0.10.0] - 2019-05-16
 
 ### Changed
-- To match the way Bake runs tasks, the `--shell` feature no longer uses a login shell.
+- To match the way Toast runs tasks, the `--shell` feature no longer uses a login shell.
 
 ## [0.9.0] - 2019-05-16
 
 ### Fixed
-- Fixed a minor bug in the way Bake handles child processes that are killed by signals.
+- Fixed a minor bug in the way Toast handles child processes that are killed by signals.
 
 ## [0.8.0] - 2019-05-15
 
@@ -70,11 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Changed some log formatting to improve visual appeal.
 - Improved the performance of tasks which aren't cacheable.
-- Bake no longer respects filter files like `.gitignore`. Input paths are taken literally and match the behavior of output paths.
+- Toast no longer respects filter files like `.gitignore`. Input paths are taken literally and match the behavior of output paths.
 
 ### Fixed
-- Fixed a bug where Bake would try to copy an output file to a non-existent directory.
-- Fixed a bug in which Bake would incorrectly delete existing local cache entries when local cache writes are disabled.
+- Fixed a bug where Toast would try to copy an output file to a non-existent directory.
+- Fixed a bug in which Toast would incorrectly delete existing local cache entries when local cache writes are disabled.
 
 ## [0.6.0] - 2019-05-09
 

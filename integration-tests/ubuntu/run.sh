@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-"$BAKE"
+"$TOAST"
 cat output.txt | grep 'Hello'
 rm output.txt

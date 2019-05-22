@@ -9,7 +9,7 @@
 # a prefix of the script if the download is interrupted.
 {
   # Where the binary will be installed
-  DESTINATION="${PREFIX:-/usr/local/bin}/bake"
+  DESTINATION="${PREFIX:-/usr/local/bin}/toast"
 
   # Which version to download
   RELEASE="v${VERSION:-0.15.0}"
@@ -18,11 +18,11 @@
   FILENAME=''
   if uname -a | grep -qi 'x86_64.*GNU/Linux'; then
     echo 'x86_64 GNU/Linux detected.'
-    FILENAME=bake-x86_64-unknown-linux-gnu
+    FILENAME=toast-x86_64-unknown-linux-gnu
   fi
   if uname -a | grep -qi 'Darwin.*x86_64'; then
     echo 'macOS detected.'
-    FILENAME=bake-x86_64-apple-darwin
+    FILENAME=toast-x86_64-apple-darwin
   fi
 
   # Fail if there is no pre-built binary for this platform.
@@ -32,10 +32,10 @@
   fi
 
   # Find a temporary location for the binary.
-  TEMPFILE=$(mktemp /tmp/bake.XXXXXXXX)
+  TEMPFILE=$(mktemp /tmp/toast.XXXXXXXX)
 
   # Download the binary.
-  if ! curl "https://github.com/stepchowfun/bake/releases/download/$RELEASE/$FILENAME" -o "$TEMPFILE" -LSf; then
+  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME" -o "$TEMPFILE" -LSf; then
     echo 'There was an error downloading the binary.' 1>&2
     rm "$TEMPFILE"
     exit 1
@@ -52,5 +52,5 @@
   mv "$TEMPFILE" "$DESTINATION" 2> /dev/null || sudo mv "$TEMPFILE" "$DESTINATION" < /dev/tty
 
   # Let the user know it worked.
-  echo 'Bake is now installed.'
+  echo 'Toast is now installed.'
 }
