@@ -2,21 +2,16 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
 
-*Toast* is a containerized build system. You define tasks and their dependencies in a *toastfile*, and Toast runs them in containers based on a Docker image of your choosing. Toast supports local and remote caching to avoid repeating work.
+*Toast* is a tool for running tasks in containers. You define tasks in a *toastfile*, and Toast runs them in an environment based on a Docker image of your choosing. Tasks can depend on other tasks, which makes Toast similar to a build system. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, serve web pages, deploy a service, etc.
 
-Running tasks in containers helps with reproducibility. If a Toast task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
+Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cache key that incorporates the shell command for the task, the contents of the files copied into the container, and all the other inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by other machines.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
-Here are two reasons to use Toast on top of vanilla Docker:
+The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is not suitable:
 
-- Toast allows you to define an arbitrary directed acyclic graph (DAG) of **tasks** and **dependencies**. You can define tasks for installing dependencies, building the application, running tests, linting, deploying, etc.
-- Toast supports **remote caching** of tasks. You don't have to manually build and distribute a Docker image with pre-installed tools, libraries, etc. Just define a task which installs those things, and let Toast handle the rest.
-
-On the other hand, here are two reasons *not* to use Toast:
-
-- Toast is not suitable for tasks that cannot run in Linux containers (e.g., builds for iOS applications).
-- Toast tasks cannot run a Docker daemon (e.g., to build an image), because [containers don't nest well](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/).
+- Tasks that cannot run in Linux containers: for example, you wouldn't use Toast to build an iOS application.
+- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) to do that, but you will forgo some toasty benefits like remote caching, filesystem watching, and the ability to define tasks and dependencies.
 
 Toast has no knowledge of specific programming languages or frameworks. You can use Toast with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
@@ -216,7 +211,7 @@ Now you can use Toast to run the server:
 
 ### Dropping into a shell
 
-If you run Toast with `--shell`, Toast will drop you into an interactive shell inside the container when the requested tasks are finished. Suppose you have the following toastfile:
+If you run Toast with `--shell`, Toast will drop you into an interactive shell inside the container when the requested tasks are finished, or if any of them fails. This feature is useful for debugging tasks or exploring what's in the container. Suppose you have the following toastfile:
 
 ```yaml
 image: ubuntu
@@ -227,7 +222,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-Now you can run `toast --shell` to play with `figlet`.
+You can run `toast --shell` to play with the `figlet` program:
 
 ![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/shell-0.svg?sanitize=true)
 
@@ -237,11 +232,7 @@ When you're done, the container is deleted automatically.
 
 Given a set of tasks to run, Toast computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Because Docker doesn't support combining two arbitrary images into one (for good reasons), Toast does not run tasks in parallel and must instead use a sequential execution schedule. You are free to use parallelism within individual tasks, of course.
 
-The topological sort of an arbitrary DAG is not necessarily unique. Toast uses [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. This algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `toast foo bar` and `toast bar foo` are guaranteed to produce identical schedules.
-
-Toast builds a Docker image for each task and uses it for the next task in the schedule. Each image is tagged with a cache key that incorporates the shell command, the contents of the files copied into the container, and other inputs. If local caching is enabled, these Docker images remain on disk for subsequent executions. If remote caching is enabled, the images will be synchronized with a remote Docker registry.
-
-If a task is marked as non-cacheable, the Docker images for that task and any subsequent tasks in the schedule will not be persisted or uploaded.
+The topological sort of an arbitrary DAG is not necessarily unique. Toast uses an algorithm based on [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. The algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `toast foo bar` and `toast bar foo` are guaranteed to produce identical schedules to maximize cache utilization.
 
 ## Toastfiles
 
@@ -389,6 +380,6 @@ You can run that command with `--force` to update an existing installation.
 
 ## Acknowledgements
 
-The inspiration for Toast came from a similar tool used at Airbnb for CI jobs.
+Toast was inspired by an in-house tool used at Airbnb for CI jobs. The design was heavily influenced by the lessons I learned working on that tool and building out Airbnb's CI system with the fabulous CI Infrastructure Team.
 
-Special thanks to Julia Wang ([@juliahw](https://github.com/juliahw)) for valuable early feedback!
+Special thanks to Julia Wang ([@juliahw](https://github.com/juliahw)) for valuable early feedback. Thanks to Julia and Mark Tai [@marktai](https://github.com/marktai) for coming up with the name *Toast*.
