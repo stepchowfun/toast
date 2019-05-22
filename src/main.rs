@@ -1,4 +1,3 @@
-mod bakefile;
 mod cache;
 mod config;
 mod docker;
@@ -7,6 +6,7 @@ mod runner;
 mod schedule;
 mod spinner;
 mod tar;
+mod toastfile;
 
 use crate::format::CodeStr;
 use atty::Stream;
@@ -44,12 +44,12 @@ extern crate scopeguard;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Defaults
-const BAKEFILE_DEFAULT_NAME: &str = "bake.yml";
-const CONFIG_FILE_XDG_PATH: &str = "bake/bake.yml";
+const TOASTFILE_DEFAULT_NAME: &str = "toast.yml";
+const CONFIG_FILE_XDG_PATH: &str = "toast/toast.yml";
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 
 // Command-line argument and option names
-const BAKEFILE_ARG: &str = "file";
+const TOASTFILE_ARG: &str = "file";
 const CONFIG_FILE_ARG: &str = "config-file";
 const READ_LOCAL_CACHE_ARG: &str = "read-local-cache";
 const WRITE_LOCAL_CACHE_ARG: &str = "write-local-cache";
@@ -59,7 +59,7 @@ const REPO_ARG: &str = "repo";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
 
-// The error message to log when Bake is interrupted.
+// The error message to log when Toast is interrupted.
 const INTERRUPT_MESSAGE: &str = "Interrupted.";
 
 // Set up the logger.
@@ -106,7 +106,7 @@ fn set_up_signal_handlers(
   interrupted: Arc<AtomicBool>,
   active_containers: Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), String> {
-  // If Bake is in the foreground process group for some TTY, the process will
+  // If Toast is in the foreground process group for some TTY, the process will
   // receive a SIGINT when the user types CTRL+C at the terminal. The default
   // behavior is to crash when this signal is received. However, we would
   // rather clean up resources before terminating, so we trap the signal here.
@@ -143,7 +143,7 @@ fn parse_bool(s: &str) -> Result<bool, String> {
 
 // This struct represents the command-line arguments.
 pub struct Settings {
-  bakefile_path: PathBuf,
+  toastfile_path: PathBuf,
   docker_repo: String,
   read_local_cache: bool,
   write_local_cache: bool,
@@ -155,20 +155,20 @@ pub struct Settings {
 
 // Parse the command-line arguments;
 fn settings() -> Result<Settings, String> {
-  let matches = App::new("Bake")
+  let matches = App::new("Toast")
     .version(VERSION)
     .version_short("v")
     .author("Stephan Boyer <stephan@stephanboyer.com>")
-    .about("Bake is a containerized build system.")
+    .about("Toast is a containerized build system.")
     .setting(AppSettings::ColoredHelp)
     .setting(AppSettings::NextLineHelp)
     .setting(AppSettings::UnifiedHelpMessage)
     .arg(
-      Arg::with_name(BAKEFILE_ARG)
+      Arg::with_name(TOASTFILE_ARG)
         .short("f")
-        .long(BAKEFILE_ARG)
+        .long(TOASTFILE_ARG)
         .value_name("PATH")
-        .help("Sets the path to the bakefile")
+        .help("Sets the path to the toastfile")
         .takes_value(true),
     )
     .arg(
@@ -229,14 +229,14 @@ fn settings() -> Result<Settings, String> {
     )
     .get_matches();
 
-  // Find the bakefile.
-  let bakefile_path = matches.value_of(BAKEFILE_ARG).map_or_else(
+  // Find the toastfile.
+  let toastfile_path = matches.value_of(TOASTFILE_ARG).map_or_else(
     || {
       let mut candidate_dir = current_dir().map_err(|e| {
         format!("Unable to determine working directory. Details: {}.", e)
       })?;
       loop {
-        let candidate_path = candidate_dir.join(BAKEFILE_DEFAULT_NAME);
+        let candidate_path = candidate_dir.join(TOASTFILE_DEFAULT_NAME);
         if let Ok(metadata) = fs::metadata(&candidate_path) {
           if metadata.file_type().is_file() {
             return Ok(candidate_path);
@@ -245,7 +245,7 @@ fn settings() -> Result<Settings, String> {
         if !candidate_dir.pop() {
           return Err(format!(
             "Unable to locate file {}.",
-            BAKEFILE_DEFAULT_NAME.code_str()
+            TOASTFILE_DEFAULT_NAME.code_str()
           ));
         }
       }
@@ -328,7 +328,7 @@ fn settings() -> Result<Settings, String> {
   });
 
   Ok(Settings {
-    bakefile_path,
+    toastfile_path,
     read_local_cache,
     write_local_cache,
     read_remote_cache,
@@ -339,22 +339,24 @@ fn settings() -> Result<Settings, String> {
   })
 }
 
-// Parse a bakefile.
-fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
+// Parse a toastfile.
+fn parse_toastfile(
+  toastfile_path: &Path,
+) -> Result<toastfile::Toastfile, String> {
   // Read the file from disk.
-  let bakefile_data = fs::read_to_string(bakefile_path).map_err(|e| {
+  let toastfile_data = fs::read_to_string(toastfile_path).map_err(|e| {
     format!(
       "Unable to read file {}. Details: {}.",
-      bakefile_path.to_string_lossy().code_str(),
+      toastfile_path.to_string_lossy().code_str(),
       e
     )
   })?;
 
   // Parse it.
-  bakefile::parse(&bakefile_data).map_err(|e| {
+  toastfile::parse(&toastfile_data).map_err(|e| {
     format!(
       "Unable to parse file {}. Details: {}",
-      bakefile_path.to_string_lossy().code_str(),
+      toastfile_path.to_string_lossy().code_str(),
       e
     )
   })
@@ -363,28 +365,34 @@ fn parse_bakefile(bakefile_path: &Path) -> Result<bakefile::Bakefile, String> {
 // Determine which tasks the user wants to run.
 fn get_roots<'a>(
   settings: &'a Settings,
-  bakefile: &'a bakefile::Bakefile,
+  toastfile: &'a toastfile::Toastfile,
 ) -> Result<Vec<&'a str>, String> {
   settings.tasks.as_ref().map_or_else(
     || {
       // The user didn't provide any tasks. Check if there is a default task.
-      if let Some(default) = &bakefile.default {
+      if let Some(default) = &toastfile.default {
         // There is a default. Use it.
         Ok(vec![default.as_ref()])
       } else {
         // There is no default. Run all the tasks.
-        Ok(bakefile.tasks.keys().map(AsRef::as_ref).collect::<Vec<_>>())
+        Ok(
+          toastfile
+            .tasks
+            .keys()
+            .map(AsRef::as_ref)
+            .collect::<Vec<_>>(),
+        )
       }
     },
     |tasks| {
       // The user provided some tasks. Check that they exist, and run them.
       for task in tasks {
-        if !bakefile.tasks.contains_key(task) {
+        if !toastfile.tasks.contains_key(task) {
           // [tag:tasks_valid]
           return Err(format!(
             "No task named {} in {}.",
             task.code_str(),
-            settings.bakefile_path.to_string_lossy().code_str()
+            settings.toastfile_path.to_string_lossy().code_str()
           ));
         }
       }
@@ -397,13 +405,13 @@ fn get_roots<'a>(
 // Fetch all the environment variables used by the tasks in the schedule.
 fn fetch_environment(
   schedule: &[&str],
-  tasks: &HashMap<String, bakefile::Task>,
+  tasks: &HashMap<String, toastfile::Task>,
 ) -> Result<HashMap<String, String>, String> {
   let mut env = HashMap::new();
   let mut violations = HashMap::new();
 
   for task in schedule {
-    match bakefile::environment(&tasks[*task]) {
+    match toastfile::environment(&tasks[*task]) {
       // [ref:tasks_valid]
       Ok(env_for_task) => {
         env.extend(env_for_task);
@@ -444,7 +452,7 @@ fn fetch_environment(
 fn run_tasks(
   schedule: &[&str],
   settings: &Settings,
-  bakefile: &bakefile::Bakefile,
+  toastfile: &toastfile::Toastfile,
   environment: &HashMap<String, String>,
   interrupted: &Arc<AtomicBool>,
   active_containers: &Arc<Mutex<HashSet<String>>>,
@@ -456,15 +464,15 @@ fn run_tasks(
 
   // This is the cache key for the current task. We initialize it with the base
   // image name.
-  let mut cache_key = bakefile.image.clone();
+  let mut cache_key = toastfile.image.clone();
 
   // The context is either an image or a container. We start with an image.
-  let mut context = runner::Context::Image(bakefile.image.clone());
+  let mut context = runner::Context::Image(toastfile.image.clone());
 
   // Run each task in the schedule.
   for task in schedule {
     // Fetch the data for the current task.
-    let task_data = &bakefile.tasks[*task]; // [ref:tasks_valid]
+    let task_data = &toastfile.tasks[*task]; // [ref:tasks_valid]
 
     // If the current task is not cacheable, don't read or write to any form of
     // cache from now on.
@@ -515,14 +523,14 @@ fn entry() -> Result<(), String> {
   // Parse the command-line arguments;
   let settings = settings()?;
 
-  // Parse the bakefile.
-  let bakefile = parse_bakefile(&settings.bakefile_path)?;
+  // Parse the toastfile.
+  let toastfile = parse_toastfile(&settings.toastfile_path)?;
 
   // Determine which tasks the user wants to run.
-  let root_tasks = get_roots(&settings, &bakefile)?;
+  let root_tasks = get_roots(&settings, &toastfile)?;
 
   // Compute a schedule of tasks to run.
-  let schedule = schedule::compute(&bakefile, &root_tasks);
+  let schedule = schedule::compute(&toastfile, &root_tasks);
   if !schedule.is_empty() {
     info!(
       "Ready to run {}: {}.",
@@ -538,13 +546,13 @@ fn entry() -> Result<(), String> {
   }
 
   // Fetch all the environment variables used by the tasks in the schedule.
-  let environment = fetch_environment(&schedule, &bakefile.tasks)?;
+  let environment = fetch_environment(&schedule, &toastfile.tasks)?;
 
   // Execute the schedule.
   let (succeeded, context) = match run_tasks(
     &schedule,
     &settings,
-    &bakefile,
+    &toastfile,
     &environment,
     &interrupted,
     &active_containers,

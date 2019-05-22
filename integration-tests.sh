@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This script runs the integration tests. The `BAKE` environment variable
-# should be set to the absolute path of the Bake binary.
+# This script runs the integration tests. The `TOAST` environment variable
+# should be set to the absolute path of the Toast binary.
 
 # Log the path to the binary.
-echo "Bake location: $BAKE"
+echo "Toast location: $TOAST"
 
 # Log the version of Docker.
 docker --version

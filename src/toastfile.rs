@@ -62,32 +62,32 @@ fn default_task_user() -> String {
   DEFAULT_USER.to_owned()
 }
 
-// This struct represents a bakefile.
+// This struct represents a toastfile.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Bakefile {
+pub struct Toastfile {
   pub image: String,
   pub default: Option<String>,
   pub tasks: HashMap<String, Task>,
 }
 
 // Parse config data.
-pub fn parse(bakefile_data: &str) -> Result<Bakefile, String> {
+pub fn parse(toastfile_data: &str) -> Result<Toastfile, String> {
   // Deserialize the data.
-  let bakefile: Bakefile =
-    serde_yaml::from_str(bakefile_data).map_err(|e| format!("{}", e))?;
+  let toastfile: Toastfile =
+    serde_yaml::from_str(toastfile_data).map_err(|e| format!("{}", e))?;
 
   // Make sure the paths are valid.
-  check_paths(&bakefile)?;
+  check_paths(&toastfile)?;
 
   // Make sure caching is disabled when appropriate.
-  check_caching(&bakefile)?;
+  check_caching(&toastfile)?;
 
   // Make sure the dependencies are valid.
-  check_dependencies(&bakefile)?;
+  check_dependencies(&toastfile)?;
 
-  // Return the bakefile.
-  Ok(bakefile)
+  // Return the toastfile.
+  Ok(toastfile)
 }
 
 // Fetch the variables for a task from the environment.
@@ -118,8 +118,8 @@ pub fn environment<'a>(
 
 // Check that paths that should be relative are, and likewise for paths that
 // should be absolute.
-fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
-  for (name, task) in &bakefile.tasks {
+fn check_paths(toastfile: &Toastfile) -> Result<(), String> {
+  for (name, task) in &toastfile.tasks {
     // Check `input_paths`.
     for path in &task.input_paths {
       if path.is_absolute() {
@@ -159,8 +159,8 @@ fn check_paths(bakefile: &Bakefile) -> Result<(), String> {
 }
 
 // Check that caching is disabled when appropriate.
-fn check_caching(bakefile: &Bakefile) -> Result<(), String> {
-  for (name, task) in &bakefile.tasks {
+fn check_caching(toastfile: &Toastfile) -> Result<(), String> {
+  for (name, task) in &toastfile.tasks {
     // If a task exposes ports, then caching should be disabled.
     if !&task.ports.is_empty() && task.cache {
       return Err(format!(
@@ -187,21 +187,21 @@ fn check_caching(bakefile: &Bakefile) -> Result<(), String> {
 
 // Check that all dependencies exist and form a DAG (no cycles).
 // [tag:tasks_dag]
-fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
+fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
   // Check the default task. [tag:valid_default]
-  let valid_default = bakefile
+  let valid_default = toastfile
     .default
     .as_ref()
-    .map_or(true, |default| bakefile.tasks.contains_key(default));
+    .map_or(true, |default| toastfile.tasks.contains_key(default));
 
   // Map from task to vector of invalid dependencies.
   let mut violations: HashMap<String, Vec<String>> = HashMap::new();
 
   // Scan for invalid dependencies. [tag:task_valid]
-  for task in bakefile.tasks.keys() {
+  for task in toastfile.tasks.keys() {
     // [ref:task_valid]
-    for dependency in &bakefile.tasks[task].dependencies {
-      if !bakefile.tasks.contains_key(dependency) {
+    for dependency in &toastfile.tasks[task].dependencies {
+      if !toastfile.tasks.contains_key(dependency) {
         violations
           .entry(task.to_owned())
           .or_insert_with(|| vec![])
@@ -240,29 +240,29 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
     } else {
       return Err(format!(
         "The default task {} does not exist, and the following tasks have invalid dependencies: {}.",
-        bakefile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
+        toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
         violations_series
       ));
     }
   } else if !valid_default {
     return Err(format!(
       "The default task {} does not exist.",
-      bakefile.default.as_ref().unwrap().code_str() // [ref:valid_default]
+      toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default]
     ));
   }
 
   // Check that the dependencies aren't cyclic.
   let mut visited: HashSet<&'a str> = HashSet::new();
-  for task in bakefile.tasks.keys() {
+  for task in toastfile.tasks.keys() {
     let mut frontier: Vec<(&'a str, usize)> = vec![(task, 0)];
     let mut ancestors_set: HashSet<&'a str> = HashSet::new();
     let mut ancestors_stack: Vec<&'a str> = vec![];
 
     // Keep going as long as there are more nodes to process.
-    // [tag:bakefile_frontier_nonempty]
+    // [tag:toastfile_frontier_nonempty]
     while !frontier.is_empty() {
       // Take the top task from the frontier. This is safe due to
-      // [ref:bakefile_frontier_nonempty].
+      // [ref:toastfile_frontier_nonempty].
       let (task, task_depth) = frontier.pop().unwrap();
 
       // Update the ancestors set and stack.
@@ -318,7 +318,7 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
         ancestors_set.insert(task);
         ancestors_stack.push(task);
 
-        for dependency in &bakefile.tasks[task].dependencies {
+        for dependency in &toastfile.tasks[task].dependencies {
           frontier.push((dependency, task_depth + 1));
         }
       }
@@ -331,9 +331,9 @@ fn check_dependencies<'a>(bakefile: &'a Bakefile) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-  use crate::bakefile::{
-    check_caching, check_dependencies, check_paths, environment, parse,
-    Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER,
+  use crate::toastfile::{
+    check_caching, check_dependencies, check_paths, environment, parse, Task,
+    Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
   };
   use std::{collections::HashMap, env, path::Path};
 
@@ -345,13 +345,13 @@ tasks: {}
     "#
     .trim();
 
-    let bakefile = Ok(Bakefile {
+    let toastfile = Ok(Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     });
 
-    assert_eq!(parse(input), bakefile);
+    assert_eq!(parse(input), toastfile);
   }
 
   #[test]
@@ -380,13 +380,13 @@ tasks:
       },
     );
 
-    let bakefile = Ok(Bakefile {
+    let toastfile = Ok(Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     });
 
-    assert_eq!(parse(input), bakefile);
+    assert_eq!(parse(input), toastfile);
   }
 
   #[test]
@@ -416,13 +416,13 @@ tasks:
       },
     );
 
-    let bakefile = Ok(Bakefile {
+    let toastfile = Ok(Toastfile {
       image: "encom:os-12".to_owned(),
       default: Some("foo".to_owned()),
       tasks,
     });
 
-    assert_eq!(parse(input), bakefile);
+    assert_eq!(parse(input), toastfile);
   }
 
   #[test]
@@ -518,13 +518,13 @@ tasks:
       },
     );
 
-    let bakefile = Ok(Bakefile {
+    let toastfile = Ok(Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     });
 
-    assert_eq!(parse(input), bakefile);
+    assert_eq!(parse(input), toastfile);
   }
 
   #[test]
@@ -650,13 +650,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_paths(&bakefile).is_ok());
+    assert!(check_paths(&toastfile).is_ok());
   }
 
   #[test]
@@ -678,13 +678,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_paths(&bakefile).is_ok());
+    assert!(check_paths(&toastfile).is_ok());
   }
 
   #[test]
@@ -706,13 +706,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_paths(&bakefile);
+    let result = check_paths(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("/bar"));
   }
@@ -736,13 +736,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_paths(&bakefile);
+    let result = check_paths(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("/baz"));
   }
@@ -766,13 +766,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_paths(&bakefile);
+    let result = check_paths(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("qux"));
   }
@@ -796,13 +796,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_caching(&bakefile).is_ok());
+    assert!(check_caching(&toastfile).is_ok());
   }
 
   #[test]
@@ -824,13 +824,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_caching(&bakefile);
+    let result = check_caching(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("caching"));
   }
@@ -854,13 +854,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_caching(&bakefile).is_ok());
+    assert!(check_caching(&toastfile).is_ok());
   }
 
   #[test]
@@ -882,13 +882,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_caching(&bakefile);
+    let result = check_caching(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("watches"));
   }
@@ -912,24 +912,24 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_caching(&bakefile).is_ok());
+    assert!(check_caching(&toastfile).is_ok());
   }
 
   #[test]
   fn check_dependencies_empty() {
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     };
 
-    assert!(check_dependencies(&bakefile).is_ok());
+    assert!(check_dependencies(&toastfile).is_ok());
   }
 
   #[test]
@@ -951,13 +951,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_dependencies(&bakefile).is_ok());
+    assert!(check_dependencies(&toastfile).is_ok());
   }
 
   #[test]
@@ -994,13 +994,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    assert!(check_dependencies(&bakefile).is_ok());
+    assert!(check_dependencies(&toastfile).is_ok());
   }
 
   #[test]
@@ -1037,13 +1037,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_dependencies(&bakefile);
+    let result = check_dependencies(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("baz"));
   }
@@ -1067,13 +1067,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_dependencies(&bakefile);
+    let result = check_dependencies(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("cyclic"));
   }
@@ -1112,13 +1112,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_dependencies(&bakefile);
+    let result = check_dependencies(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("cyclic"));
   }
@@ -1172,13 +1172,13 @@ tasks:
       },
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let result = check_dependencies(&bakefile);
+    let result = check_dependencies(&toastfile);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("cyclic"));
   }

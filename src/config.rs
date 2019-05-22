@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const REPO_DEFAULT: &str = "bake";
+pub const REPO_DEFAULT: &str = "toast";
 pub const EMPTY_CONFIG: &str = "{}";
 
 // A program configuration
@@ -55,7 +55,7 @@ mod tests {
   #[test]
   fn parse_empty() {
     let result = Ok(Config {
-      docker_repo: "bake".to_owned(),
+      docker_repo: "toast".to_owned(),
       read_local_cache: true,
       write_local_cache: true,
       read_remote_cache: false,

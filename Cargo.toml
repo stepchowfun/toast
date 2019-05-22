@@ -1,12 +1,12 @@
 [package]
-name = "bake"
+name = "toast"
 version = "0.15.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 description = "A containerized build system."
 license = "MIT"
-documentation = "https://github.com/stepchowfun/bake"
-homepage = "https://github.com/stepchowfun/bake"
-repository = "https://github.com/stepchowfun/bake"
+documentation = "https://github.com/stepchowfun/toast"
+homepage = "https://github.com/stepchowfun/toast"
+repository = "https://github.com/stepchowfun/toast"
 readme = "README.md"
 edition = "2018"
 

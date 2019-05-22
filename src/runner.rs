@@ -1,4 +1,4 @@
-use crate::{bakefile::Task, cache, docker, tar};
+use crate::{cache, docker, tar, toastfile::Task};
 use notify::{watcher, RecursiveMode, Watcher};
 use std::{
   collections::{HashMap, HashSet},
@@ -88,9 +88,9 @@ pub fn run(
   caching_enabled: bool,
   context: Context,
 ) -> Result<(String, Context), (String, Context)> {
-  // All relative paths are relative to where the bakefile lives.
-  let mut bakefile_dir = PathBuf::from(&settings.bakefile_path);
-  bakefile_dir.pop();
+  // All relative paths are relative to where the toastfile lives.
+  let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
+  toastfile_dir.pop();
 
   // Create a temporary archive for the input file contents.
   let tar_file = match tempfile() {
@@ -108,7 +108,7 @@ pub fn run(
     "Reading files\u{2026}",
     tar_file,
     &task.input_paths,
-    &bakefile_dir,
+    &toastfile_dir,
     &task.location,
     &interrupted,
   ) {
@@ -182,7 +182,7 @@ pub fn run(
         &container,
         &task.output_paths,
         &task.location,
-        &bakefile_dir,
+        &toastfile_dir,
         interrupted,
       ) {
         return Err((e, context));
@@ -315,7 +315,7 @@ pub fn run(
     if task.watch {
       // We'll create a thread to process the events. First, we need to clone
       // these values so they can be owned by the thread.
-      let bakefile_dir_clone = bakefile_dir.clone();
+      let toastfile_dir_clone = toastfile_dir.clone();
       let container_clone = container.clone();
       let interrupted_clone = interrupted.clone();
       let task_clone = task.clone();
@@ -338,7 +338,7 @@ pub fn run(
             "Reading files\u{2026}",
             tar_file,
             &task_clone.input_paths,
-            &bakefile_dir_clone,
+            &toastfile_dir_clone,
             &task_clone.location,
             &interrupted_clone,
           ) {
@@ -411,7 +411,7 @@ pub fn run(
         &container,
         &task.output_paths,
         &task.location,
-        &bakefile_dir,
+        &toastfile_dir,
         interrupted,
       ) {
         return Err((e, context));

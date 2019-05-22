@@ -1,4 +1,4 @@
-use crate::bakefile::Task;
+use crate::toastfile::Task;
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io, io::Read};
 
@@ -41,10 +41,10 @@ pub fn key(
     cache_key = extend(&cache_key, &command);
   }
 
-  // We add this "bake-" prefix because Docker has a rule that tags cannot be
+  // We add this "toast-" prefix because Docker has a rule that tags cannot be
   // 64-byte hexadecimal strings. See this for more details:
   //   https://github.com/moby/moby/issues/20972
-  format!("bake-{}", cache_key)
+  format!("toast-{}", cache_key)
 }
 
 // Compute the hash of a readable object (e.g., a file). This function does not
@@ -69,8 +69,8 @@ pub fn extend(x: &str, y: &str) -> String {
 #[cfg(test)]
 mod tests {
   use crate::{
-    bakefile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
     cache::{extend, hash_read, hash_str, key},
+    toastfile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
   };
   use std::{collections::HashMap, path::Path};
 

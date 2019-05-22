@@ -17,4 +17,4 @@ script:
       --repo stephanmisc/bake \
       --read-remote-cache true \
       --write-remote-cache "$WRITE_REMOTE_CACHE"
-  - BAKE="$(pwd)/artifacts/bake-x86_64-unknown-linux-gnu" ./integration-tests.sh
+  - TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh

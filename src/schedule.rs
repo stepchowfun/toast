@@ -1,10 +1,13 @@
-use crate::bakefile::Bakefile;
+use crate::toastfile::Toastfile;
 use std::{collections::HashSet, convert::AsRef};
 
 // Compute a topological sort of the transitive reflexive closure of a set of
 // tasks. The resulting schedule does not depend on the order of the inputs or
 // dependencies. We assume the tasks form a DAG [ref:tasks_dag].
-pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
+pub fn compute<'a>(
+  toastfile: &'a Toastfile,
+  tasks: &[&'a str],
+) -> Vec<&'a str> {
   // Sort the input tasks to ensure the given order doesn't matter.
   let mut roots: Vec<&'a str> = tasks.to_vec();
   roots.sort();
@@ -52,7 +55,7 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
         // adding them to the frontier so that they will be processed in
         // lexicographical order (since the frontier is a stack rather than a
         // queue). The indexing is safe due to [ref:tasks_valid].
-        let mut dependencies: Vec<&'a str> = bakefile.tasks[task]
+        let mut dependencies: Vec<&'a str> = toastfile.tasks[task]
           .dependencies
           .iter()
           .map(AsRef::as_ref)
@@ -80,8 +83,8 @@ pub fn compute<'a>(bakefile: &'a Bakefile, tasks: &[&'a str]) -> Vec<&'a str> {
 
 #[cfg(test)]
 mod tests {
-  use crate::bakefile::{Bakefile, Task, DEFAULT_LOCATION, DEFAULT_USER};
   use crate::schedule::compute;
+  use crate::toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER};
   use std::{collections::HashMap, path::Path};
 
   fn task_with_dependencies(dependencies: Vec<String>) -> Task {
@@ -105,13 +108,13 @@ mod tests {
 
   #[test]
   fn schedule_empty() {
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: HashMap::new(),
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &[]);
+    let actual: Vec<&str> = compute(&toastfile, &[]);
     let expected: Vec<&str> = vec![];
 
     assert_eq!(actual, expected);
@@ -122,13 +125,13 @@ mod tests {
     let mut tasks = HashMap::new();
     tasks.insert("foo".to_owned(), empty_task());
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &["foo"]);
+    let actual: Vec<&str> = compute(&toastfile, &["foo"]);
     let expected: Vec<&str> = vec!["foo"];
 
     assert_eq!(actual, expected);
@@ -147,13 +150,13 @@ mod tests {
       task_with_dependencies(vec!["bar".to_owned()]),
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &["baz"]);
+    let actual: Vec<&str> = compute(&toastfile, &["baz"]);
     let expected: Vec<&str> = vec!["foo", "bar", "baz"];
 
     assert_eq!(actual, expected);
@@ -176,13 +179,13 @@ mod tests {
       task_with_dependencies(vec!["bar".to_owned(), "baz".to_owned()]),
     );
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &["qux"]);
+    let actual: Vec<&str> = compute(&toastfile, &["qux"]);
     let expected: Vec<&str> = vec!["foo", "bar", "baz", "qux"];
 
     assert_eq!(actual, expected);
@@ -195,13 +198,13 @@ mod tests {
     tasks.insert("bar".to_owned(), empty_task());
     tasks.insert("baz".to_owned(), empty_task());
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let actual: Vec<&str> = compute(&bakefile, &["foo", "bar", "baz"]);
+    let actual: Vec<&str> = compute(&toastfile, &["foo", "bar", "baz"]);
     let expected: Vec<&str> = vec!["bar", "baz", "foo"];
 
     assert_eq!(actual, expected);
@@ -233,20 +236,20 @@ mod tests {
       ]),
     );
 
-    let bakefile1 = Bakefile {
+    let toastfile1 = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: tasks1,
     };
 
-    let bakefile2 = Bakefile {
+    let toastfile2 = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: tasks2,
     };
 
-    let first: Vec<&str> = compute(&bakefile1, &["baz"]);
-    let second: Vec<&str> = compute(&bakefile2, &["baz"]);
+    let first: Vec<&str> = compute(&toastfile1, &["baz"]);
+    let second: Vec<&str> = compute(&toastfile2, &["baz"]);
 
     assert_eq!(first, second);
   }
@@ -258,14 +261,14 @@ mod tests {
     tasks.insert("bar".to_owned(), empty_task());
     tasks.insert("baz".to_owned(), empty_task());
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let first: Vec<&str> = compute(&bakefile, &["baz", "bar", "baz"]);
-    let second: Vec<&str> = compute(&bakefile, &["bar", "baz", "bar"]);
+    let first: Vec<&str> = compute(&toastfile, &["baz", "bar", "baz"]);
+    let second: Vec<&str> = compute(&toastfile, &["bar", "baz", "bar"]);
 
     assert_eq!(first, second);
   }
@@ -298,20 +301,20 @@ mod tests {
       ]),
     );
 
-    let bakefile1 = Bakefile {
+    let toastfile1 = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: tasks1,
     };
 
-    let bakefile2 = Bakefile {
+    let toastfile2 = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks: tasks2,
     };
 
-    let first: Vec<&str> = compute(&bakefile1, &["baz"]);
-    let second: Vec<&str> = compute(&bakefile2, &["baz"]);
+    let first: Vec<&str> = compute(&toastfile1, &["baz"]);
+    let second: Vec<&str> = compute(&toastfile2, &["baz"]);
 
     assert_eq!(first, second);
   }
@@ -323,14 +326,14 @@ mod tests {
     tasks.insert("bar".to_owned(), empty_task());
     tasks.insert("baz".to_owned(), empty_task());
 
-    let bakefile = Bakefile {
+    let toastfile = Toastfile {
       image: "encom:os-12".to_owned(),
       default: None,
       tasks,
     };
 
-    let first: Vec<&str> = compute(&bakefile, &["foo", "bar", "baz"]);
-    let second: Vec<&str> = compute(&bakefile, &["baz", "bar", "foo"]);
+    let first: Vec<&str> = compute(&toastfile, &["foo", "bar", "baz"]);
+    let second: Vec<&str> = compute(&toastfile, &["baz", "bar", "foo"]);
 
     assert_eq!(first, second);
   }
