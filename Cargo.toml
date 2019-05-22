@@ -1,6 +1,6 @@
 [package]
 name = "toast"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 description = "A containerized build system."
 license = "MIT"
