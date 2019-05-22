@@ -12,7 +12,7 @@ tasks:
       - install_packages
     command: |
       set -euo pipefail
-      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.1.0 sh
+      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | VERSION=1.2.0 sh
 
   create_user:
     command: |
