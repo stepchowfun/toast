@@ -11,6 +11,7 @@ echo "Toast location: $TOAST"
 docker --version
 
 # Run the integration tests.
+# shellcheck disable=SC2045
 for TEST in $(ls integration-tests); do
   # Log which integration test we're about to run.
   echo "Running integration test: $TEST"
@@ -18,6 +19,7 @@ for TEST in $(ls integration-tests); do
   # Stop all running Docker containers.
   CONTAINERS="$(docker ps --no-trunc --quiet)"
   if [ -n "$CONTAINERS" ]; then
+    # shellcheck disable=SC2086
     docker container stop $CONTAINERS > /dev/null
   fi
 
