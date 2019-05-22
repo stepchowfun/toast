@@ -291,7 +291,7 @@ write_remote_cache: false # Whether Toast should write to remote cache
 
 Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
-A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/media/.travis.yml) for a complete example of how to use Toast in a CI environment.
+A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/.travis.yml) for a complete example of how to use Toast in a CI environment.
 
 ## Command-line options
 
@@ -348,7 +348,7 @@ OPTIONS:
 If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/media/install.sh -LSfs | sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
 ```
 
 The same command can be used again to update Toast to the latest version.
@@ -365,7 +365,7 @@ The installation script supports the following environment variables:
 For example, the following will install Toast into the working directory:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/media/install.sh -LSfs | PREFIX=. sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
 ```
 
 ### Manual installation
