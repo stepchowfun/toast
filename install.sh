@@ -19,16 +19,13 @@
 
   # Determine which binary to download.
   FILENAME=''
-  CHECKSUM=''
   if uname -a | grep -qi 'x86_64.*GNU/Linux'; then
     echo 'x86_64 GNU/Linux detected.'
     FILENAME=toast-x86_64-unknown-linux-gnu
-    CHECKSUM='e60b17ae29adb623d29da5511bc60c32eabb64a25324fe2c29bba8f0db36c7ff'
   fi
   if uname -a | grep -qi 'Darwin.*x86_64'; then
     echo 'macOS detected.'
     FILENAME=toast-x86_64-apple-darwin
-    CHECKSUM='2ed56f6c48d7a28b5fbcf58fc6765efb9f502baae42e4ac4863d09d3367eab1a'
   fi
 
   # Find a temporary location for the binary.
@@ -61,7 +58,7 @@
   fi
 
   # Verify the checksum.
-  if ! echo "$CHECKSUM *$FILENAME" | sha256sum --check --strict --quiet --status; then
+  if ! sha256sum --check --strict --quiet --status "$FILENAME.sha256"; then
     fail 'The downloaded binary was corrupted. Feel free to try again.'
   fi
 
