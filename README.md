@@ -6,7 +6,7 @@
 
 Running tasks in containers helps with reproducibility. If a Toast task works on your machine, it'll work on your teammate's machine too. You don't have to worry about ensuring everyone has the same versions of all the tools and dependencies.
 
-![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/welcome-0.svg?sanitize=true)
+![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
 Here are two reasons to use Toast on top of vanilla Docker:
 
@@ -35,11 +35,11 @@ tasks:
 
 Now run `toast`. You should see the following:
 
-![A simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/simple-task-0.svg?sanitize=true)
+![A simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/simple-task-0.svg?sanitize=true)
 
 If you run it again, Toast will find that nothing has changed and skip the task:
 
-![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/master/caching-0.svg?sanitize=true)
+![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/caching-0.svg?sanitize=true)
 
 Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
@@ -71,7 +71,7 @@ tasks:
 
 Run `toast` to see a marvelous greeting:
 
-![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/master/dependencies-0.svg?sanitize=true)
+![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/dependencies-0.svg?sanitize=true)
 
 ### Using files from the host
 
@@ -112,7 +112,7 @@ Notice the `input_paths` array in the `build` task. Here we are copying a single
 
 Now if you run `toast`, you'll see this:
 
-![Adding files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/input-paths-0.svg?sanitize=true)
+![Adding files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/input-paths-0.svg?sanitize=true)
 
 ### Exporting files from the container
 
@@ -138,7 +138,7 @@ tasks:
 
 When Toast runs the `build` task, it will copy the `a.out` file to the host.
 
-![Exporting files from the container.](https://raw.githubusercontent.com/stepchowfun/toast/master/output-paths-0.svg?sanitize=true)
+![Exporting files from the container.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/output-paths-0.svg?sanitize=true)
 
 ### Passing arguments to a task
 
@@ -156,11 +156,11 @@ tasks:
 
 When you run this task, Toast will read the value from the environment:
 
-![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/master/arguments-explicit-0.svg?sanitize=true)
+![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/arguments-explicit-0.svg?sanitize=true)
 
 If the variable does not exist in the environment, Toast will use the default value:
 
-![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/master/arguments-default-0.svg?sanitize=true)
+![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/arguments-default-0.svg?sanitize=true)
 
 If you don't want to have a default, set it to `null`:
 
@@ -212,7 +212,7 @@ tasks:
 
 Now you can use Toast to run the server:
 
-![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/server-0.svg?sanitize=true)
+![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/server-0.svg?sanitize=true)
 
 ### Dropping into a shell
 
@@ -229,7 +229,7 @@ tasks:
 
 Now you can run `toast --shell` to play with `figlet`.
 
-![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/master/shell-0.svg?sanitize=true)
+![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/shell-0.svg?sanitize=true)
 
 When you're done, the container is deleted automatically.
 
@@ -268,7 +268,7 @@ user: root         # Name of the user in the container for running this task
 command: null      # Shell command to run in the container
 ```
 
-The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.
+The [toastfile](https://github.com/stepchowfun/toast/blob/master/media/toast.yml) for Toast itself is a comprehensive real-world example.
 
 ## Cache configuration
 
@@ -291,7 +291,7 @@ write_remote_cache: false # Whether Toast should write to remote cache
 
 Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
-A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/.travis.yml) for a complete example of how to use Toast in a CI environment.
+A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/media/.travis.yml) for a complete example of how to use Toast in a CI environment.
 
 ## Command-line options
 
@@ -348,7 +348,7 @@ OPTIONS:
 If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/media/install.sh -LSfs | sh
 ```
 
 The same command can be used again to update Toast to the latest version.
@@ -365,7 +365,7 @@ The installation script supports the following environment variables:
 For example, the following will install Toast into the working directory:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/media/install.sh -LSfs | PREFIX=. sh
 ```
 
 ### Manual installation
