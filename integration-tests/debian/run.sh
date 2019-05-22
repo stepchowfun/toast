@@ -2,5 +2,5 @@
 set -euo pipefail
 
 "$TOAST"
-cat output.txt | grep 'Hello'
+grep 'Hello' output.txt
 rm output.txt

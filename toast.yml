@@ -5,7 +5,7 @@ tasks:
     command: |
       set -euo pipefail
       apt-get update
-      apt-get install --yes build-essential curl
+      apt-get install --yes build-essential curl shellcheck
 
   install_tagref:
     dependencies:
@@ -84,6 +84,9 @@ tasks:
       - build
     input_paths:
       - .ignore # Used by `tagref`
+      - install.sh # Linted by ShellCheck
+      - integration-tests # Linted by ShellCheck
+      - integration-tests.sh # Linted by ShellCheck
       - rustfmt.toml # Used by `cargo fmt`
     user: user
     command: |
@@ -92,6 +95,9 @@ tasks:
       cargo clippy --all-targets --all-features -- --deny warnings --deny clippy::all --deny clippy::pedantic
       cargo fmt --all -- --check
       tagref
+      shellcheck install.sh
+      shellcheck integration-tests.sh
+      shellcheck integration-tests/**/*.sh
 
   build-test-lint:
     dependencies:
@@ -112,4 +118,5 @@ tasks:
       . $HOME/.cargo/env
       cargo build --release
       mkdir artifacts
+      sha256sum --binary target/release/toast
       cp target/release/toast artifacts/toast-x86_64-unknown-linux-gnu
