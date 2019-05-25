@@ -4,11 +4,11 @@
 
 *Toast* is a tool for running tasks in containers. You define tasks in a *toastfile*, and Toast runs them in an environment based on a Docker image of your choosing. Tasks can depend on other tasks, which makes Toast similar to a build system. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, serve web pages, deploy a service, etc.
 
-Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cache key that incorporates the shell command for the task, the contents of the files copied into the container, and all the other inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by other machines.
+Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cache key that incorporates the shell command for the task, the contents of the files copied into the container, and all the other task inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by other machines.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
-The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is not suitable:
+The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is *not* suitable:
 
 - Tasks that cannot run in Linux containers: for example, you wouldn't use Toast to build an iOS application.
 - Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) to do that, but you will forgo some toasty benefits like remote caching, filesystem watching, and the ability to define tasks and dependencies.
