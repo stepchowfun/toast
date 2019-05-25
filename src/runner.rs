@@ -342,9 +342,9 @@ pub fn run(
                 if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
                     return Err((
                         format!(
-              "Unable to register a filesystem watch path. Details: {}.",
-              e
-            ),
+                            "Unable to register a filesystem watch path. Details: {}.",
+                            e
+                        ),
                         context,
                     ));
                 }
@@ -352,26 +352,14 @@ pub fn run(
         }
 
         // Start the container to run the command.
-        if docker::start_container(
+        let result = docker::start_container(
             &container,
             &commands_to_run.join(" && "),
             interrupted,
-        )
-        .is_err()
-        {
-            return Err((
-                if interrupted.load(Ordering::SeqCst) {
-                    super::INTERRUPT_MESSAGE
-                } else {
-                    "Command failed."
-                }
-                .to_owned(),
-                context,
-            ));
-        }
+        );
 
         // Copy files from the container, if applicable.
-        if !task.output_paths.is_empty() {
+        if result.is_ok() && !task.output_paths.is_empty() {
             if let Err(e) = docker::copy_from_container(
                 &container,
                 &task.output_paths,
@@ -400,22 +388,34 @@ pub fn run(
             return Err((e, context));
         }
 
+        // Construct the new context.
+        let new_context = Context {
+            image: new_image,
+            persist,
+            interrupted: interrupted.clone(),
+        };
+
         // Write to remote cache, if applicable.
-        if caching_enabled && settings.write_remote_cache {
-            if let Err(e) = docker::push_image(&new_image, interrupted) {
-                return Err((e, context));
+        if result.is_ok() && caching_enabled && settings.write_remote_cache {
+            if let Err(e) = docker::push_image(&new_context.image, interrupted)
+            {
+                return Err((e, new_context));
             }
         }
 
         // Return the new context.
-        Ok((
-            cache_key,
-            Context {
-                image: new_image,
-                persist,
-                interrupted: interrupted.clone(),
-            },
-        ))
+        match result {
+            Ok(_) => Ok((cache_key, new_context)),
+            Err(_) => Err((
+                if interrupted.load(Ordering::SeqCst) {
+                    super::INTERRUPT_MESSAGE
+                } else {
+                    "Command failed."
+                }
+                .to_owned(),
+                new_context,
+            )),
+        }
     }
 }
 
