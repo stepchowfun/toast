@@ -7,83 +7,83 @@ pub const EMPTY_CONFIG: &str = "{}";
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-  #[serde(default = "default_docker_repo")]
-  pub docker_repo: String,
+    #[serde(default = "default_docker_repo")]
+    pub docker_repo: String,
 
-  #[serde(default = "default_read_local_cache")]
-  pub read_local_cache: bool,
+    #[serde(default = "default_read_local_cache")]
+    pub read_local_cache: bool,
 
-  #[serde(default = "default_write_local_cache")]
-  pub write_local_cache: bool,
+    #[serde(default = "default_write_local_cache")]
+    pub write_local_cache: bool,
 
-  #[serde(default = "default_read_remote_cache")]
-  pub read_remote_cache: bool,
+    #[serde(default = "default_read_remote_cache")]
+    pub read_remote_cache: bool,
 
-  #[serde(default = "default_write_remote_cache")]
-  pub write_remote_cache: bool,
+    #[serde(default = "default_write_remote_cache")]
+    pub write_remote_cache: bool,
 }
 
 fn default_docker_repo() -> String {
-  REPO_DEFAULT.to_owned()
+    REPO_DEFAULT.to_owned()
 }
 
 fn default_read_local_cache() -> bool {
-  true
+    true
 }
 
 fn default_write_local_cache() -> bool {
-  true
+    true
 }
 
 fn default_read_remote_cache() -> bool {
-  false
+    false
 }
 
 fn default_write_remote_cache() -> bool {
-  false
+    false
 }
 
 // Parse a program configuration.
 pub fn parse(config: &str) -> Result<Config, String> {
-  serde_yaml::from_str(config).map_err(|e| format!("{}", e))
+    serde_yaml::from_str(config).map_err(|e| format!("{}", e))
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::config::{parse, Config, EMPTY_CONFIG};
+    use crate::config::{parse, Config, EMPTY_CONFIG};
 
-  #[test]
-  fn parse_empty() {
-    let result = Ok(Config {
-      docker_repo: "toast".to_owned(),
-      read_local_cache: true,
-      write_local_cache: true,
-      read_remote_cache: false,
-      write_remote_cache: false,
-    });
+    #[test]
+    fn parse_empty() {
+        let result = Ok(Config {
+            docker_repo: "toast".to_owned(),
+            read_local_cache: true,
+            write_local_cache: true,
+            read_remote_cache: false,
+            write_remote_cache: false,
+        });
 
-    assert_eq!(parse(EMPTY_CONFIG), result);
-  }
+        assert_eq!(parse(EMPTY_CONFIG), result);
+    }
 
-  #[test]
-  fn parse_nonempty() {
-    let config = r#"
+    #[test]
+    fn parse_nonempty() {
+        let config = r#"
 docker_repo: foo
 read_local_cache: false
 write_local_cache: false
 read_remote_cache: true
 write_remote_cache: true
     "#
-    .trim();
+        .trim();
 
-    let result = Ok(Config {
-      docker_repo: "foo".to_owned(),
-      read_local_cache: false,
-      write_local_cache: false,
-      read_remote_cache: true,
-      write_remote_cache: true,
-    });
+        let result = Ok(Config {
+            docker_repo: "foo".to_owned(),
+            read_local_cache: false,
+            write_local_cache: false,
+            read_remote_cache: true,
+            write_remote_cache: true,
+        });
 
-    assert_eq!(parse(config), result);
-  }
+        assert_eq!(parse(config), result);
+    }
 }
