@@ -234,6 +234,12 @@ Given a set of tasks to run, Toast computes a [topological sort](https://en.wiki
 
 The topological sort of an arbitrary DAG is not necessarily unique. Toast uses an algorithm based on [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search), traversing children in lexicographical order. The algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering will not invalidate the cache. Furthermore, `toast foo bar` and `toast bar foo` are guaranteed to produce identical schedules to maximize cache utilization.
 
+## What does Toast assume about the containers it creates?
+
+Toast aims to make as few assumptions about the container environment as possible. In particular, Toast only assumes there is a program at `/bin/su` which can be invoked as `su -c COMMAND USER`. This program is used to run commands for tasks as the appropriate user with their preferred shell.
+
+Every popular Linux distribution has an `su` utility that satisfies this criteria. Toast has integration tests to ensure it works with popular base images such as `debian`, `alpine`, `busybox`, etc.
+
 ## Toastfiles
 
 A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains three top-level keys:

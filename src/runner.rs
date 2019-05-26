@@ -92,6 +92,13 @@ pub fn run(
     // This is the image we'll look for in the caches.
     let image = format!("{}:{}", settings.docker_repo, cache_key);
 
+    // Construct the environment.
+    let mut task_environment = HashMap::<String, String>::new();
+    for variable in task.environment.keys() {
+        // [ref:environment_valid]
+        task_environment.insert(variable.to_owned(), environment[variable].clone());
+    }
+
     // Check the cache, if applicable.
     let mut cached = false;
     if caching_enabled {
@@ -132,7 +139,17 @@ pub fn run(
         } else {
             // If we made it this far, we need to create a container from which we can extract the
             // output files.
-            let container = match docker::create_container(&image, &task.ports, interrupted) {
+            let container = match docker::create_container(
+                &image,
+                &task_environment,
+                &task.ports,
+                &task.location,
+                &task.user,
+                task.command
+                    .as_ref()
+                    .map_or("true", |command| command as &str),
+                interrupted,
+            ) {
                 Ok(container) => container,
                 Err(e) => return (Err(e), context),
             };
@@ -166,37 +183,6 @@ pub fn run(
             )
         }
     } else {
-        // The task is not cached. Construct the command to run inside the container.
-        let mut commands_to_run = vec![];
-
-        // Construct a small script to run the command.
-        if let Some(command) = &task.command {
-            // Set the working directory.
-            commands_to_run.push(format!(
-                "cd {}",
-                shell_escape(&task.location.to_string_lossy())
-            ));
-
-            // Set the environment variables.
-            for variable in task.environment.keys() {
-                commands_to_run.push(format!(
-                    "export {}={}",
-                    shell_escape(variable),
-                    shell_escape(&environment[variable]), // [ref:environment_valid]
-                ));
-            }
-
-            // Run the command as the appropriate user. For readability, we prefer to use the long
-            // forms of command-line options. However, we have to use `-c COMMAND` rather than
-            // `--command=COMMAND` because BusyBox's `su` utility doesn't support the latter form,
-            // and we want to support BusyBox.
-            commands_to_run.push(format!(
-                "su -c {} {}",
-                shell_escape(&command),
-                shell_escape(&task.user)
-            ));
-        }
-
         // Pull the image if necessary. Note that this is not considered reading from the remote
         // cache.
         if !match docker::image_exists(&context.image, interrupted) {
@@ -209,7 +195,17 @@ pub fn run(
         }
 
         // Create a container from the image.
-        let container = match docker::create_container(&context.image, &task.ports, interrupted) {
+        let container = match docker::create_container(
+            &context.image,
+            &task_environment,
+            &task.ports,
+            &task.location,
+            &task.user,
+            task.command
+                .as_ref()
+                .map_or("true", |command| command as &str),
+            interrupted,
+        ) {
             Ok(container) => container,
             Err(e) => return (Err(e), context),
         };
@@ -336,14 +332,12 @@ pub fn run(
         }
 
         // Start the container to run the command.
-        let result =
-            docker::start_container(&container, &commands_to_run.join(" && "), interrupted)
-                .map_err(|e| match e {
-                    Failure::Interrupted => e,
-                    Failure::System(_, _) | Failure::User(_, _) => {
-                        Failure::User("Command failed.".to_owned(), None)
-                    }
-                });
+        let result = docker::start_container(&container, interrupted).map_err(|e| match e {
+            Failure::Interrupted => e,
+            Failure::System(_, _) | Failure::User(_, _) => {
+                Failure::User("Command failed.".to_owned(), None)
+            }
+        });
 
         // Copy files from the container, if applicable.
         if result.is_ok() && !task.output_paths.is_empty() {
@@ -390,30 +384,5 @@ pub fn run(
 
         // Return the new context.
         (result.map(|_| cache_key), new_context)
-    }
-}
-
-// Escape a string for shell interpolation.
-fn shell_escape(command: &str) -> String {
-    format!("'{}'", command.replace("'", "'\\''"))
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::runner::shell_escape;
-
-    #[test]
-    fn shell_escape_empty() {
-        assert_eq!(shell_escape(""), "''");
-    }
-
-    #[test]
-    fn shell_escape_word() {
-        assert_eq!(shell_escape("foo"), "'foo'");
-    }
-
-    #[test]
-    fn shell_escape_single_quote() {
-        assert_eq!(shell_escape("f'o'o"), "'f'\\''o'\\''o'");
     }
 }

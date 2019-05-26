@@ -77,6 +77,9 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     let toastfile: Toastfile =
         serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{}", e), None))?;
 
+    // Make sure the environment variables are valid.
+    check_environment(&toastfile)?;
+
     // Make sure the paths are valid.
     check_paths(&toastfile)?;
 
@@ -111,6 +114,27 @@ pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'
     } else {
         Err(violations)
     }
+}
+
+// Check that environment variable names don't have `=` in them.
+fn check_environment(toastfile: &Toastfile) -> Result<(), Failure> {
+    for (name, task) in &toastfile.tasks {
+        for variable in task.environment.keys() {
+            if variable.contains('=') {
+                return Err(Failure::User(
+                    format!(
+                        "Environment variable {} of task {} contains {}.",
+                        variable.code_str(),
+                        name.code_str(),
+                        "=".code_str(),
+                    ),
+                    None,
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 // Check that paths that should be relative are, and likewise for paths that should be absolute.
@@ -348,8 +372,8 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_caching, check_dependencies, check_paths, environment, parse, Task, Toastfile,
-        DEFAULT_LOCATION, DEFAULT_USER,
+        check_caching, check_dependencies, check_environment, check_paths, environment, parse,
+        Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -645,7 +669,103 @@ tasks:
     }
 
     #[test]
-    fn paths_none() {
+    fn check_environment_empty() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                watch: false,
+                input_paths: vec![],
+                output_paths: vec![],
+                ports: vec![],
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
+                user: DEFAULT_USER.to_owned(),
+                command: None,
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            tasks,
+        };
+
+        assert!(check_environment(&toastfile).is_ok());
+    }
+
+    #[test]
+    fn check_environment_ok() {
+        let mut environment = HashMap::new();
+        environment.insert("corge".to_owned(), None);
+        environment.insert("grault".to_owned(), None);
+        environment.insert("garply".to_owned(), None);
+
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                dependencies: vec![],
+                cache: true,
+                environment,
+                watch: false,
+                input_paths: vec![],
+                output_paths: vec![],
+                ports: vec![],
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
+                user: DEFAULT_USER.to_owned(),
+                command: None,
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            tasks,
+        };
+
+        assert!(check_environment(&toastfile).is_ok());
+    }
+
+    #[test]
+    fn check_environment_equals() {
+        let mut environment = HashMap::new();
+        environment.insert("corge".to_owned(), None);
+        environment.insert("gra=ult".to_owned(), None);
+        environment.insert("garply".to_owned(), None);
+
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                dependencies: vec![],
+                cache: true,
+                environment,
+                watch: false,
+                input_paths: vec![],
+                output_paths: vec![],
+                ports: vec![],
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
+                user: DEFAULT_USER.to_owned(),
+                command: None,
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            tasks,
+        };
+
+        let result = check_environment(&toastfile);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains('='));
+    }
+
+    #[test]
+    fn check_paths_none() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -673,7 +793,7 @@ tasks:
     }
 
     #[test]
-    fn paths_ok() {
+    fn check_paths_ok() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -701,7 +821,7 @@ tasks:
     }
 
     #[test]
-    fn absolute_input_paths() {
+    fn check_paths_absolute_input_paths() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -731,7 +851,7 @@ tasks:
     }
 
     #[test]
-    fn absolute_output_paths() {
+    fn check_paths_absolute_output_paths() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -761,7 +881,7 @@ tasks:
     }
 
     #[test]
-    fn relative_location() {
+    fn check_paths_relative_location() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -791,7 +911,7 @@ tasks:
     }
 
     #[test]
-    fn caching_enabled_with_no_ports_no_watch() {
+    fn check_caching_enabled_with_no_ports_no_watch() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -819,7 +939,7 @@ tasks:
     }
 
     #[test]
-    fn caching_enabled_with_ports() {
+    fn check_caching_enabled_with_ports() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -849,7 +969,7 @@ tasks:
     }
 
     #[test]
-    fn caching_disabled_with_ports() {
+    fn check_caching_disabled_with_ports() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -877,7 +997,7 @@ tasks:
     }
 
     #[test]
-    fn caching_enabled_with_watch() {
+    fn check_caching_enabled_with_watch() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -907,7 +1027,7 @@ tasks:
     }
 
     #[test]
-    fn caching_disabled_with_watch() {
+    fn check_caching_disabled_with_watch() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
