@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2019-05-26
+
+### Fixed
+- Fix a bug that would cause failed tasks to be cached.
+
+### Changed
+- When using `--shell`, when a task fails, the shell environment is now based on the container from when the task failed rather than the last succeeding task. This makes debugging failed tasks easier.
+
 ## [0.18.0] - 2019-05-22
 
 ### Fixed
