@@ -89,6 +89,7 @@ tasks:
       - install.sh # Linted by ShellCheck
       - integration-tests # Linted by ShellCheck
       - integration-tests.sh # Linted by ShellCheck
+      - release.sh # Linted by ShellCheck
     user: user
     command: |
       set -euo pipefail
@@ -100,6 +101,7 @@ tasks:
       shellcheck install.sh
       shellcheck integration-tests.sh
       shellcheck integration-tests/**/*.sh
+      shellcheck release.sh
 
   build-test-lint:
     dependencies:

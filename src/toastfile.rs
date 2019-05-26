@@ -138,7 +138,7 @@ fn check_paths(toastfile: &Toastfile) -> Result<(), Failure> {
                     format!(
                         "Task {} has an absolute {}: {}.",
                         name.code_str(),
-                        "ouput_path".code_str(),
+                        "output_path".code_str(),
                         path.to_string_lossy().code_str()
                     ),
                     None,
