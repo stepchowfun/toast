@@ -16,9 +16,9 @@ pub fn key(
     // Start with the previous key.
     let mut cache_key = previous_key.to_owned();
 
-    // If there are no input paths and no command to run, we can just use the cache key from the
-    // previous task.
-    if task.input_paths.is_empty() && task.command.is_none() {
+    // If there are no environment variables, no input paths, no command to run, we can just use the
+    // cache key from the previous task.
+    if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_none() {
         return cache_key;
     }
 

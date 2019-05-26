@@ -85,11 +85,11 @@ tasks:
     dependencies:
       - build
     input_paths:
-      - .ignore # Used by `tagref`
-      - install.sh # Linted by ShellCheck
-      - integration-tests # Linted by ShellCheck
+      - .ignore              # Used by `tagref`
+      - install.sh           # Linted by ShellCheck
+      - integration-tests    # Linted by ShellCheck
       - integration-tests.sh # Linted by ShellCheck
-      - release.sh # Linted by ShellCheck
+      - release.sh           # Linted by ShellCheck
     user: user
     command: |
       set -euo pipefail
