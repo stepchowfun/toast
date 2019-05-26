@@ -243,8 +243,8 @@ Every popular Linux distribution has a `su` utility that satisfies this criterio
 A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains three top-level keys:
 
 ```yaml
-image:   <Docker image name>
-default: <name of default task to run (default behavior: run all tasks)>
+image:   <Docker image name with optional tag or digest>
+default: <name of default task to run or null to run all tasks by default>
 tasks:   <map from task name to task>
 ```
 
