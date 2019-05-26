@@ -372,7 +372,7 @@ pub fn spawn_shell(
     run_attach("The shell exited with a failure.", &args, interrupted)
 }
 
-// Run a command, forward its standard error stream, and return its standard output.
+// Run a command and return its standard output.
 fn run_quiet(
     spinner_message: &str,
     error: &str,
@@ -388,7 +388,7 @@ fn run_quiet(
 
     // Run the child process.
     let output = command(args)
-        .stdin(Stdio::null())
+        .stderr(Stdio::null())
         .output()
         .map_err(system_error(&format!(
             "{} Perhaps you don't have Docker installed.",
@@ -419,8 +419,8 @@ fn run_quiet(
     }
 }
 
-// Run a command, forward its standard error stream, and return its standard output. Accepts a
-// closure which receives a pipe to the standard input stream of the child process.
+// Run a command and return its standard output. Accepts a closure which receives a pipe to the
+// standard input stream of the child process.
 fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     spinner_message: &str,
     error: &str,
@@ -479,7 +479,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     }
 }
 
-// Run a command and forward its standard output and error streams.
+// Run a command and inherit standard output and error streams.
 fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
@@ -515,7 +515,7 @@ fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result
     }
 }
 
-// Run a command and forward its standard input, output, and error streams.
+// Run a command and inherit standard input, output, and error streams.
 fn run_attach(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
