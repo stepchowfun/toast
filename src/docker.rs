@@ -4,9 +4,10 @@ use crate::{
     spinner::spin,
 };
 use std::{
+    collections::HashMap,
     fs::{create_dir_all, metadata, rename},
     io,
-    io::{Read, Write},
+    io::Read,
     path::{Path, PathBuf},
     process::{ChildStdin, Command, Stdio},
     string::ToString,
@@ -85,7 +86,11 @@ pub fn delete_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fa
 // Create a container and return its ID.
 pub fn create_container(
     image: &str,
+    environment: &HashMap<String, String>,
     ports: &[String],
+    location: &Path,
+    user: &str,
+    command: &str,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
     debug!("Creating container from image {}\u{2026}", image.code_str(),);
@@ -98,18 +103,39 @@ pub fn create_container(
     // them. Tini traps these signals and forwards them to the child process. Then the default
     // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
     // [tag:--init]
-    let mut command = vec!["container", "create", "--init", "--interactive"];
+    let workdir = location.to_string_lossy();
+    let mut args = vec![
+        "container",
+        "create",
+        "--init",
+        "--interactive",
+        "--workdir",
+        &workdir,
+    ];
 
-    for port in ports {
-        command.extend(vec!["--publish", port]);
+    let mut environment_pairs = Vec::new();
+
+    for (variable, value) in environment {
+        environment_pairs.push(format!("{}={}", variable, value));
     }
 
-    command.extend(vec![image, "/bin/sh"]);
+    args.extend(
+        environment_pairs
+            .iter()
+            .flat_map(|pair| vec!["--env", pair])
+            .collect::<Vec<_>>(),
+    );
+
+    for port in ports {
+        args.extend(vec!["--publish", port]);
+    }
+
+    args.extend(vec![image, "/bin/su", "-c", command, user]);
 
     Ok(run_quiet(
         "Creating container\u{2026}",
         "Unable to create container.",
-        &command,
+        &args,
         interrupted,
     )?
     .trim()
@@ -250,24 +276,12 @@ pub fn copy_from_container(
 }
 
 // Start a container.
-pub fn start_container(
-    container: &str,
-    command: &str,
-    interrupted: &Arc<AtomicBool>,
-) -> Result<(), Failure> {
+pub fn start_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     debug!("Starting container {}\u{2026}", container.code_str());
 
-    run_loud_stdin(
+    run_loud(
         "Unable to start container.",
         &["container", "start", "--attach", "--interactive", container],
-        |stdin| {
-            write!(stdin, "{}", command).map_err(system_error(&format!(
-                "Unable to send command {} to the container.",
-                command.code_str(),
-            )))?;
-
-            Ok(())
-        },
         interrupted,
     )
     .map(|_| ())
@@ -450,29 +464,20 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     }
 }
 
-// Run a command and forward its standard output and error streams. Accepts a closure which receives
-// a pipe to the standard input stream of the child process.
-fn run_loud_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
-    error: &str,
-    args: &[&str],
-    writer: W,
-    interrupted: &Arc<AtomicBool>,
-) -> Result<(), Failure> {
+// Run a command and forward its standard output and error streams.
+fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
     let mut child = command(args)
-        .stdin(Stdio::piped()) // [tag:run_loud_stdin_piped]
+        .stdin(Stdio::null())
         .spawn()
         .map_err(system_error(&format!(
             "{} Perhaps you don't have Docker installed.",
             error
         )))?;
-
-    // Pipe data to the child's standard input stream.
-    writer(child.stdin.as_mut().unwrap())?; // [ref:run_loud_stdin_piped]
 
     // Wait for the child to terminate.
     let status = child.wait().map_err(system_error(&format!(
