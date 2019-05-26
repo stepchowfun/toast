@@ -1,9 +1,4 @@
-use crate::{
-    cache,
-    failure::{system_error, user_error, Failure},
-    format::CodeStr,
-    spinner::spin,
-};
+use crate::{cache, failure, failure::Failure, format::CodeStr, spinner::spin};
 use std::{
     fs::File,
     io::{empty, Read, Seek, SeekFrom, Write},
@@ -50,7 +45,7 @@ pub fn append<R: Read, W: Write>(
     header.set_entry_type(entry_type);
     builder
         .append_data(&mut header, destination, data)
-        .map_err(system_error("Error appending data to tar archive."))?;
+        .map_err(failure::system("Error appending data to tar archive."))?;
 
     // Everything succeeded.
     Ok(())
@@ -70,7 +65,7 @@ pub fn create<W: Write>(
 
     // Canonicalize the source directory such that other paths can be relativized with respect to
     // it.
-    let source_dir = source_dir.canonicalize().map_err(system_error(format!(
+    let source_dir = source_dir.canonicalize().map_err(failure::system(format!(
         "Unable to canonicalize path {}.",
         source_dir.to_string_lossy().code_str(),
     )))?;
@@ -106,27 +101,31 @@ pub fn create<W: Write>(
             }
 
             // Unwrap the entry.
-            let entry = entry.map_err(user_error(format!(
+            let entry = entry.map_err(failure::user(format!(
                 "Unable to traverse path {}.",
                 &absolute_input_path.to_string_lossy().code_str(),
             )))?;
 
             // Fetch the metadata for this entry.
-            let entry_metadata = entry.metadata().map_err(system_error(format!(
+            let entry_metadata = entry.metadata().map_err(failure::system(format!(
                 "Unable to fetch filesystem metadata for {}.",
                 &absolute_input_path.to_string_lossy().code_str(),
             )))?;
 
             // Fetch the host path.
-            let absolute_host_path = entry.path().canonicalize().map_err(system_error(format!(
-                "Unable to canonicalize path {}.",
-                &entry.path().to_string_lossy().code_str(),
-            )))?;
+            let absolute_host_path =
+                entry
+                    .path()
+                    .canonicalize()
+                    .map_err(failure::system(format!(
+                        "Unable to canonicalize path {}.",
+                        &entry.path().to_string_lossy().code_str(),
+                    )))?;
 
             // Relativize the host path.
             let relative_path = absolute_host_path
                 .strip_prefix(&source_dir)
-                .map_err(system_error(format!(
+                .map_err(failure::system(format!(
                     "Unable to relativize path {} with respect to {}.",
                     &entry.path().to_string_lossy().code_str(),
                     &source_dir.to_string_lossy().code_str(),
@@ -140,10 +139,11 @@ pub fn create<W: Write>(
                 let executable = mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0;
 
                 // It's a file. Open it so we can compute the hash of its contents.
-                let mut file = File::open(&absolute_host_path).map_err(system_error(format!(
-                    "Unable to open file {}.",
-                    &absolute_host_path.to_string_lossy().code_str(),
-                )))?;
+                let mut file =
+                    File::open(&absolute_host_path).map_err(failure::system(format!(
+                        "Unable to open file {}.",
+                        &absolute_host_path.to_string_lossy().code_str(),
+                    )))?;
 
                 // Compute the hash of the file contents and metadata.
                 file_hashes.push(cache::extend(
@@ -155,10 +155,11 @@ pub fn create<W: Write>(
                 ));
 
                 // Jump back to the beginning of the file so the tar builder can read it.
-                file.seek(SeekFrom::Start(0)).map_err(system_error(format!(
-                    "Unable to seek file {}.",
-                    &absolute_host_path.to_string_lossy().code_str(),
-                )))?;
+                file.seek(SeekFrom::Start(0))
+                    .map_err(failure::system(format!(
+                        "Unable to seek file {}.",
+                        &absolute_host_path.to_string_lossy().code_str(),
+                    )))?;
 
                 // Add the file to the archive and return.
                 append(
@@ -193,7 +194,7 @@ pub fn create<W: Write>(
     Ok((
         builder
             .into_inner()
-            .map_err(system_error("Error writing tar archive."))?,
+            .map_err(failure::system("Error writing tar archive."))?,
         file_hashes
             .iter()
             .fold(cache::hash_str(""), |acc, x| cache::extend(&acc, x)),
