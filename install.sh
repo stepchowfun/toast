@@ -6,10 +6,9 @@
 #   PREFIX=/usr/local/bin ./install.sh
 
 # We wrap everything in parentheses for two reasons:
-# 1. To prevent the shell from executing only a prefix of the script if the
-#    download is interrupted
-# 2. To ensure that any working directory changes with `cd` are local to this
-#    script and don't affect the calling user's shell
+# 1. To prevent the shell from executing only a prefix of the script if the download is interrupted
+# 2. To ensure that any working directory changes with `cd` are local to this script and don't
+#    affect the calling user's shell
 (
   # Where the binary will be installed
   DESTINATION="${PREFIX:-/usr/local/bin}/toast"
