@@ -95,6 +95,14 @@ pub fn create_container(
 ) -> Result<String, Failure> {
     debug!("Creating container from image {}\u{2026}", image.code_str(),);
 
+    let workdir = location.to_string_lossy();
+
+    let mut environment_pairs = Vec::new();
+
+    for (variable, value) in environment {
+        environment_pairs.push(format!("{}={}", variable, value)); // [ref:env_var_equals]
+    }
+
     // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes, otherwise they can
     // accumulate. Bash does this, but we run `/bin/sh` in the container, which may or may not be
     // Bash. So `--init` runs Tini (https://github.com/krallin/tini) as PID 1, which properly reaps
@@ -103,21 +111,7 @@ pub fn create_container(
     // them. Tini traps these signals and forwards them to the child process. Then the default
     // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
     // [tag:--init]
-    let workdir = location.to_string_lossy();
-    let mut args = vec![
-        "container",
-        "create",
-        "--init",
-        "--interactive",
-        "--workdir",
-        &workdir,
-    ];
-
-    let mut environment_pairs = Vec::new();
-
-    for (variable, value) in environment {
-        environment_pairs.push(format!("{}={}", variable, value));
-    }
+    let mut args = vec!["container", "create", "--init", "--workdir", &workdir];
 
     args.extend(
         environment_pairs
@@ -281,7 +275,7 @@ pub fn start_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result
 
     run_loud(
         "Unable to start container.",
-        &["container", "start", "--attach", "--interactive", container],
+        &["container", "start", "--attach", container],
         interrupted,
     )
     .map(|_| ())
@@ -335,26 +329,47 @@ pub fn delete_container(container: &str, interrupted: &Arc<AtomicBool>) -> Resul
 }
 
 // Run an interactive shell.
-pub fn spawn_shell(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn spawn_shell(
+    image: &str,
+    environment: &HashMap<String, String>,
+    location: &Path,
+    user: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!(
         "Spawning an interactive shell for image {}\u{2026}",
         image.code_str()
     );
 
-    run_attach(
-        "The shell exited with a failure.",
-        &[
-            "container",
-            "run",
-            "--rm",
-            "--interactive",
-            "--tty",
-            "--init", // [ref:--init]
-            image,
-            "/bin/su", // We use `su` rather than `sh` to use the root user's shell.
-        ],
-        interrupted,
-    )
+    let workdir = location.to_string_lossy();
+
+    let mut environment_pairs = Vec::new();
+
+    for (variable, value) in environment {
+        environment_pairs.push(format!("{}={}", variable, value)); // [ref:env_var_equals]
+    }
+
+    let mut args = vec![
+        "container",
+        "run",
+        "--rm",
+        "--init", // [ref:--init]
+        "--interactive",
+        "--tty",
+        "--workdir",
+        &workdir,
+    ];
+
+    args.extend(
+        environment_pairs
+            .iter()
+            .flat_map(|pair| vec!["--env", pair])
+            .collect::<Vec<_>>(),
+    );
+
+    args.extend(vec![image, "/bin/su", user]);
+
+    run_attach("The shell exited with a failure.", &args, interrupted)
 }
 
 // Run a command, forward its standard error stream, and return its standard output.

@@ -116,7 +116,7 @@ pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'
     }
 }
 
-// Check that environment variable names don't have `=` in them.
+// Check that environment variable names don't have `=` in them. [tag:env_var_equals]
 fn check_environment(toastfile: &Toastfile) -> Result<(), Failure> {
     for (name, task) in &toastfile.tasks {
         for variable in task.environment.keys() {
