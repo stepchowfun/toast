@@ -1,29 +1,24 @@
 use crate::toastfile::Toastfile;
 use std::{collections::HashSet, convert::AsRef};
 
-// Compute a topological sort of the transitive reflexive closure of a set of
-// tasks. The resulting schedule does not depend on the order of the inputs or
-// dependencies. We assume the tasks form a DAG [ref:tasks_dag].
-pub fn compute<'a>(
-    toastfile: &'a Toastfile,
-    tasks: &[&'a str],
-) -> Vec<&'a str> {
+// Compute a topological sort of the transitive reflexive closure of a set of tasks. The resulting
+// schedule does not depend on the order of the inputs or dependencies. We assume the tasks form a
+// DAG [ref:tasks_dag].
+pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> {
     // Sort the input tasks to ensure the given order doesn't matter.
     let mut roots: Vec<&'a str> = tasks.to_vec();
     roots.sort();
 
-    // We will use this set to keep track of what tasks have already been
-    // seen.
+    // We will use this set to keep track of what tasks have already been seen.
     let mut visited: HashSet<&'a str> = HashSet::new();
 
     // This vector accumulates the final schedule.
     let mut schedule: Vec<&'a str> = vec![];
 
-    // For each root, compute its transitive reflexive closure, topsort it, and
-    // add it to the schedule.
+    // For each root, compute its transitive reflexive closure, topsort it, and add it to the
+    // schedule.
     for root in roots {
-        // The frontier is a stack, which means we are doing a depth-first
-        // traversal.
+        // The frontier is a stack, which means we are doing a depth-first traversal.
         let mut frontier: Vec<(&'a str, bool)> = vec![(root, true)];
 
         // This vector will accumulate the topsorted tasks.
@@ -35,8 +30,8 @@ pub fn compute<'a>(
             // Pop a task from the frontier. [ref:schedule_frontier_nonempty]
             let (task, new) = frontier.pop().unwrap();
 
-            // Check if this is a new task or one that we are coming back to because
-            // we finished processing its dependencies.
+            // Check if this is a new task or one that we are coming back to because we finished
+            // processing its dependencies.
             if new {
                 // If we have already scheduled this root task, skip to the next one.
                 if visited.contains(task) {
@@ -49,11 +44,10 @@ pub fn compute<'a>(
                 // Come back to this task once all its dependencies have been processed.
                 frontier.push((task, false));
 
-                // Add the task's dependencies to the frontier. We sort the
-                // dependencies first to ensure their original order doesn't matter.
-                // After sorting, we reverse the order of the dependencies before
-                // adding them to the frontier so that they will be processed in
-                // lexicographical order (since the frontier is a stack rather than a
+                // Add the task's dependencies to the frontier. We sort the dependencies first to
+                // ensure their original order doesn't matter. After sorting, we reverse the order
+                // of the dependencies before adding them to the frontier so that they will be
+                // processed in lexicographical order (since the frontier is a stack rather than a
                 // queue). The indexing is safe due to [ref:tasks_valid].
                 let mut dependencies: Vec<&'a str> = toastfile.tasks[task]
                     .dependencies
@@ -217,11 +211,7 @@ mod tests {
         tasks1.insert("bar".to_owned(), empty_task());
         tasks1.insert(
             "baz".to_owned(),
-            task_with_dependencies(vec![
-                "foo".to_owned(),
-                "bar".to_owned(),
-                "foo".to_owned(),
-            ]),
+            task_with_dependencies(vec!["foo".to_owned(), "bar".to_owned(), "foo".to_owned()]),
         );
 
         let mut tasks2 = HashMap::new();
@@ -229,11 +219,7 @@ mod tests {
         tasks2.insert("bar".to_owned(), empty_task());
         tasks2.insert(
             "baz".to_owned(),
-            task_with_dependencies(vec![
-                "bar".to_owned(),
-                "foo".to_owned(),
-                "bar".to_owned(),
-            ]),
+            task_with_dependencies(vec!["bar".to_owned(), "foo".to_owned(), "bar".to_owned()]),
         );
 
         let toastfile1 = Toastfile {
@@ -281,11 +267,7 @@ mod tests {
         tasks1.insert("baz".to_owned(), empty_task());
         tasks1.insert(
             "qux".to_owned(),
-            task_with_dependencies(vec![
-                "foo".to_owned(),
-                "bar".to_owned(),
-                "baz".to_owned(),
-            ]),
+            task_with_dependencies(vec!["foo".to_owned(), "bar".to_owned(), "baz".to_owned()]),
         );
 
         let mut tasks2 = HashMap::new();
@@ -294,11 +276,7 @@ mod tests {
         tasks2.insert("baz".to_owned(), empty_task());
         tasks2.insert(
             "qux".to_owned(),
-            task_with_dependencies(vec![
-                "baz".to_owned(),
-                "bar".to_owned(),
-                "foo".to_owned(),
-            ]),
+            task_with_dependencies(vec!["baz".to_owned(), "bar".to_owned(), "foo".to_owned()]),
         );
 
         let toastfile1 = Toastfile {

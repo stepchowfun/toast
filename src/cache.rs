@@ -1,9 +1,12 @@
-use crate::toastfile::Task;
+use crate::{
+    failure::{system_error, Failure},
+    toastfile::Task,
+};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io, io::Read};
 
-// Determine the cache ID of a task based on the cache ID of the previous task
-// in the schedule (or the hash of the base image, if this is the first task).
+// Determine the cache ID of a task based on the cache ID of the previous task in the schedule (or
+// the hash of the base image, if this is the first task).
 pub fn key(
     previous_key: &str,
     task: &Task,
@@ -13,8 +16,8 @@ pub fn key(
     // Start with the previous key.
     let mut cache_key = previous_key.to_owned();
 
-    // If there are no input paths and no command to run, we can just use the
-    // cache key from the previous task.
+    // If there are no input paths and no command to run, we can just use the cache key from the
+    // previous task.
     if task.input_paths.is_empty() && task.command.is_none() {
         return cache_key;
     }
@@ -41,18 +44,16 @@ pub fn key(
         cache_key = extend(&cache_key, &command);
     }
 
-    // We add this "toast-" prefix because Docker has a rule that tags cannot be
-    // 64-byte hexadecimal strings. See this for more details:
-    //   https://github.com/moby/moby/issues/20972
+    // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
+    // strings. See this for more details: https://github.com/moby/moby/issues/20972
     format!("toast-{}", cache_key)
 }
 
-// Compute the hash of a readable object (e.g., a file). This function does not
-// need to load all the data in memory at the same time.
-pub fn hash_read<R: Read>(input: &mut R) -> Result<String, String> {
+// Compute the hash of a readable object (e.g., a file). This function does not need to load all the
+// data in memory at the same time.
+pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
-    io::copy(input, &mut hasher)
-        .map_err(|e| format!("Unable to compute hash. Details: {}.", e))?;
+    io::copy(input, &mut hasher).map_err(system_error("Unable to compute hash."))?;
     Ok(hex::encode(hasher.result()))
 }
 
@@ -456,14 +457,14 @@ mod tests {
     fn hash_read_pure() {
         let mut str1 = b"foo" as &[u8];
         let mut str2 = b"foo" as &[u8];
-        assert_eq!(hash_read(&mut str1), hash_read(&mut str2));
+        assert_eq!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
     }
 
     #[test]
     fn hash_read_not_constant() {
         let mut str1 = b"foo" as &[u8];
         let mut str2 = b"bar" as &[u8];
-        assert_ne!(hash_read(&mut str1), hash_read(&mut str2));
+        assert_ne!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
     }
 
     #[test]

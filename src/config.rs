@@ -1,3 +1,4 @@
+use crate::failure::{user_error, Failure};
 use serde::{Deserialize, Serialize};
 
 pub const REPO_DEFAULT: &str = "toast";
@@ -44,8 +45,8 @@ fn default_write_remote_cache() -> bool {
 }
 
 // Parse a program configuration.
-pub fn parse(config: &str) -> Result<Config, String> {
-    serde_yaml::from_str(config).map_err(|e| format!("{}", e))
+pub fn parse(config: &str) -> Result<Config, Failure> {
+    serde_yaml::from_str(config).map_err(user_error("Syntax error."))
 }
 
 #[cfg(test)]
@@ -54,15 +55,15 @@ mod tests {
 
     #[test]
     fn parse_empty() {
-        let result = Ok(Config {
+        let result = Config {
             docker_repo: "toast".to_owned(),
             read_local_cache: true,
             write_local_cache: true,
             read_remote_cache: false,
             write_remote_cache: false,
-        });
+        };
 
-        assert_eq!(parse(EMPTY_CONFIG), result);
+        assert_eq!(parse(EMPTY_CONFIG).unwrap(), result);
     }
 
     #[test]
@@ -76,14 +77,14 @@ write_remote_cache: true
     "#
         .trim();
 
-        let result = Ok(Config {
+        let result = Config {
             docker_repo: "foo".to_owned(),
             read_local_cache: false,
             write_local_cache: false,
             read_remote_cache: true,
             write_remote_cache: true,
-        });
+        };
 
-        assert_eq!(parse(config), result);
+        assert_eq!(parse(config).unwrap(), result);
     }
 }

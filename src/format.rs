@@ -1,8 +1,7 @@
 use atty::Stream;
 use colored::{ColoredString, Colorize};
 
-// This trait has a function for formatting "code-like" text, such as a task
-// name or a file path.
+// This trait has a function for formatting "code-like" text, such as a task name or a file path.
 pub trait CodeStr {
     fn code_str(&self) -> ColoredString;
 }
@@ -17,9 +16,8 @@ impl CodeStr for str {
     }
 }
 
-// This function takes a number and a noun and returns a string representing
-// the noun with the given multiplicity (pluralizing if necessary). For
-// example, (3, "cow") becomes "3 cows".
+// This function takes a number and a noun and returns a string representing the noun with the
+// given multiplicity (pluralizing if necessary). For example, (3, "cow") becomes "3 cows".
 pub fn number(n: usize, noun: &str) -> String {
     if n == 1 {
         format!("{} {}", n, noun)
@@ -28,9 +26,8 @@ pub fn number(n: usize, noun: &str) -> String {
     }
 }
 
-// This function takes an array of strings and returns a comma-separated list
-// with the word "and" (and an Oxford comma, if applicable) between the last
-// two items.
+// This function takes an array of strings and returns a comma-separated list with the word "and"
+// (and an Oxford comma, if applicable) between the last two items.
 pub fn series(items: &[String]) -> String {
     match items.len() {
         0 => "".to_owned(),
@@ -75,10 +72,7 @@ mod tests {
 
     #[test]
     fn series_two() {
-        assert_eq!(
-            series(&["foo".to_owned(), "bar".to_owned()]),
-            "foo and bar"
-        );
+        assert_eq!(series(&["foo".to_owned(), "bar".to_owned()]), "foo and bar");
     }
 
     #[test]
