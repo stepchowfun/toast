@@ -440,7 +440,7 @@ fn fetch_environment(
     Ok(env)
 }
 
-// Run some tasks.
+// Run some tasks and return the final context and the last attempted task.
 #[allow(clippy::too_many_arguments)]
 fn run_tasks(
     schedule: &[&str],
@@ -449,7 +449,7 @@ fn run_tasks(
     environment: &HashMap<String, String>,
     interrupted: &Arc<AtomicBool>,
     active_containers: &Arc<Mutex<HashSet<String>>>,
-) -> (Result<(), Failure>, runner::Context) {
+) -> (Result<(), Failure>, runner::Context, Option<String>) {
     // This variable will be `true` as long as we're executing tasks that have `cache: true`. As
     // soon as we encounter a task with `cache: false`, this variable will be permanently set to
     // `false`.
@@ -476,7 +476,7 @@ fn run_tasks(
 
         // If the user wants to stop the schedule, quit now.
         if interrupted.load(Ordering::SeqCst) {
-            return (Err(Failure::Interrupted), context);
+            return (Err(Failure::Interrupted), context, Some((*task).to_owned()));
         }
 
         // Run the task.
@@ -498,12 +498,16 @@ fn run_tasks(
         // Retrieve the cache key from the result.
         cache_key = match result {
             Ok(new_cache_key) => new_cache_key,
-            Err(e) => return (Err(e), context),
+            Err(e) => return (Err(e), context, Some((*task).to_owned())),
         };
     }
 
     // Everything succeeded.
-    (Ok(()), context)
+    (
+        Ok(()),
+        context,
+        schedule.last().map(|task| (*task).to_owned()),
+    )
 }
 
 // Program entrypoint
@@ -539,7 +543,7 @@ fn entry() -> Result<(), Failure> {
             format::series(
                 schedule
                     .iter()
-                    .map(|task| format!("{}", task.code_str()))
+                    .map(|task| task.code_str().to_string())
                     .collect::<Vec<_>>()
                     .as_ref()
             )
@@ -550,7 +554,7 @@ fn entry() -> Result<(), Failure> {
     let environment = fetch_environment(&schedule, &toastfile.tasks)?;
 
     // Execute the schedule.
-    let (result, context) = run_tasks(
+    let (result, context, last_task) = run_tasks(
         &schedule,
         &settings,
         &toastfile,
@@ -580,8 +584,42 @@ fn entry() -> Result<(), Failure> {
         // Inform the user of what's about to happen.
         info!("Preparing a shell\u{2026}");
 
+        // Determine the environment, location, and user for the shell.
+        let (task_environment, location, user) = if let Some(last_task) = last_task {
+            // Get the data for the last task.
+            let last_task = &toastfile.tasks[&last_task]; // [ref:tasks_valid]
+
+            // Prepare the environment.
+            let mut task_environment = HashMap::<String, String>::new();
+            for variable in last_task.environment.keys() {
+                // [ref:environment_valid]
+                task_environment.insert(variable.to_owned(), environment[variable].clone());
+            }
+
+            // Use the environment, path, and user from the last task.
+            (
+                task_environment,
+                last_task.location.clone(),
+                last_task.user.clone(),
+            )
+        } else {
+            // There is no last task, so the context will be the base image. Use the empty
+            // environment, the root path, and the root user.
+            (
+                HashMap::<String, String>::new(),
+                Path::new("/").to_owned(),
+                "root".to_owned(),
+            )
+        };
+
         // Spawn the shell.
-        docker::spawn_shell(&context.image, &interrupted)?;
+        docker::spawn_shell(
+            &context.image,
+            &task_environment,
+            &location,
+            &user,
+            &interrupted,
+        )?;
     }
 
     // Return the result to the user.
