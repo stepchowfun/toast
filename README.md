@@ -243,9 +243,9 @@ Every popular Linux distribution has a `su` utility that satisfies this criterio
 A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains three top-level keys:
 
 ```yaml
-image: <Docker image name>
+image:   <Docker image name>
 default: <name of default task to run (default behavior: run all tasks)>
-tasks: <map from task name to task>
+tasks:   <map from task name to task>
 ```
 
 Tasks have the following schema and defaults:
@@ -277,7 +277,7 @@ The caching behavior can be customized with a configuration file. The default lo
 The configuration file has the following schema and defaults:
 
 ```yaml
-docker_repo: toast         # Docker repository
+docker_repo: toast        # Docker repository
 read_local_cache: true    # Whether Toast should read from local cache
 write_local_cache: true   # Whether Toast should write to local cache
 read_remote_cache: false  # Whether Toast should read from remote cache
