@@ -35,18 +35,22 @@ impl error::Error for Failure {
     }
 }
 
-// This is a helper function to convert a `std::error::Error` into a system failure. It's written
-// in a curried style so it can be used in a higher-order fashion, e.g.,
+// This is a helper function to convert a `std::error::Error` into a system failure. It's written in
+// a curried style so it can be used in a higher-order fashion, e.g.,
 // `foo.map_err(system_error("Error doing foo."))`.
-pub fn system_error<E: error::Error + 'static>(message: &str) -> impl FnOnce(E) -> Failure {
-    let message = message.to_owned();
+pub fn system_error<S: Into<String>, E: error::Error + 'static>(
+    message: S,
+) -> impl FnOnce(E) -> Failure {
+    let message = message.into();
     move |error: E| Failure::System(message, Some(Box::new(error)))
 }
 
 // This is a helper function to convert a `std::error::Error` into a user failure. It's written in a
 // curried style so it can be used in a higher-order fashion, e.g.,
 // `foo.map_err(user_error("Error doing foo."))`.
-pub fn user_error<E: error::Error + 'static>(message: &str) -> impl FnOnce(E) -> Failure {
-    let message = message.to_owned();
+pub fn user_error<S: Into<String>, E: error::Error + 'static>(
+    message: S,
+) -> impl FnOnce(E) -> Failure {
+    let message = message.into();
     move |error: E| Failure::User(message, Some(Box::new(error)))
 }

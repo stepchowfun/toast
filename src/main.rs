@@ -282,7 +282,7 @@ fn settings() -> Result<Settings, Failure> {
                 data
             },
         );
-    let config = config::parse(&config_data).map_err(user_error(&format!(
+    let config = config::parse(&config_data).map_err(user_error(format!(
         "Unable to parse file {}.",
         config_file_path
             .as_ref()
@@ -338,13 +338,13 @@ fn settings() -> Result<Settings, Failure> {
 // Parse a toastfile.
 fn parse_toastfile(toastfile_path: &Path) -> Result<toastfile::Toastfile, Failure> {
     // Read the file from disk.
-    let toastfile_data = fs::read_to_string(toastfile_path).map_err(user_error(&format!(
+    let toastfile_data = fs::read_to_string(toastfile_path).map_err(user_error(format!(
         "Unable to read file {}.",
         toastfile_path.to_string_lossy().code_str(),
     )))?;
 
     // Parse it.
-    toastfile::parse(&toastfile_data).map_err(user_error(&format!(
+    toastfile::parse(&toastfile_data).map_err(user_error(format!(
         "Unable to parse file {}.",
         toastfile_path.to_string_lossy().code_str()
     )))
