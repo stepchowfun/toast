@@ -1,4 +1,4 @@
-use crate::{format, format::CodeStr};
+use crate::{failure::Failure, format, format::CodeStr};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -72,10 +72,10 @@ pub struct Toastfile {
 }
 
 // Parse config data.
-pub fn parse(toastfile_data: &str) -> Result<Toastfile, String> {
+pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     // Deserialize the data.
     let toastfile: Toastfile =
-        serde_yaml::from_str(toastfile_data).map_err(|e| format!("{}", e))?;
+        serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{}", e), None))?;
 
     // Make sure the paths are valid.
     check_paths(&toastfile)?;
@@ -91,19 +91,14 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, String> {
 }
 
 // Fetch the variables for a task from the environment.
-pub fn environment<'a>(
-    task: &'a Task,
-) -> Result<HashMap<String, String>, Vec<&'a str>> {
+pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'a str>> {
     let mut violations = vec![];
     let mut result = HashMap::new();
 
     for (arg, default) in &task.environment {
         let maybe_var = env::var(arg);
         if let Some(default) = default {
-            result.insert(
-                arg.clone(),
-                maybe_var.unwrap_or_else(|_| default.clone()),
-            );
+            result.insert(arg.clone(), maybe_var.unwrap_or_else(|_| default.clone()));
         } else if let Ok(var) = maybe_var {
             result.insert(arg.clone(), var);
         } else {
@@ -118,18 +113,20 @@ pub fn environment<'a>(
     }
 }
 
-// Check that paths that should be relative are, and likewise for paths that
-// should be absolute.
-fn check_paths(toastfile: &Toastfile) -> Result<(), String> {
+// Check that paths that should be relative are, and likewise for paths that should be absolute.
+fn check_paths(toastfile: &Toastfile) -> Result<(), Failure> {
     for (name, task) in &toastfile.tasks {
         // Check `input_paths`.
         for path in &task.input_paths {
             if path.is_absolute() {
-                return Err(format!(
-                    "Task {} has an absolute {}: {}.",
-                    name.code_str(),
-                    "input_path".code_str(),
-                    path.to_string_lossy().code_str()
+                return Err(Failure::User(
+                    format!(
+                        "Task {} has an absolute {}: {}.",
+                        name.code_str(),
+                        "input_path".code_str(),
+                        path.to_string_lossy().code_str()
+                    ),
+                    None,
                 ));
             }
         }
@@ -137,22 +134,28 @@ fn check_paths(toastfile: &Toastfile) -> Result<(), String> {
         // Check `output_paths`.
         for path in &task.output_paths {
             if path.is_absolute() {
-                return Err(format!(
-                    "Task {} has an absolute {}: {}.",
-                    name.code_str(),
-                    "ouput_path".code_str(),
-                    path.to_string_lossy().code_str()
+                return Err(Failure::User(
+                    format!(
+                        "Task {} has an absolute {}: {}.",
+                        name.code_str(),
+                        "ouput_path".code_str(),
+                        path.to_string_lossy().code_str()
+                    ),
+                    None,
                 ));
             }
         }
 
         // Check `location`.
         if task.location.is_relative() {
-            return Err(format!(
-                "Task {} has a relative {}: {}.",
-                name.code_str(),
-                "location".code_str(),
-                task.location.to_string_lossy().code_str()
+            return Err(Failure::User(
+                format!(
+                    "Task {} has a relative {}: {}.",
+                    name.code_str(),
+                    "location".code_str(),
+                    task.location.to_string_lossy().code_str()
+                ),
+                None,
             ));
         }
     }
@@ -161,35 +164,40 @@ fn check_paths(toastfile: &Toastfile) -> Result<(), String> {
 }
 
 // Check that caching is disabled when appropriate.
-fn check_caching(toastfile: &Toastfile) -> Result<(), String> {
+fn check_caching(toastfile: &Toastfile) -> Result<(), Failure> {
     for (name, task) in &toastfile.tasks {
         // If a task exposes ports, then caching should be disabled.
         if !&task.ports.is_empty() && task.cache {
-            return Err(format!(
-                "Task {} exposes ports but does not disable caching. \
-                 To fix this, set {} for this task.",
-                name.code_str(),
-                "cache: false".code_str(),
+            return Err(Failure::User(
+                format!(
+                    "Task {} exposes ports but does not disable caching. \
+                     To fix this, set {} for this task.",
+                    name.code_str(),
+                    "cache: false".code_str(),
+                ),
+                None,
             ));
         }
 
         // If a task uses file watching, then caching should be disabled.
         if task.watch && task.cache {
-            return Err(format!(
-        "Task {} watches the filesystem but does not disable caching. \
-         To fix this, set {} for this task.",
-        name.code_str(),
-        "cache: false".code_str(),
-      ));
+            return Err(Failure::User(
+                format!(
+                    "Task {} watches the filesystem but does not disable caching. \
+                     To fix this, set {} for this task.",
+                    name.code_str(),
+                    "cache: false".code_str(),
+                ),
+                None,
+            ));
         }
     }
 
     Ok(())
 }
 
-// Check that all dependencies exist and form a DAG (no cycles).
-// [tag:tasks_dag]
-fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
+// Check that all dependencies exist and form a DAG (no cycles). [tag:tasks_dag]
+fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     // Check the default task. [tag:valid_default]
     let valid_default = toastfile
         .default
@@ -235,21 +243,27 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
         );
 
         if valid_default {
-            return Err(format!(
-                "The following tasks have invalid dependencies: {}.",
-                violations_series
+            return Err(Failure::User(
+                format!(
+                    "The following tasks have invalid dependencies: {}.",
+                    violations_series
+                ),
+                None,
             ));
         } else {
-            return Err(format!(
+            return Err(Failure::User(format!(
         "The default task {} does not exist, and the following tasks have invalid dependencies: {}.",
         toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
         violations_series
-      ));
+      ), None));
         }
     } else if !valid_default {
-        return Err(format!(
-            "The default task {} does not exist.",
-            toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default]
+        return Err(Failure::User(
+            format!(
+                "The default task {} does not exist.",
+                toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default]
+            ),
+            None,
         ));
     }
 
@@ -260,8 +274,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
         let mut ancestors_set: HashSet<&'a str> = HashSet::new();
         let mut ancestors_stack: Vec<&'a str> = vec![];
 
-        // Keep going as long as there are more nodes to process.
-        // [tag:toastfile_frontier_nonempty]
+        // Keep going as long as there are more nodes to process. [tag:toastfile_frontier_nonempty]
         while !frontier.is_empty() {
             // Take the top task from the frontier. This is safe due to
             // [ref:toastfile_frontier_nonempty].
@@ -269,14 +282,13 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
 
             // Update the ancestors set and stack.
             for _ in 0..ancestors_stack.len() - task_depth {
-                // The `unwrap` is safe because `ancestors_stack.len()` is positive in
-                // every iteration of this loop.
+                // The `unwrap` is safe because `ancestors_stack.len()` is positive in every
+                // iteration of this loop.
                 let task_to_remove = ancestors_stack.pop().unwrap();
                 ancestors_set.remove(task_to_remove);
             }
 
-            // If this task is an ancestor of itself, we have a cycle. Return an
-            // error.
+            // If this task is an ancestor of itself, we have a cycle. Return an error.
             if ancestors_set.contains(task) {
                 let mut cycle_iter = ancestors_stack.iter();
                 cycle_iter.find(|&&x| x == task);
@@ -309,14 +321,13 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
                         )
                     )
                 };
-                return Err(format!(
-                    "The dependencies are cyclic. {}",
-                    error_message
+                return Err(Failure::User(
+                    format!("The dependencies are cyclic. {}", error_message),
+                    None,
                 ));
             }
 
-            // If we've never seen this task before, add its dependencies to the
-            // frontier.
+            // If we've never seen this task before, add its dependencies to the frontier.
             if !visited.contains(task) {
                 visited.insert(task);
 
@@ -337,8 +348,8 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_caching, check_dependencies, check_paths, environment, parse,
-        Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
+        check_caching, check_dependencies, check_paths, environment, parse, Task, Toastfile,
+        DEFAULT_LOCATION, DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -350,13 +361,13 @@ tasks: {}
     "#
         .trim();
 
-        let toastfile = Ok(Toastfile {
+        let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
             tasks: HashMap::new(),
-        });
+        };
 
-        assert_eq!(parse(input), toastfile);
+        assert_eq!(parse(input).unwrap(), toastfile);
     }
 
     #[test]
@@ -385,13 +396,13 @@ tasks:
             },
         );
 
-        let toastfile = Ok(Toastfile {
+        let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
             tasks,
-        });
+        };
 
-        assert_eq!(parse(input), toastfile);
+        assert_eq!(parse(input).unwrap(), toastfile);
     }
 
     #[test]
@@ -421,13 +432,13 @@ tasks:
             },
         );
 
-        let toastfile = Ok(Toastfile {
+        let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("foo".to_owned()),
             tasks,
-        });
+        };
 
-        assert_eq!(parse(input), toastfile);
+        assert_eq!(parse(input).unwrap(), toastfile);
     }
 
     #[test]
@@ -442,7 +453,7 @@ tasks:
 
         let result = parse(input);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("bar"));
+        assert!(result.unwrap_err().to_string().contains("bar"));
     }
 
     #[test]
@@ -516,24 +527,20 @@ tasks:
                     Path::new("grault").to_owned(),
                     Path::new("garply").to_owned(),
                 ],
-                ports: vec![
-                    "3000".to_owned(),
-                    "3001".to_owned(),
-                    "3002".to_owned(),
-                ],
+                ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
                 location: Path::new("/code").to_owned(),
                 user: "waldo".to_owned(),
                 command: Some("wibble".to_owned()),
             },
         );
 
-        let toastfile = Ok(Toastfile {
+        let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
             tasks,
-        });
+        };
 
-        assert_eq!(parse(input), toastfile);
+        assert_eq!(parse(input).unwrap(), toastfile);
     }
 
     #[test]
@@ -556,9 +563,8 @@ tasks:
 
     #[test]
     fn environment_default_overridden() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
-        // having parallel tests clobbering environment variables used by other
-        // threads.
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
         let mut env_map = HashMap::new();
         env_map.insert("foo1".to_owned(), Some("bar".to_owned()));
 
@@ -585,9 +591,8 @@ tasks:
 
     #[test]
     fn environment_default_not_overridden() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
-        // having parallel tests clobbering environment variables used by other
-        // threads.
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
         let mut env_map = HashMap::new();
         env_map.insert("foo2".to_owned(), Some("bar".to_owned()));
 
@@ -614,9 +619,8 @@ tasks:
 
     #[test]
     fn environment_missing() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid
-        // having parallel tests clobbering environment variables used by other
-        // threads.
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
         let mut env_map = HashMap::new();
         env_map.insert("foo3".to_owned(), None);
 
@@ -723,7 +727,7 @@ tasks:
 
         let result = check_paths(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("/bar"));
+        assert!(result.unwrap_err().to_string().contains("/bar"));
     }
 
     #[test]
@@ -753,7 +757,7 @@ tasks:
 
         let result = check_paths(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("/baz"));
+        assert!(result.unwrap_err().to_string().contains("/baz"));
     }
 
     #[test]
@@ -783,7 +787,7 @@ tasks:
 
         let result = check_paths(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("qux"));
+        assert!(result.unwrap_err().to_string().contains("qux"));
     }
 
     #[test]
@@ -841,7 +845,7 @@ tasks:
 
         let result = check_caching(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("caching"));
+        assert!(result.unwrap_err().to_string().contains("caching"));
     }
 
     #[test]
@@ -899,7 +903,7 @@ tasks:
 
         let result = check_caching(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("watches"));
+        assert!(result.unwrap_err().to_string().contains("watches"));
     }
 
     #[test]
@@ -1054,7 +1058,7 @@ tasks:
 
         let result = check_dependencies(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("baz"));
+        assert!(result.unwrap_err().to_string().contains("baz"));
     }
 
     #[test]
@@ -1084,7 +1088,7 @@ tasks:
 
         let result = check_dependencies(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("cyclic"));
+        assert!(result.unwrap_err().to_string().contains("cyclic"));
     }
 
     #[test]
@@ -1129,7 +1133,7 @@ tasks:
 
         let result = check_dependencies(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("cyclic"));
+        assert!(result.unwrap_err().to_string().contains("cyclic"));
     }
 
     #[test]
@@ -1189,6 +1193,6 @@ tasks:
 
         let result = check_dependencies(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("cyclic"));
+        assert!(result.unwrap_err().to_string().contains("cyclic"));
     }
 }

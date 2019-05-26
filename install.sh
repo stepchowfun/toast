@@ -48,12 +48,14 @@
   fi
 
   # Download the binary.
-  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME" -o "$FILENAME" -LSf; then
+  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME" \
+      -o "$FILENAME" -LSf; then
     fail 'There was an error downloading the binary.'
   fi
 
   # Download the checksum.
-  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME.sha256" -o "$FILENAME.sha256" -LSf; then
+  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME.sha256" \
+      -o "$FILENAME.sha256" -LSf; then
     fail 'There was an error downloading the checksum.'
   fi
 
@@ -69,7 +71,9 @@
 
   # Install it at the requested destination.
   # shellcheck disable=SC2024
-  mv "$FILENAME" "$DESTINATION" 2> /dev/null || sudo mv "$FILENAME" "$DESTINATION" < /dev/tty || fail "Unable to install the binary at $DESTINATION."
+  mv "$FILENAME" "$DESTINATION" 2> /dev/null ||
+    sudo mv "$FILENAME" "$DESTINATION" < /dev/tty ||
+    fail "Unable to install the binary at $DESTINATION."
 
   # Remove the temporary directory.
   cd ..

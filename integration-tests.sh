@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This script runs the integration tests. The `TOAST` environment variable
-# should be set to the absolute path of the Toast binary.
+# This script runs the integration tests. The `TOAST` environment variable should be set to the
+# absolute path of the Toast binary.
 
 # Log the path to the binary.
 echo "Toast location: $TOAST"
