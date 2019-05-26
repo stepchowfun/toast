@@ -1,4 +1,4 @@
-# Toast
+# Toast 🥂
 
 [![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
 
