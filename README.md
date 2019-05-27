@@ -11,7 +11,7 @@ Toast supports local and remote caching to avoid repeating work. Toast records a
 The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is *not* suitable:
 
 - Tasks that cannot run in Linux containers: for example, you wouldn't use Toast to build an iOS application.
-- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) to do that, but you will forgo some toasty benefits like remote caching, filesystem watching, and the ability to define tasks and dependencies.
+- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) to do that, but you will forgo some toasty benefits like remote caching and the ability to define tasks and dependencies.
 
 Toast has no knowledge of specific programming languages or frameworks. You can use Toast with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
@@ -171,7 +171,7 @@ tasks:
 
 Now if you run `toast deploy` without specifying a `CLUSTER`, Toast will complain about the missing variable and refuse to run the task.
 
-### Running a server and watching the filesystem
+### Running a server and mounting paths in the container's filesystem
 
 Toast can be used for more than just building a project. Suppose you're developing a website. You can define a Toast task to run your web server! Create a file called `index.html` with the following contents:
 
@@ -189,16 +189,15 @@ Toast can be used for more than just building a project. Suppose you're developi
 
 We can use a web server like [nginx](https://www.nginx.com/). The official `nginx` Docker image will do, but you could also use a more general image and define a Toast task to install nginx.
 
-In our `toast.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also set the `watch` flag to enable filesystem watching.
+In our `toast.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also use `mount_paths` rather than `input_paths` to synchronize files between the host and the container while the server is running.
 
 ```yml
 image: nginx
 tasks:
   serve:
     cache: false # It doesn't make sense to cache this task.
-    watch: true # Propagate changes to `index.html` from the host to the container.
-    input_paths:
-      - index.html
+    mount_paths:
+      - index.html # Mount this file in the container's filesystem.
     ports:
       - 3000:80 # Expose port 80 in the container as port 3000 on the host.
     location: /usr/share/nginx/html/ # Nginx will serve the files in here.
@@ -207,7 +206,7 @@ tasks:
 
 Now you can use Toast to run the server:
 
-![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/server-0.svg?sanitize=true)
+![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/server-1.svg?sanitize=true)
 
 ### Dropping into a shell
 
@@ -251,16 +250,17 @@ tasks:   <map from task name to task>
 Tasks have the following schema and defaults:
 
 ```yaml
-dependencies: []   # Names of dependencies
-cache: true        # Whether a task can be cached
-environment: {}    # Map from environment variable to optional default
-watch: false       # Whether to sync input files from the host to the container
-input_paths: []    # Paths to copy into the container
-output_paths: []   # Paths to copy out of the container
-ports: []          # Port mappings to publish
-location: /scratch # Path in the container for running this task
-user: root         # Name of the user in the container for running this task
-command: null      # Shell command to run in the container
+dependencies: []      # Names of dependencies
+cache: true           # Whether a task can be cached
+environment: {}       # Map from environment variable to optional default
+input_paths: []       # Paths to copy into the container
+output_paths: []      # Paths to copy out of the container
+mount_paths: []       # Paths to mount into the container
+mount_readonly: false # Whether to mount the mount_paths as readonly
+ports: []             # Port mappings to publish
+location: /scratch    # Path in the container for running this task
+user: root            # Name of the user in the container for running this task
+command: null         # Shell command to run in the container
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.
@@ -379,7 +379,7 @@ You can run that command with `--force` to update an existing installation.
 
 ## Requirements
 
-- Toast requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.03.0 or later.
+- Toast requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.06.0 or later.
 - Only Linux-based Docker images are supported. Toast can run on any platform capable of running such images, e.g., macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ## Acknowledgements

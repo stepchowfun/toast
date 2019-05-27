@@ -25,14 +25,17 @@ pub struct Task {
     #[serde(default)]
     pub environment: HashMap<String, Option<String>>,
 
-    #[serde(default = "default_task_watch")]
-    pub watch: bool,
-
     #[serde(default)]
     pub input_paths: Vec<PathBuf>,
 
     #[serde(default)]
     pub output_paths: Vec<PathBuf>,
+
+    #[serde(default)]
+    pub mount_paths: Vec<PathBuf>,
+
+    #[serde(default = "default_task_mount_readonly")]
+    pub mount_readonly: bool,
 
     #[serde(default)]
     pub ports: Vec<String>,
@@ -50,7 +53,7 @@ fn default_task_cache() -> bool {
     true
 }
 
-fn default_task_watch() -> bool {
+fn default_task_mount_readonly() -> bool {
     false
 }
 
@@ -170,6 +173,33 @@ fn check_paths(toastfile: &Toastfile) -> Result<(), Failure> {
             }
         }
 
+        // Check `mount_paths`.
+        for path in &task.mount_paths {
+            if path.is_absolute() {
+                return Err(Failure::User(
+                    format!(
+                        "Task {} has an absolute {}: {}.",
+                        name.code_str(),
+                        "mount_path".code_str(),
+                        path.to_string_lossy().code_str()
+                    ),
+                    None,
+                ));
+            }
+
+            if path.to_string_lossy().contains(',') {
+                return Err(Failure::User(
+                    format!(
+                        "Mount path {} of task {} has a {}.",
+                        path.to_string_lossy().code_str(),
+                        name.code_str(),
+                        ",".code_str()
+                    ),
+                    None,
+                ));
+            }
+        }
+
         // Check `location`.
         if task.location.is_relative() {
             return Err(Failure::User(
@@ -203,13 +233,14 @@ fn check_caching(toastfile: &Toastfile) -> Result<(), Failure> {
             ));
         }
 
-        // If a task uses file watching, then caching should be disabled.
-        if task.watch && task.cache {
+        // If a task has any mount paths, then caching should be disabled.
+        if !task.mount_paths.is_empty() && task.cache {
             return Err(Failure::User(
                 format!(
-                    "Task {} watches the filesystem but does not disable caching. \
+                    "Task {} has {} but does not disable caching. \
                      To fix this, set {} for this task.",
                     name.code_str(),
+                    "mount_paths".code_str(),
                     "cache: false".code_str(),
                 ),
                 None,
@@ -410,9 +441,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -446,9 +478,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -494,7 +527,6 @@ tasks:
       SPAM: null
       HAM: null
       EGGS: null
-    watch: true
     input_paths:
       - qux
       - quux
@@ -503,13 +535,18 @@ tasks:
       - corge
       - grault
       - garply
+    mount_paths:
+      - wibble
+      - wobble
+      - wubble
+    mount_readonly: true
     ports:
       - 3000
       - 3001
       - 3002
     location: /code
     user: waldo
-    command: wibble
+    command: flob
     "#
         .trim();
 
@@ -525,9 +562,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -540,7 +578,6 @@ tasks:
                 dependencies: vec!["foo".to_owned()],
                 cache: false,
                 environment,
-                watch: true,
                 input_paths: vec![
                     Path::new("qux").to_owned(),
                     Path::new("quux").to_owned(),
@@ -551,10 +588,16 @@ tasks:
                     Path::new("grault").to_owned(),
                     Path::new("garply").to_owned(),
                 ],
+                mount_paths: vec![
+                    Path::new("wibble").to_owned(),
+                    Path::new("wobble").to_owned(),
+                    Path::new("wubble").to_owned(),
+                ],
+                mount_readonly: true,
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
                 location: Path::new("/code").to_owned(),
                 user: "waldo".to_owned(),
-                command: Some("wibble".to_owned()),
+                command: Some("flob".to_owned()),
             },
         );
 
@@ -573,9 +616,10 @@ tasks:
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            watch: false,
             input_paths: vec![],
             output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
@@ -596,9 +640,10 @@ tasks:
             dependencies: vec![],
             cache: true,
             environment: env_map,
-            watch: false,
             input_paths: vec![],
             output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
@@ -624,9 +669,10 @@ tasks:
             dependencies: vec![],
             cache: true,
             environment: env_map,
-            watch: false,
             input_paths: vec![],
             output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
@@ -652,9 +698,10 @@ tasks:
             dependencies: vec![],
             cache: true,
             environment: env_map,
-            watch: false,
             input_paths: vec![],
             output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
@@ -677,9 +724,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -710,9 +758,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment,
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -743,9 +792,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment,
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -773,9 +823,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -801,11 +852,12 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![Path::new("bar").to_owned()],
                 output_paths: vec![Path::new("baz").to_owned()],
+                mount_paths: vec![Path::new("qux").to_owned()],
+                mount_readonly: false,
                 ports: vec![],
-                location: Path::new("/qux").to_owned(),
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: None,
             },
@@ -829,11 +881,12 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![Path::new("/bar").to_owned()],
                 output_paths: vec![Path::new("baz").to_owned()],
+                mount_paths: vec![Path::new("qux").to_owned()],
+                mount_readonly: false,
                 ports: vec![],
-                location: Path::new("/qux").to_owned(),
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: None,
             },
@@ -859,11 +912,12 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![Path::new("bar").to_owned()],
                 output_paths: vec![Path::new("/baz").to_owned()],
+                mount_paths: vec![Path::new("qux").to_owned()],
+                mount_readonly: false,
                 ports: vec![],
-                location: Path::new("/qux").to_owned(),
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: None,
             },
@@ -881,7 +935,7 @@ tasks:
     }
 
     #[test]
-    fn check_paths_relative_location() {
+    fn check_paths_absolute_mount_paths() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -889,11 +943,12 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![Path::new("bar").to_owned()],
                 output_paths: vec![Path::new("baz").to_owned()],
+                mount_paths: vec![Path::new("/qux").to_owned()],
+                mount_readonly: false,
                 ports: vec![],
-                location: Path::new("qux").to_owned(),
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: None,
             },
@@ -907,11 +962,11 @@ tasks:
 
         let result = check_paths(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("qux"));
+        assert!(result.unwrap_err().to_string().contains("/qux"));
     }
 
     #[test]
-    fn check_caching_enabled_with_no_ports_no_watch() {
+    fn check_paths_mount_paths_comma() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -919,9 +974,72 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
+                input_paths: vec![Path::new("bar").to_owned()],
+                output_paths: vec![Path::new("baz").to_owned()],
+                mount_paths: vec![Path::new("q,ux").to_owned()],
+                mount_readonly: false,
+                ports: vec![],
+                location: Path::new(DEFAULT_LOCATION).to_owned(),
+                user: DEFAULT_USER.to_owned(),
+                command: None,
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            tasks,
+        };
+
+        let result = check_paths(&toastfile);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("q,ux"));
+    }
+
+    #[test]
+    fn check_paths_relative_location() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![Path::new("bar").to_owned()],
+                output_paths: vec![Path::new("baz").to_owned()],
+                mount_paths: vec![Path::new("qux").to_owned()],
+                mount_readonly: false,
+                ports: vec![],
+                location: Path::new("code").to_owned(),
+                user: DEFAULT_USER.to_owned(),
+                command: None,
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            tasks,
+        };
+
+        let result = check_paths(&toastfile);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("code"));
+    }
+
+    #[test]
+    fn check_caching_enabled_with_no_ports_no_mount_paths() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -947,9 +1065,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec!["3000:80".to_owned()],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -977,9 +1096,10 @@ tasks:
                 dependencies: vec![],
                 cache: false,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec!["3000:80".to_owned()],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -997,7 +1117,7 @@ tasks:
     }
 
     #[test]
-    fn check_caching_enabled_with_watch() {
+    fn check_caching_enabled_with_mount_paths() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -1005,9 +1125,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: true,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![Path::new("bar").to_owned()],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1023,11 +1144,11 @@ tasks:
 
         let result = check_caching(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("watches"));
+        assert!(result.unwrap_err().to_string().contains("mount_paths"));
     }
 
     #[test]
-    fn check_caching_disabled_with_watch() {
+    fn check_caching_disabled_with_mount_paths() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -1035,9 +1156,10 @@ tasks:
                 dependencies: vec![],
                 cache: false,
                 environment: HashMap::new(),
-                watch: true,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![Path::new("bar").to_owned()],
+                mount_readonly: false,
                 ports: vec!["3000:80".to_owned()],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1074,9 +1196,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1102,9 +1225,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1117,9 +1241,10 @@ tasks:
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1145,9 +1270,10 @@ tasks:
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1160,9 +1286,10 @@ tasks:
                 dependencies: vec!["foo".to_owned(), "baz".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1190,9 +1317,10 @@ tasks:
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1220,9 +1348,10 @@ tasks:
                 dependencies: vec!["bar".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1235,9 +1364,10 @@ tasks:
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1265,9 +1395,10 @@ tasks:
                 dependencies: vec!["baz".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1280,9 +1411,10 @@ tasks:
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
@@ -1295,9 +1427,10 @@ tasks:
                 dependencies: vec!["bar".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
-                watch: false,
                 input_paths: vec![],
                 output_paths: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),

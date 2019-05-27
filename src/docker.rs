@@ -80,9 +80,13 @@ pub fn delete_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fa
 }
 
 // Create a container and return its ID.
+#[allow(clippy::too_many_arguments)]
 pub fn create_container(
     image: &str,
+    source_dir: &Path,
     environment: &HashMap<String, String>,
+    mount_paths: &[PathBuf],
+    mount_readonly: bool,
     ports: &[String],
     location: &Path,
     user: &str,
@@ -99,6 +103,23 @@ pub fn create_container(
         environment_pairs.push(format!("{}={}", variable, value)); // [ref:env_var_equals]
     }
 
+    let mut mount_options = Vec::new();
+    for path in mount_paths {
+        if mount_readonly {
+            mount_options.push(format!(
+                "type=bind,source={},target={},readonly",
+                source_dir.join(path).to_string_lossy(),
+                location.join(path).to_string_lossy()
+            ));
+        } else {
+            mount_options.push(format!(
+                "type=bind,source={},target={}",
+                source_dir.join(path).to_string_lossy(),
+                location.join(path).to_string_lossy()
+            ));
+        }
+    }
+
     // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes, otherwise they can
     // accumulate. Bash does this, but we run `/bin/sh` in the container, which may or may not be
     // Bash. So `--init` runs Tini (https://github.com/krallin/tini) as PID 1, which properly reaps
@@ -113,6 +134,13 @@ pub fn create_container(
         environment_pairs
             .iter()
             .flat_map(|pair| vec!["--env", pair])
+            .collect::<Vec<_>>(),
+    );
+
+    args.extend(
+        mount_options
+            .iter()
+            .flat_map(|options| vec!["--mount", options])
             .collect::<Vec<_>>(),
     );
 
