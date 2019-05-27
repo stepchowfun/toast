@@ -1,8 +1,4 @@
-use crate::{
-    failure::{system_error, Failure},
-    format::CodeStr,
-    spinner::spin,
-};
+use crate::{failure, failure::Failure, format::CodeStr, spinner::spin};
 use std::{
     collections::HashMap,
     fs::{create_dir_all, metadata, rename},
@@ -153,7 +149,7 @@ pub fn copy_into_container<R: Read>(
         &["container", "cp", "-", &format!("{}:{}", container, "/")],
         |mut stdin| {
             io::copy(&mut tar, &mut stdin)
-                .map_err(system_error("Unable to copy files into the container."))?;
+                .map_err(failure::system("Unable to copy files into the container."))?;
 
             Ok(())
         },
@@ -187,7 +183,8 @@ pub fn copy_from_container(
         // into the directory `/foo`, resulting in `/foo/foo`, which is undesirable. To work around
         // this, we first copy the path from the container into a temporary directory (where the
         // target path is guaranteed to not exist). Then we copy/move that to the final destination.
-        let temp_dir = tempdir().map_err(system_error("Unable to create temporary directory."))?;
+        let temp_dir =
+            tempdir().map_err(failure::system("Unable to create temporary directory."))?;
 
         // Figure out what needs to go where.
         let source = source_dir.join(path);
@@ -210,7 +207,7 @@ pub fn copy_from_container(
 
         // Check if what we got from the container is a file or a directory.
         if metadata(&intermediate)
-            .map_err(system_error(format!(
+            .map_err(failure::system(format!(
                 "Unable to retrieve filesystem metadata for path {}.",
                 intermediate.to_string_lossy().code_str(),
             )))?
@@ -221,13 +218,13 @@ pub fn copy_from_container(
             let destination_dir = destination.parent().unwrap().to_owned();
 
             // Make sure the destination directory exists.
-            create_dir_all(&destination_dir).map_err(system_error(format!(
+            create_dir_all(&destination_dir).map_err(failure::system(format!(
                 "Unable to create directory {}.",
                 destination_dir.to_string_lossy().code_str(),
             )))?;
 
             // Move it to the destination.
-            rename(&intermediate, &destination).map_err(system_error(format!(
+            rename(&intermediate, &destination).map_err(failure::system(format!(
                 "Unable to move file {} to destination {}.",
                 intermediate.to_string_lossy().code_str(),
                 destination.to_string_lossy().code_str(),
@@ -236,7 +233,7 @@ pub fn copy_from_container(
             // It's a directory. Traverse it.
             for entry in WalkDir::new(&intermediate) {
                 // If we run into an error traversing the filesystem, report it.
-                let entry = entry.map_err(system_error(format!(
+                let entry = entry.map_err(failure::system(format!(
                     "Unable to traverse directory {}.",
                     intermediate.to_string_lossy().code_str(),
                 )))?;
@@ -250,13 +247,13 @@ pub fn copy_from_container(
                 // Check if the current entry is a file or a directory.
                 if entry.file_type().is_dir() {
                     // It's a directory. Create a directory at the destination.
-                    create_dir_all(&destination_path).map_err(system_error(format!(
+                    create_dir_all(&destination_path).map_err(failure::system(format!(
                         "Unable to create directory {}.",
                         destination_path.to_string_lossy().code_str(),
                     )))?;
                 } else {
                     // It's a file. Move it to the destination.
-                    rename(entry_path, &destination_path).map_err(system_error(format!(
+                    rename(entry_path, &destination_path).map_err(failure::system(format!(
                         "Unable to move file {} to destination {}.",
                         entry_path.to_string_lossy().code_str(),
                         destination_path.to_string_lossy().code_str(),
@@ -390,7 +387,7 @@ fn run_quiet(
     let output = command(args)
         .stderr(Stdio::null())
         .output()
-        .map_err(system_error(format!(
+        .map_err(failure::system(format!(
             "{} Perhaps you don't have Docker installed.",
             error
         )))?;
@@ -441,7 +438,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(system_error(format!(
+        .map_err(failure::system(format!(
             "{} Perhaps you don't have Docker installed.",
             error
         )))?;
@@ -450,7 +447,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     writer(child.stdin.as_mut().unwrap())?; // [ref:run_quiet_stdin_piped]
 
     // Wait for the child to terminate.
-    let output = child.wait_with_output().map_err(system_error(format!(
+    let output = child.wait_with_output().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
         error
     )))?;
@@ -489,13 +486,13 @@ fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result
     let mut child = command(args)
         .stdin(Stdio::null())
         .spawn()
-        .map_err(system_error(format!(
+        .map_err(failure::system(format!(
             "{} Perhaps you don't have Docker installed.",
             error
         )))?;
 
     // Wait for the child to terminate.
-    let status = child.wait().map_err(system_error(format!(
+    let status = child.wait().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
         error
     )))?;
@@ -522,7 +519,7 @@ fn run_attach(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Resu
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let status = command(args).status().map_err(system_error(format!(
+    let status = command(args).status().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
         error
     )))?;

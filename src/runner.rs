@@ -1,9 +1,4 @@
-use crate::{
-    cache, docker,
-    failure::{system_error, Failure},
-    tar,
-    toastfile::Task,
-};
+use crate::{cache, docker, failure, failure::Failure, tar, toastfile::Task};
 use notify::{watcher, RecursiveMode, Watcher};
 use std::{
     collections::{HashMap, HashSet},
@@ -59,7 +54,7 @@ pub fn run(
         Ok(tar_file) => tar_file,
         Err(e) => {
             return (
-                Err(system_error("Unable to create temporary file.")(e)),
+                Err(failure::system("Unable to create temporary file.")(e)),
                 context,
             )
         }
@@ -81,7 +76,7 @@ pub fn run(
     // Seek back to the beginning of the archive to prepare for copying it into the container.
     if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
         return (
-            Err(system_error("Unable to seek temporary file.")(e)),
+            Err(failure::system("Unable to seek temporary file.")(e)),
             context,
         );
     };
@@ -244,7 +239,7 @@ pub fn run(
 
         // Set up a filesystem watcher.
         let mut watcher = match watcher(notify_sender, Duration::from_millis(200))
-            .map_err(system_error("Unable to initialize filesystem watcher."))
+            .map_err(failure::system("Unable to initialize filesystem watcher."))
         {
             Ok(watcher) => watcher,
             Err(e) => {
@@ -267,7 +262,7 @@ pub fn run(
                 while let Ok(_) = notify_receiver.recv() {
                     // Create a temporary archive for the input file contents.
                     let tar_file = match tempfile()
-                        .map_err(system_error("Unable to create temporary file."))
+                        .map_err(failure::system("Unable to create temporary file."))
                     {
                         Ok(tar_file) => tar_file,
                         Err(e) => {
@@ -296,7 +291,7 @@ pub fn run(
                     // container.
                     if let Err(e) = tar_file
                         .seek(SeekFrom::Start(0))
-                        .map_err(system_error("Unable to seek temporary file."))
+                        .map_err(failure::system("Unable to seek temporary file."))
                     {
                         error!("{}", e);
                         break;
@@ -322,9 +317,9 @@ pub fn run(
             for path in &task.input_paths {
                 if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
                     return (
-                        Err(system_error("Unable to register a filesystem watch path.")(
-                            e,
-                        )),
+                        Err(failure::system(
+                            "Unable to register a filesystem watch path.",
+                        )(e)),
                         context,
                     );
                 }

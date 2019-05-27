@@ -1,7 +1,4 @@
-use crate::{
-    failure::{system_error, Failure},
-    toastfile::Task,
-};
+use crate::{failure, failure::Failure, toastfile::Task};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io, io::Read};
 
@@ -53,7 +50,7 @@ pub fn key(
 // data in memory at the same time.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
-    io::copy(input, &mut hasher).map_err(system_error("Unable to compute hash."))?;
+    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
     Ok(hex::encode(hasher.result()))
 }
 

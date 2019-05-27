@@ -1,4 +1,4 @@
-use crate::failure::{user_error, Failure};
+use crate::{failure, failure::Failure};
 use serde::{Deserialize, Serialize};
 
 pub const REPO_DEFAULT: &str = "toast";
@@ -46,7 +46,7 @@ fn default_write_remote_cache() -> bool {
 
 // Parse a program configuration.
 pub fn parse(config: &str) -> Result<Config, Failure> {
-    serde_yaml::from_str(config).map_err(user_error("Syntax error."))
+    serde_yaml::from_str(config).map_err(failure::user("Syntax error."))
 }
 
 #[cfg(test)]
