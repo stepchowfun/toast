@@ -386,4 +386,4 @@ You can run that command with `--force` to update an existing installation.
 
 Toast was inspired by an in-house tool used at Airbnb for CI jobs. The design was heavily influenced by the lessons I learned working on that tool and building out Airbnb's CI system with the fabulous CI Infrastructure Team.
 
-Special thanks to Julia Wang ([@juliahw](https://github.com/juliahw)) for valuable early feedback. Thanks to Julia and Mark Tai ([@marktai](https://github.com/marktai)) for coming up with the name *Toast*.
+Special thanks to Julia Wang ([@juliahw](https://github.com/juliahw)) for valuable early feedback. Thanks to her and Mark Tai ([@marktai](https://github.com/marktai)) for coming up with the name *Toast*.
