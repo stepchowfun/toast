@@ -1,16 +1,12 @@
 use crate::{cache, docker, failure, failure::Failure, tar, toastfile::Task};
-use notify::{watcher, RecursiveMode, Watcher};
 use std::{
     collections::{HashMap, HashSet},
     io::{Seek, SeekFrom},
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::channel,
         Arc, Mutex,
     },
-    thread,
-    time::Duration,
 };
 use tempfile::tempfile;
 
@@ -136,7 +132,10 @@ pub fn run(
             // output files.
             let container = match docker::create_container(
                 &image,
+                &toastfile_dir,
                 &task_environment,
+                &task.mount_paths,
+                task.mount_readonly,
                 &task.ports,
                 &task.location,
                 &task.user,
@@ -192,7 +191,10 @@ pub fn run(
         // Create a container from the image.
         let container = match docker::create_container(
             &context.image,
+            &toastfile_dir,
             &task_environment,
+            &task.mount_paths,
+            task.mount_readonly,
             &task.ports,
             &task.location,
             &task.user,
@@ -232,98 +234,6 @@ pub fn run(
         // a directory for `task.location`.
         if let Err(e) = docker::copy_into_container(&container, &mut tar_file, interrupted) {
             return (Err(e), context);
-        }
-
-        // Create a channel for publishing and listening for filesystem events.
-        let (notify_sender, notify_receiver) = channel();
-
-        // Set up a filesystem watcher.
-        let mut watcher = match watcher(notify_sender, Duration::from_millis(200))
-            .map_err(failure::system("Unable to initialize filesystem watcher."))
-        {
-            Ok(watcher) => watcher,
-            Err(e) => {
-                return (Err(e), context);
-            }
-        };
-
-        // If applicable, subscribe to filesystem events.
-        if task.watch {
-            // We'll create a thread to process the events. First, we need to clone these values so
-            // they can be owned by the thread.
-            let toastfile_dir_clone = toastfile_dir.clone();
-            let container_clone = container.clone();
-            let interrupted_clone = interrupted.clone();
-            let task_clone = task.clone();
-
-            // Spawn the thread.
-            thread::spawn(move || {
-                // Wait for events.
-                while let Ok(_) = notify_receiver.recv() {
-                    // Create a temporary archive for the input file contents.
-                    let tar_file = match tempfile()
-                        .map_err(failure::system("Unable to create temporary file."))
-                    {
-                        Ok(tar_file) => tar_file,
-                        Err(e) => {
-                            error!("{}.", e);
-                            break;
-                        }
-                    };
-
-                    // Write to the archive.
-                    let (mut tar_file, _) = match tar::create(
-                        "Reading files\u{2026}",
-                        tar_file,
-                        &task_clone.input_paths,
-                        &toastfile_dir_clone,
-                        &task_clone.location,
-                        &interrupted_clone,
-                    ) {
-                        Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
-                        Err(e) => {
-                            error!("{}", e);
-                            break;
-                        }
-                    };
-
-                    // Seek back to the beginning of the archive to prepare for copying it into the
-                    // container.
-                    if let Err(e) = tar_file
-                        .seek(SeekFrom::Start(0))
-                        .map_err(failure::system("Unable to seek temporary file."))
-                    {
-                        error!("{}", e);
-                        break;
-                    };
-
-                    // Copy files into the container. If `task.input_paths` is empty, then this will
-                    // just create a directory for `task.location`.
-                    if let Err(e) = docker::copy_into_container(
-                        &container_clone,
-                        &mut tar_file,
-                        &interrupted_clone,
-                    ) {
-                        error!("{}", e);
-                        break;
-                    }
-
-                    // Inform the user that filesystem watching is working.
-                    info!("Files synced.");
-                }
-            });
-
-            // Add the `input_paths` from this task to the filesystem watcher.
-            for path in &task.input_paths {
-                if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
-                    return (
-                        Err(failure::system(
-                            "Unable to register a filesystem watch path.",
-                        )(e)),
-                        context,
-                    );
-                }
-            }
         }
 
         // Start the container to run the command.
