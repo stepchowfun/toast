@@ -33,10 +33,10 @@ set -euo pipefail
 
   # Compute checksums of the artifacts.
   cd release
-  sha256sum --binary toast-x86_64-apple-darwin > toast-x86_64-apple-darwin.sha256
-  sha256sum --binary toast-x86_64-unknown-linux-gnu > toast-x86_64-unknown-linux-gnu.sha256
+  shasum --algorithm 256 --binary toast-x86_64-apple-darwin > toast-x86_64-apple-darwin.sha256
+  shasum --algorithm 256 --binary toast-x86_64-unknown-linux-gnu > toast-x86_64-unknown-linux-gnu.sha256
 
   # Verify the checksums.
-  sha256sum --check --strict --quiet --status toast-x86_64-apple-darwin.sha256
-  sha256sum --check --strict --quiet --status toast-x86_64-unknown-linux-gnu.sha256
+  shasum --algorithm 256 --check --status toast-x86_64-apple-darwin.sha256
+  shasum --algorithm 256 --check --status toast-x86_64-unknown-linux-gnu.sha256
 )

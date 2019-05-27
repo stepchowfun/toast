@@ -59,7 +59,7 @@
   fi
 
   # Verify the checksum.
-  if ! sha256sum --check --strict --quiet --status "$FILENAME.sha256"; then
+  if ! shasum --algorithm 256 --check --status "$FILENAME.sha256"; then
     fail 'The downloaded binary was corrupted. Feel free to try again.'
   fi
 
