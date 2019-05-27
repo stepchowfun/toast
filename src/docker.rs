@@ -105,6 +105,7 @@ pub fn create_container(
 
     let mut mount_options = Vec::new();
     for path in mount_paths {
+        // [ref:mount_path_comma]
         if mount_readonly {
             mount_options.push(format!(
                 "type=bind,source={},target={},readonly",
