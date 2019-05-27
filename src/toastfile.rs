@@ -187,6 +187,7 @@ fn check_paths(toastfile: &Toastfile) -> Result<(), Failure> {
                 ));
             }
 
+            // [tag:mount_path_comma]
             if path.to_string_lossy().contains(',') {
                 return Err(Failure::User(
                     format!(
