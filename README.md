@@ -25,7 +25,7 @@ Let's create a simple toastfile. Create a file named `toast.yml` with the follow
 image: ubuntu
 tasks:
   greet:
-    command: echo 'Hello, World!'
+    command: echo 'Hello, World!' # Toast will run this in a container.
 ```
 
 Now run `toast`. You should see the following:
@@ -42,7 +42,7 @@ Toast caches tasks to save you time. For example, you don't want to reinstall yo
 image: ubuntu
 tasks:
   greet:
-    cache: false
+    cache: false # Don't cache this task.
     command: echo 'Hello, World!'
 ```
 
@@ -60,7 +60,7 @@ tasks:
 
   greet:
     dependencies:
-      - install_figlet
+      - install_figlet # Toast will run this task first.
     command: figlet 'Hello, World!'
 ```
 
@@ -94,7 +94,7 @@ tasks:
     dependencies:
       - install_gcc
     input_paths:
-      - main.c
+      - main.c # Toast will copy this file into the container before running the command.
     command: gcc main.c
 
   run:
@@ -111,7 +111,7 @@ Now if you run `toast`, you'll see this:
 
 ### Exporting files from the container
 
-A common use case for Toast is to build a project. Naturally, you might wonder how to access the build artifacts produced inside the container. It's easy to do with `output_paths`:
+A common use case for Toast is to build a project. Naturally, you might wonder how to access the build artifacts produced inside the container from the host machine. It's easy to do with `output_paths`:
 
 ```yaml
 image: ubuntu
@@ -127,7 +127,7 @@ tasks:
     input_paths:
       - main.c
     output_paths:
-      - a.out
+      - a.out # Toast will copy this file onto the host after running the command.
     command: gcc main.c
 ```
 
@@ -145,7 +145,7 @@ tasks:
   deploy:
     cache: false
     environment:
-      CLUSTER: staging # Deploy to staging by default
+      CLUSTER: staging # Deploy to staging by default.
     command: echo "Deploying to $CLUSTER..."
 ```
 
@@ -165,7 +165,7 @@ tasks:
   deploy:
     cache: false
     environment:
-      CLUSTER: null # No default provided
+      CLUSTER: null # No default; this variable must be provided at runtime.
     command: echo "Deploying to $CLUSTER..."
 ```
 
@@ -196,7 +196,7 @@ image: nginx
 tasks:
   serve:
     cache: false # It doesn't make sense to cache this task.
-    watch: true # Synchronize changes to `index.html`.
+    watch: true # Propagate changes to `index.html` from the host to the container.
     input_paths:
       - index.html
     ports:
