@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # This script generates release artifacts in a directory called `release`. It should be run from a
