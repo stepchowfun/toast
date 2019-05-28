@@ -2,24 +2,46 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
 
-*Toast* is a tool for running tasks in containers. You define tasks in a *toastfile*, and Toast runs them in an environment based on a Docker image of your choosing. Tasks can depend on other tasks, which makes Toast similar to a build system. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, serve web pages, deploy a service, etc.
+*Toast* is a tool for doing work in containers. You define tasks in a *toastfile*, and Toast runs them in an environment based on a Docker image of your choosing. Tasks can depend on other tasks, which makes Toast similar to a build system. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, serve web pages, deploy a service, etc.
 
-Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cache key that incorporates the shell command for the task, the contents of the files copied into the container, and all the other task inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by other machines.
+Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cryptographic hash of the shell command for the task, the contents of the files copied into the container, and all the other task inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by Toast running on other machines.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
 The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is *not* suitable:
 
 - Tasks that cannot run in Linux containers: for example, you wouldn't use Toast to build an iOS application.
-- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) to do that, but you will forgo some toasty benefits like remote caching and the ability to define tasks and dependencies.
+- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) for that, but you'll forgo some toasty benefits like remote caching and the ability to define tasks and dependencies.
 
 Toast has no knowledge of specific programming languages or frameworks. You can use Toast with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
 
+## Table of contents
+
+* [Tutorial](#tutorial)
+   * [Defining a simple task](#declaring-a-simple-task)
+   * [Adding a dependency](#adding-a-dependency)
+   * [Importing files from the host](#importing-files-from-the-host)
+   * [Exporting files from the container](#exporting-files-from-the-container)
+   * [Passing arguments to a task](#passing-arguments-to-a-task)
+   * [Running a server and mounting paths into the container](#running-a-server-and-mounting-paths-into-the-container)
+   * [Dropping into a shell](#dropping-into-a-shell)
+* [How Toast works](#how-toast-works)
+* [Toastfiles](#toastfiles)
+* [Cache configuration](#cache-configuration)
+* [Command-line options](#command-line-options)
+* [Installation](#installation)
+   * [Easy installation](#easy-installation)
+      * [Customizing the installation](#customizing-the-installation)
+   * [Manual installation](#manual-installation)
+   * [Installation with Cargo](#installation-with-cargo)
+* [Requirements](#requirements)
+* [Acknowledgements](#acknowledgements)
+
 ## Tutorial
 
-### A simple task
+### Defining a simple task
 
-Let's create a simple toastfile. Create a file named `toast.yml` with the following contents:
+Let's create a toastfile. Create a file named `toast.yml` with the following contents:
 
 ```yaml
 image: ubuntu
@@ -30,7 +52,7 @@ tasks:
 
 Now run `toast`. You should see the following:
 
-![A simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/simple-task-0.svg?sanitize=true)
+![Defining a simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/simple-task-0.svg?sanitize=true)
 
 If you run it again, Toast will find that nothing has changed and skip the task:
 
@@ -68,7 +90,7 @@ Run `toast` to see a marvelous greeting:
 
 ![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/dependencies-0.svg?sanitize=true)
 
-### Using files from the host
+### Importing files from the host
 
 Here's a more realistic example. Suppose you want to compile and run a simple C program. Create a file called `main.c`:
 
@@ -103,11 +125,13 @@ tasks:
     command: ./a.out
 ```
 
-Notice the `input_paths` array in the `build` task. Here we are copying a single file into the container, but we could instead copy the entire working directory with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
+Notice the `input_paths` array in the `build` task. Here we are copying a single file into the container, but we could instead import the entire directory containing the toastfile with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
 
 Now if you run `toast`, you'll see this:
 
-![Adding files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/input-paths-0.svg?sanitize=true)
+![Importing files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/input-paths-0.svg?sanitize=true)
+
+For subsequent runs, Toast will skip the task if nothing has changed. But if you update the greeting in `main.c`, Toast will detect the change and rerun the `build` and `run` tasks on the next invocation.
 
 ### Exporting files from the container
 
@@ -171,7 +195,7 @@ tasks:
 
 Now if you run `toast deploy` without specifying a `CLUSTER`, Toast will complain about the missing variable and refuse to run the task.
 
-### Running a server and mounting paths in the container's filesystem
+### Running a server and mounting paths into the container
 
 Toast can be used for more than just building a project. Suppose you're developing a website. You can define a Toast task to run your web server! Create a file called `index.html` with the following contents:
 
@@ -197,7 +221,7 @@ tasks:
   serve:
     cache: false # It doesn't make sense to cache this task.
     mount_paths:
-      - index.html # Mount this file in the container's filesystem.
+      - index.html # Synchronize this file between the host and the container.
     ports:
       - 3000:80 # Expose port 80 in the container as port 3000 on the host.
     location: /usr/share/nginx/html/ # Nginx will serve the files in here.
