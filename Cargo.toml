@@ -2,7 +2,7 @@
 name = "toast"
 version = "0.21.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
-description = "A containerized build system."
+description = "Containerize your development environment."
 license = "MIT"
 documentation = "https://github.com/stepchowfun/toast"
 homepage = "https://github.com/stepchowfun/toast"
