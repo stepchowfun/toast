@@ -267,20 +267,21 @@ A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks an
 
 ```yaml
 image:   <Docker image name with optional tag or digest>
-default: <name of default task to run or null to run all tasks by default>
+default: <name of default task to run or `null` to run all tasks by default>
 tasks:   <map from task name to task>
 ```
 
 Tasks have the following schema and defaults:
 
 ```yaml
+description: null     # A description of the task for the `--list` option
 dependencies: []      # Names of dependencies
 cache: true           # Whether a task can be cached
 environment: {}       # Map from environment variable to optional default
 input_paths: []       # Paths to copy into the container
 output_paths: []      # Paths to copy out of the container
 mount_paths: []       # Paths to mount into the container
-mount_readonly: false # Whether to mount the mount_paths as readonly
+mount_readonly: false # Whether to mount the `mount_paths` as readonly
 ports: []             # Port mappings to publish
 location: /scratch    # Path in the container for running this task
 user: root            # Name of the user in the container for running this task
@@ -338,6 +339,9 @@ OPTIONS:
 
     -h, --help
             Prints help information
+
+    -l, --list
+            Lists the tasks in the toastfile
 
         --read-local-cache <BOOL>
             Sets whether local cache reading is enabled
