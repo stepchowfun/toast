@@ -2,12 +2,14 @@ image: ubuntu:18.04
 default: build-test-lint
 tasks:
   install_packages:
+    description: Install system packages.
     command: |
       set -euo pipefail
       apt-get update
       apt-get install --yes build-essential curl shellcheck
 
   install_tagref:
+    description: Install Tagref, a reference checking tool.
     dependencies:
       - install_packages
     command: |
@@ -16,11 +18,13 @@ tasks:
         VERSION=1.2.0 sh
 
   create_user:
+    description: Create a user who doesn't have root privileges.
     command: |
       set -euo pipefail
       adduser --disabled-password --gecos '' user
 
   install_rust:
+    description: Install Rust, a systems programming language.
     dependencies:
       - install_packages
       - create_user
@@ -35,11 +39,13 @@ tasks:
       rm -rf "$(dirname "$(rustup which rustc)")/../share"
 
   install_tools:
+    description: Install the tools needed to build and lint the program.
     dependencies:
       - install_rust
       - install_tagref
 
   fetch_crates:
+    description: Download and build Rust packages used by the program.
     dependencies:
       - install_tools
     input_paths:
@@ -62,6 +68,7 @@ tasks:
       rm -rf src
 
   build:
+    description: Build the binary in non-release mode.
     dependencies:
       - fetch_crates
     input_paths:
@@ -73,6 +80,7 @@ tasks:
       cargo build
 
   test:
+    description: Run the test suite.
     dependencies:
       - build
     user: user
@@ -82,6 +90,7 @@ tasks:
       cargo test
 
   lint:
+    description: Run the linters.
     dependencies:
       - build
     input_paths:
@@ -104,12 +113,14 @@ tasks:
       shellcheck release.sh
 
   build-test-lint:
+    description: Build, test, and lint the program.
     dependencies:
       - build
       - lint
       - test
 
   check:
+    description: Type-check the program.
     dependencies:
       - fetch_crates
     input_paths:
@@ -121,6 +132,7 @@ tasks:
       cargo check
 
   format:
+    description: Format the source code.
     dependencies:
       - fetch_crates
     input_paths:
@@ -134,6 +146,8 @@ tasks:
       cargo fmt --all
 
   release:
+    description: >-
+      Build the program in release mode and export the binary to the `artifacts` directory.
     dependencies:
       - fetch_crates
     input_paths:
