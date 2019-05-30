@@ -16,6 +16,8 @@ pub const DEFAULT_USER: &str = "root";
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
+    pub description: Option<String>,
+
     #[serde(default)]
     pub dependencies: Vec<String>,
 
@@ -439,6 +441,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -476,6 +479,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -521,6 +525,7 @@ image: encom:os-12
 tasks:
   foo: {}
   bar:
+    description: Reticulate splines.
     dependencies:
       - foo
     cache: false
@@ -560,6 +565,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -576,6 +582,7 @@ tasks:
         tasks.insert(
             "bar".to_owned(),
             Task {
+                description: Some("Reticulate splines.".to_owned()),
                 dependencies: vec!["foo".to_owned()],
                 cache: false,
                 environment,
@@ -614,6 +621,7 @@ tasks:
     #[test]
     fn environment_empty() {
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -638,6 +646,7 @@ tasks:
         env_map.insert("foo1".to_owned(), Some("bar".to_owned()));
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: env_map,
@@ -667,6 +676,7 @@ tasks:
         env_map.insert("foo2".to_owned(), Some("bar".to_owned()));
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: env_map,
@@ -696,6 +706,7 @@ tasks:
         env_map.insert("foo3".to_owned(), None);
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: env_map,
@@ -722,6 +733,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -756,6 +768,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment,
@@ -790,6 +803,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment,
@@ -821,6 +835,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -850,6 +865,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -879,6 +895,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -910,6 +927,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -941,6 +959,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -972,6 +991,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1003,6 +1023,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1034,6 +1055,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1063,6 +1085,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1094,6 +1117,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: false,
                 environment: HashMap::new(),
@@ -1123,6 +1147,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1154,6 +1179,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: false,
                 environment: HashMap::new(),
@@ -1194,6 +1220,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1223,6 +1250,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1239,6 +1267,7 @@ tasks:
         tasks.insert(
             "bar".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1268,6 +1297,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec![],
                 cache: true,
                 environment: HashMap::new(),
@@ -1284,6 +1314,7 @@ tasks:
         tasks.insert(
             "bar".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["foo".to_owned(), "baz".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1315,6 +1346,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1346,6 +1378,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["bar".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1362,6 +1395,7 @@ tasks:
         tasks.insert(
             "bar".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1393,6 +1427,7 @@ tasks:
         tasks.insert(
             "foo".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["baz".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1409,6 +1444,7 @@ tasks:
         tasks.insert(
             "bar".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["foo".to_owned()],
                 cache: true,
                 environment: HashMap::new(),
@@ -1425,6 +1461,7 @@ tasks:
         tasks.insert(
             "baz".to_owned(),
             Task {
+                description: None,
                 dependencies: vec!["bar".to_owned()],
                 cache: true,
                 environment: HashMap::new(),

@@ -80,6 +80,7 @@ mod tests {
         let previous_key = "corge";
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment,
@@ -110,6 +111,7 @@ mod tests {
         let previous_key2 = "bar";
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -146,6 +148,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: environment1,
@@ -160,6 +163,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: environment2,
@@ -196,6 +200,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: environment1,
@@ -210,6 +215,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: environment2,
@@ -243,6 +249,7 @@ mod tests {
         let previous_key = "corge";
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment,
@@ -274,6 +281,7 @@ mod tests {
         let previous_key = "corge";
 
         let task = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -303,6 +311,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -317,6 +326,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -345,6 +355,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -359,6 +370,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -387,6 +399,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -401,6 +414,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -429,6 +443,7 @@ mod tests {
         let previous_key = "corge";
 
         let task1 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
@@ -443,6 +458,7 @@ mod tests {
         };
 
         let task2 = Task {
+            description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),

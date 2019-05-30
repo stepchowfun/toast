@@ -83,6 +83,7 @@ mod tests {
 
     fn task_with_dependencies(dependencies: Vec<String>) -> Task {
         Task {
+            description: None,
             dependencies,
             cache: true,
             environment: HashMap::new(),

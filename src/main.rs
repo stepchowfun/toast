@@ -56,6 +56,7 @@ const WRITE_LOCAL_CACHE_ARG: &str = "write-local-cache";
 const READ_REMOTE_CACHE_ARG: &str = "read-remote-cache";
 const WRITE_REMOTE_CACHE_ARG: &str = "write-remote-cache";
 const REPO_ARG: &str = "repo";
+const LIST_ARG: &str = "list";
 const SHELL_ARG: &str = "shell";
 const TASKS_ARG: &str = "tasks";
 
@@ -146,6 +147,7 @@ pub struct Settings {
     write_local_cache: bool,
     read_remote_cache: bool,
     write_remote_cache: bool,
+    list: bool,
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
 }
@@ -211,6 +213,12 @@ fn settings() -> Result<Settings, Failure> {
                 .value_name("REPO")
                 .help("Sets the Docker repository")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(LIST_ARG)
+                .short("l")
+                .long(LIST_ARG)
+                .help("Lists the tasks in the toastfile"),
         )
         .arg(
             Arg::with_name(SHELL_ARG)
@@ -310,6 +318,9 @@ fn settings() -> Result<Settings, Failure> {
         .unwrap_or(&config.docker_repo)
         .to_owned();
 
+    // Read the list switch.
+    let list = matches.is_present(LIST_ARG);
+
     // Read the shell switch.
     let spawn_shell = matches.is_present(SHELL_ARG);
 
@@ -327,6 +338,7 @@ fn settings() -> Result<Settings, Failure> {
         read_remote_cache,
         write_remote_cache,
         docker_repo,
+        list,
         spawn_shell,
         tasks,
     })
@@ -527,6 +539,40 @@ fn entry() -> Result<(), Failure> {
 
     // Parse the toastfile.
     let toastfile = parse_toastfile(&settings.toastfile_path)?;
+
+    // If the user just wants to list all the tasks, do that and quit.
+    if settings.list {
+        info!("Here are all the tasks and the environment variables they can use:");
+
+        // Sort the tasks.
+        let mut task_names = toastfile.tasks.keys().collect::<Vec<_>>().clone();
+        task_names.sort();
+
+        // Print a summary of each task.
+        for task_name in task_names {
+            // Fetch the task data.
+            let task_data = &toastfile.tasks[task_name];
+
+            // Print the task name and the description if it exists.
+            if let Some(description) = &task_data.description {
+                println!("* {} \u{2014} {}", task_name.code_str(), description);
+            } else {
+                println!("* {}", task_name.code_str());
+            }
+
+            // Print the environment variables that can be passed to the task.
+            for (variable, optional_default) in &task_data.environment {
+                if let Some(default) = optional_default {
+                    println!("  {}: {}", variable.code_str(), default.code_str());
+                } else {
+                    println!("  {}: (no default provided)", variable.code_str());
+                }
+            }
+        }
+
+        // The user just wanted to list the tasks. We're done.
+        return Ok(());
+    }
 
     // Determine which tasks the user wants to run.
     let root_tasks = get_roots(&settings, &toastfile)?;
