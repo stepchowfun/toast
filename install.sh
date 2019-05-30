@@ -52,17 +52,6 @@
     fail 'There was an error downloading the binary.'
   fi
 
-  # Download the checksum.
-  if ! curl "https://github.com/stepchowfun/toast/releases/download/$RELEASE/$FILENAME.sha256" \
-      -o "$FILENAME.sha256" -LSf; then
-    fail 'There was an error downloading the checksum.'
-  fi
-
-  # Verify the checksum.
-  if ! shasum --algorithm 256 --check --status "$FILENAME.sha256"; then
-    fail 'The downloaded binary was corrupted. Feel free to try again.'
-  fi
-
   # Make it executable.
   if ! chmod a+rx "$FILENAME"; then
     fail 'There was an error setting the permissions for the binary.'
