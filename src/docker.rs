@@ -1,7 +1,7 @@
 use crate::{failure, failure::Failure, format::CodeStr, spinner::spin};
 use std::{
     collections::HashMap,
-    fs::{create_dir_all, metadata, rename},
+    fs::{copy, create_dir_all, metadata, rename},
     io,
     io::Read,
     path::{Path, PathBuf},
@@ -253,11 +253,17 @@ pub fn copy_from_container(
             )))?;
 
             // Move it to the destination.
-            rename(&intermediate, &destination).map_err(failure::system(format!(
-                "Unable to move file {} to destination {}.",
-                intermediate.to_string_lossy().code_str(),
-                destination.to_string_lossy().code_str(),
-            )))?;
+            if rename(&intermediate, &destination).is_err() {
+                // The `rename` can fail if the source and the destination are not on the same
+                // mounted filesystem. This occurs for example on Fedora 18+, where `/tmp` is an
+                // in-memory tmpfs filesystem. If this happens, don't give up just yet. We can try
+                // to copy the file instead of moving it. [tag:try-rename-then-copy]
+                copy(&intermediate, &destination).map_err(failure::system(format!(
+                    "Unable to move file {} to destination {}.",
+                    intermediate.to_string_lossy().code_str(),
+                    destination.to_string_lossy().code_str(),
+                )))?;
+            }
         } else {
             // It's a directory. Traverse it.
             for entry in WalkDir::new(&intermediate) {
@@ -282,11 +288,15 @@ pub fn copy_from_container(
                     )))?;
                 } else {
                     // It's a file. Move it to the destination.
-                    rename(entry_path, &destination_path).map_err(failure::system(format!(
-                        "Unable to move file {} to destination {}.",
-                        entry_path.to_string_lossy().code_str(),
-                        destination_path.to_string_lossy().code_str(),
-                    )))?;
+                    if rename(entry_path, &destination_path).is_err() {
+                        // If the `rename` fails, try copying the file instead.
+                        // [ref:try-rename-then-copy]
+                        copy(entry_path, &destination_path).map_err(failure::system(format!(
+                            "Unable to move file {} to destination {}.",
+                            entry_path.to_string_lossy().code_str(),
+                            destination_path.to_string_lossy().code_str(),
+                        )))?;
+                    }
                 }
             }
         }
