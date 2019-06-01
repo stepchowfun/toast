@@ -129,7 +129,7 @@ tasks:
     command: |
       set -euo pipefail
       . $HOME/.cargo/env
-      cargo check
+      cargo check --all --all-targets --all-features
 
   format:
     description: Format the source code.
