@@ -2,6 +2,9 @@ use crate::{failure, failure::Failure, toastfile::Task};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, io, io::Read};
 
+// Bump this if we need to invalidate all existing caches for some reason.
+const CACHE_VERSION: usize = 0;
+
 // Determine the cache ID of a task based on the cache ID of the previous task in the schedule (or
 // the hash of the base image, if this is the first task).
 pub fn key(
@@ -15,31 +18,37 @@ pub fn key(
 
     // If there are no environment variables, no input paths, no command to run, we can just use the
     // cache key from the previous task.
-    if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_none() {
+    if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_empty() {
         return cache_key;
     }
 
+    // Incorporate the cache version.
+    cache_key = combine(&cache_key, &format!("{}", CACHE_VERSION));
+
     // Environment variables
+    let mut environment_hash = String::new();
     let mut variables = task.environment.keys().collect::<Vec<_>>();
     variables.sort();
     for variable in variables {
-        cache_key = extend(&cache_key, variable);
-        cache_key = extend(&cache_key, &environment[variable]); // [ref:environment_valid]
+        // The variable name
+        environment_hash = combine(&environment_hash, variable);
+
+        // The value [ref:environment_valid]
+        environment_hash = combine(&environment_hash, &environment[variable]);
     }
+    cache_key = combine(&cache_key, &environment_hash);
 
     // Input paths and contents
-    cache_key = extend(&cache_key, &input_files_hash);
+    cache_key = combine(&cache_key, &input_files_hash);
 
     // Location
-    cache_key = extend(&cache_key, &task.location.to_string_lossy());
+    cache_key = combine(&cache_key, &task.location.to_string_lossy());
 
     // User
-    cache_key = extend(&cache_key, &task.user);
+    cache_key = combine(&cache_key, &task.user);
 
     // Command
-    if let Some(command) = &task.command {
-        cache_key = extend(&cache_key, &command);
-    }
+    cache_key = combine(&cache_key, &task.command);
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
@@ -47,37 +56,48 @@ pub fn key(
 }
 
 // Compute the hash of a readable object (e.g., a file). This function does not need to load all the
-// data in memory at the same time.
+// data in memory at the same time. The guarantees:
+//   1. For all `x`, `hash_str(x)` = `hash_str(x)`.
+//   1. For all known `x` and `y`, `x` != `y` implies `hash_str(x)` != `hash_str(y)`.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
     io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
     Ok(hex::encode(hasher.result()))
 }
 
-// Compute the hash of a string.
+// Compute the hash of a string. The guarantees:
+//   1. For all `x`, `hash_str(x)` = `hash_str(x)`.
+//   1. For all known `x` and `y`, `x` != `y` implies `hash_str(x)` != `hash_str(y)`.
 pub fn hash_str(input: &str) -> String {
     hex::encode(Sha256::digest(input.as_bytes()))
 }
 
-// Combine a hash with another string to form a new hash.
-pub fn extend(x: &str, y: &str) -> String {
-    hash_str(&format!("{}{}", x, y))
+// Combine two strings into a hash. The guarantees:
+//   1. For all `x` and `y`, `combine(x, y)` = `combine(x, y)`.
+//   2. For all known `x1`, `x2`, `y1`, and `y2`,
+//      `x1` != `x2` implies `combine(x1, y1)` != `combine(x2, y2)`.
+//   3. For all known `x1`, `x2`, `y1`, and `y2`,
+//      `y1` != `y2` implies `combine(x1, y1)` != `combine(x2, y2)`.
+pub fn combine(x: &str, y: &str) -> String {
+    // Why not just take the hash of the concatenation of the two strings? Because then ("foo",
+    // "bar") would have the same hash as ("foob", "ar"). To disambiguate in this situation, we also
+    // include the length of the first string.
+    hash_str(&format!("{}:{}{}", x.len(), x, y))
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        cache::{extend, hash_read, hash_str, key},
+        cache::{combine, hash_read, hash_str, key},
         toastfile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
     };
     use std::{collections::HashMap, path::Path};
 
     #[test]
-    fn key_pure() {
-        let mut environment: HashMap<String, Option<String>> = HashMap::new();
-        environment.insert("foo".to_owned(), None);
-
+    fn key_noop() {
         let previous_key = "corge";
+
+        let environment: HashMap<String, Option<String>> = HashMap::new();
 
         let task = Task {
             description: None,
@@ -91,7 +111,39 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: String::new(),
+        };
+
+        let input_files_hash = "grault";
+
+        let full_environment = HashMap::new();
+
+        assert_eq!(
+            previous_key,
+            key(previous_key, &task, input_files_hash, &full_environment),
+        );
+    }
+
+    #[test]
+    fn key_pure() {
+        let previous_key = "corge";
+
+        let mut environment: HashMap<String, Option<String>> = HashMap::new();
+        environment.insert("foo".to_owned(), None);
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment,
+            input_paths: vec![Path::new("flob").to_owned()],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -122,7 +174,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -137,6 +189,8 @@ mod tests {
 
     #[test]
     fn key_environment_order() {
+        let previous_key = "corge";
+
         let mut environment1: HashMap<String, Option<String>> = HashMap::new();
         environment1.insert("foo".to_owned(), None);
         environment1.insert("bar".to_owned(), None);
@@ -144,8 +198,6 @@ mod tests {
         let mut environment2: HashMap<String, Option<String>> = HashMap::new();
         environment2.insert("bar".to_owned(), None);
         environment2.insert("foo".to_owned(), None);
-
-        let previous_key = "corge";
 
         let task1 = Task {
             description: None,
@@ -159,7 +211,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let task2 = Task {
@@ -174,7 +226,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -191,13 +243,13 @@ mod tests {
 
     #[test]
     fn key_environment_keys() {
+        let previous_key = "corge";
+
         let mut environment1: HashMap<String, Option<String>> = HashMap::new();
         environment1.insert("foo".to_owned(), None);
 
         let mut environment2: HashMap<String, Option<String>> = HashMap::new();
         environment2.insert("bar".to_owned(), None);
-
-        let previous_key = "corge";
 
         let task1 = Task {
             description: None,
@@ -211,7 +263,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let task2 = Task {
@@ -226,7 +278,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -243,10 +295,10 @@ mod tests {
 
     #[test]
     fn key_environment_values() {
+        let previous_key = "corge";
+
         let mut environment: HashMap<String, Option<String>> = HashMap::new();
         environment.insert("foo".to_owned(), None);
-
-        let previous_key = "corge";
 
         let task = Task {
             description: None,
@@ -260,7 +312,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -285,14 +337,14 @@ mod tests {
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            input_paths: vec![],
+            input_paths: vec![Path::new("flob").to_owned()],
             output_paths: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash1 = "foo";
@@ -322,7 +374,7 @@ mod tests {
             ports: vec![],
             location: Path::new("/foo").to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let task2 = Task {
@@ -337,7 +389,7 @@ mod tests {
             ports: vec![],
             location: Path::new("/bar").to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -366,7 +418,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: "foo".to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let task2 = Task {
@@ -381,7 +433,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: "bar".to_owned(),
-            command: Some("echo wibble".to_owned()),
+            command: "echo wibble".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -395,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn key_command_different() {
+    fn key_command() {
         let previous_key = "corge";
 
         let task1 = Task {
@@ -410,7 +462,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo foo".to_owned()),
+            command: "echo foo".to_owned(),
         };
 
         let task2 = Task {
@@ -425,7 +477,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: Some("echo bar".to_owned()),
+            command: "echo bar".to_owned(),
         };
 
         let input_files_hash = "grault";
@@ -436,50 +488,6 @@ mod tests {
             key(previous_key, &task1, input_files_hash, &full_environment),
             key(previous_key, &task2, input_files_hash, &full_environment)
         );
-    }
-
-    #[test]
-    fn key_command_some_none() {
-        let previous_key = "corge";
-
-        let task1 = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            output_paths: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: Some("echo wibble".to_owned()),
-        };
-
-        let task2 = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            output_paths: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: None,
-        };
-
-        let input_files_hash = "grault";
-
-        let full_environment = HashMap::new();
-
-        assert_ne!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
-        )
     }
 
     #[test]
@@ -507,13 +515,22 @@ mod tests {
     }
 
     #[test]
-    fn extend_pure() {
-        assert_eq!(extend("foo", "bar"), extend("foo", "bar"));
+    fn combine_pure() {
+        assert_eq!(combine("foo", "bar"), combine("foo", "bar"));
     }
 
     #[test]
-    fn extend_not_constant() {
-        assert_ne!(extend("foo", "bar"), extend("foo", "baz"));
-        assert_ne!(extend("foo", "bar"), extend("baz", "bar"));
+    fn combine_first_different() {
+        assert_ne!(combine("foo", "bar"), combine("foo", "baz"));
+    }
+
+    #[test]
+    fn combine_second_different() {
+        assert_ne!(combine("foo", "bar"), combine("baz", "bar"));
+    }
+
+    #[test]
+    fn combine_concat() {
+        assert_ne!(combine("foo", "bar"), combine("foob", "ar"));
     }
 }

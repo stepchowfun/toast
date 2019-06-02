@@ -18,37 +18,51 @@ pub const DEFAULT_USER: &str = "root";
 pub struct Task {
     pub description: Option<String>,
 
+    // Must point to valid task names [ref:dependencies_exist] and the dependency DAG must not form
+    // cycles [ref:tasks_dag]
     #[serde(default)]
     pub dependencies: Vec<String>,
 
+    // Must be disabled if any of the following conditions hold:
+    // - `mount_paths` is nonempty [ref:mount_paths_nand_cache]
+    // - `ports` is nonempty [ref:ports_nand_cache]
     #[serde(default = "default_task_cache")]
     pub cache: bool,
 
+    // Keys must not contain `=` [ref:env_var_equals]
     #[serde(default)]
     pub environment: HashMap<String, Option<String>>,
 
+    // Must be relative [ref:input_paths_relative]
     #[serde(default)]
     pub input_paths: Vec<PathBuf>,
 
+    // Must be relative [ref:output_paths_relative]
     #[serde(default)]
     pub output_paths: Vec<PathBuf>,
 
+    // Must be relative [ref:mount_paths_relative]
+    // Must not contain `,` [ref:mount_paths_no_commas]
+    // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
     #[serde(default)]
     pub mount_paths: Vec<PathBuf>,
 
     #[serde(default = "default_task_mount_readonly")]
     pub mount_readonly: bool,
 
+    // Must be empty if `cache` is enabled [ref:ports_nand_cache]
     #[serde(default)]
     pub ports: Vec<String>,
 
+    // Must be absolute [ref:location_absolute]
     #[serde(default = "default_task_location")]
     pub location: PathBuf,
 
     #[serde(default = "default_task_user")]
     pub user: String,
 
-    pub command: Option<String>,
+    #[serde(default)]
+    pub command: String,
 }
 
 fn default_task_cache() -> bool {
@@ -72,7 +86,10 @@ fn default_task_user() -> String {
 #[serde(deny_unknown_fields)]
 pub struct Toastfile {
     pub image: String,
+
+    // If present, must point to a task [ref:valid_default]
     pub default: Option<String>,
+
     pub tasks: HashMap<String, Task>,
 }
 
@@ -82,17 +99,13 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     let toastfile: Toastfile =
         serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{}", e), None))?;
 
-    // Make sure the environment variables are valid.
-    check_environment(&toastfile)?;
-
-    // Make sure the paths are valid.
-    check_paths(&toastfile)?;
-
-    // Make sure caching is disabled when appropriate.
-    check_caching(&toastfile)?;
-
     // Make sure the dependencies are valid.
     check_dependencies(&toastfile)?;
+
+    // Make sure each task is valid.
+    for (name, task) in &toastfile.tasks {
+        check_task(name, task)?;
+    }
 
     // Return the toastfile.
     Ok(toastfile)
@@ -100,11 +113,20 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
 
 // Fetch the variables for a task from the environment.
 pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'a str>> {
-    let mut violations = vec![];
+    // The result will be a map from variable name to value.
     let mut result = HashMap::new();
 
+    // We accumulate a list of errors to be shown to the user when there is a problem.
+    let mut violations = vec![];
+
+    // Fetch each environment variable.
     for (arg, default) in &task.environment {
+        // Read the variable from the environment.
         let maybe_var = env::var(arg);
+
+        // If a default value was provided, use that if the variable is missing from the
+        // environment. If there was no default, the variable must be in the environment or else
+        // we'll report a violation.
         if let Some(default) = default {
             result.insert(arg.clone(), maybe_var.unwrap_or_else(|_| default.clone()));
         } else if let Ok(var) = maybe_var {
@@ -114,6 +136,7 @@ pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'
         }
     }
 
+    // If there were no violations, return the map. Otherwise, report the violations.
     if violations.is_empty() {
         Ok(result)
     } else {
@@ -121,140 +144,7 @@ pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'
     }
 }
 
-// Check that environment variable names don't have `=` in them. [tag:env_var_equals]
-fn check_environment(toastfile: &Toastfile) -> Result<(), Failure> {
-    for (name, task) in &toastfile.tasks {
-        for variable in task.environment.keys() {
-            if variable.contains('=') {
-                return Err(Failure::User(
-                    format!(
-                        "Environment variable {} of task {} contains {}.",
-                        variable.code_str(),
-                        name.code_str(),
-                        "=".code_str(),
-                    ),
-                    None,
-                ));
-            }
-        }
-    }
-
-    Ok(())
-}
-
-// Check that paths that should be relative are, and likewise for paths that should be absolute.
-fn check_paths(toastfile: &Toastfile) -> Result<(), Failure> {
-    for (name, task) in &toastfile.tasks {
-        // Check `input_paths`.
-        for path in &task.input_paths {
-            if path.is_absolute() {
-                return Err(Failure::User(
-                    format!(
-                        "Task {} has an absolute {}: {}.",
-                        name.code_str(),
-                        "input_path".code_str(),
-                        path.to_string_lossy().code_str()
-                    ),
-                    None,
-                ));
-            }
-        }
-
-        // Check `output_paths`.
-        for path in &task.output_paths {
-            if path.is_absolute() {
-                return Err(Failure::User(
-                    format!(
-                        "Task {} has an absolute {}: {}.",
-                        name.code_str(),
-                        "output_path".code_str(),
-                        path.to_string_lossy().code_str()
-                    ),
-                    None,
-                ));
-            }
-        }
-
-        // Check `mount_paths`.
-        for path in &task.mount_paths {
-            if path.is_absolute() {
-                return Err(Failure::User(
-                    format!(
-                        "Task {} has an absolute {}: {}.",
-                        name.code_str(),
-                        "mount_path".code_str(),
-                        path.to_string_lossy().code_str()
-                    ),
-                    None,
-                ));
-            }
-
-            // [tag:mount_path_comma]
-            if path.to_string_lossy().contains(',') {
-                return Err(Failure::User(
-                    format!(
-                        "Mount path {} of task {} has a {}.",
-                        path.to_string_lossy().code_str(),
-                        name.code_str(),
-                        ",".code_str()
-                    ),
-                    None,
-                ));
-            }
-        }
-
-        // Check `location`.
-        if task.location.is_relative() {
-            return Err(Failure::User(
-                format!(
-                    "Task {} has a relative {}: {}.",
-                    name.code_str(),
-                    "location".code_str(),
-                    task.location.to_string_lossy().code_str()
-                ),
-                None,
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-// Check that caching is disabled when appropriate.
-fn check_caching(toastfile: &Toastfile) -> Result<(), Failure> {
-    for (name, task) in &toastfile.tasks {
-        // If a task exposes ports, then caching should be disabled.
-        if !&task.ports.is_empty() && task.cache {
-            return Err(Failure::User(
-                format!(
-                    "Task {} exposes ports but does not disable caching. \
-                     To fix this, set {} for this task.",
-                    name.code_str(),
-                    "cache: false".code_str(),
-                ),
-                None,
-            ));
-        }
-
-        // If a task has any mount paths, then caching should be disabled.
-        if !task.mount_paths.is_empty() && task.cache {
-            return Err(Failure::User(
-                format!(
-                    "Task {} has {} but does not disable caching. \
-                     To fix this, set {} for this task.",
-                    name.code_str(),
-                    "mount_paths".code_str(),
-                    "cache: false".code_str(),
-                ),
-                None,
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-// Check that all dependencies exist and form a DAG (no cycles). [tag:tasks_dag]
+// Check that all dependencies exist and form a DAG (no cycles).
 fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     // Check the default task. [tag:valid_default]
     let valid_default = toastfile
@@ -270,6 +160,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         // [ref:task_valid]
         for dependency in &toastfile.tasks[task].dependencies {
             if !toastfile.tasks.contains_key(dependency) {
+                // [tag:dependencies_exist]
                 violations
                     .entry(task.to_owned())
                     .or_insert_with(|| vec![])
@@ -309,11 +200,15 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                 None,
             ));
         } else {
-            return Err(Failure::User(format!(
-        "The default task {} does not exist, and the following tasks have invalid dependencies: {}.",
-        toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
-        violations_series
-      ), None));
+            return Err(Failure::User(
+                format!(
+                    "The default task {} does not exist, and the following tasks have invalid \
+                     dependencies: {}.",
+                    toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
+                    violations_series
+                ),
+                None,
+            ));
         }
     } else if !valid_default {
         return Err(Failure::User(
@@ -325,7 +220,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         ));
     }
 
-    // Check that the dependencies aren't cyclic.
+    // Check that the dependencies aren't cyclic. [tag:tasks_dag]
     let mut visited: HashSet<&'a str> = HashSet::new();
     for task in toastfile.tasks.keys() {
         let mut frontier: Vec<(&'a str, usize)> = vec![(task, 0)];
@@ -403,11 +298,131 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     Ok(())
 }
 
+// Check that a task is valid.
+fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
+    // Check that environment variable names don't have `=` in them. [tag:env_var_equals]
+    for variable in task.environment.keys() {
+        if variable.contains('=') {
+            return Err(Failure::User(
+                format!(
+                    "Environment variable {} of task {} contains {}.",
+                    variable.code_str(),
+                    name.code_str(),
+                    "=".code_str(),
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check that `input_paths` are relative. [tag:input_paths_relative]
+    for path in &task.input_paths {
+        if path.is_absolute() {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has an absolute {}: {}.",
+                    name.code_str(),
+                    "input_path".code_str(),
+                    path.to_string_lossy().code_str()
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check that `output_paths` are relative. [tag:output_paths_relative]
+    for path in &task.output_paths {
+        if path.is_absolute() {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has an absolute {}: {}.",
+                    name.code_str(),
+                    "output_path".code_str(),
+                    path.to_string_lossy().code_str()
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check `mount_paths`.
+    for path in &task.mount_paths {
+        // Check that the path is relative. [tag:mount_paths_relative]
+        if path.is_absolute() {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has an absolute {}: {}.",
+                    name.code_str(),
+                    "mount_path".code_str(),
+                    path.to_string_lossy().code_str()
+                ),
+                None,
+            ));
+        }
+
+        // Check that the path doesn't contain any commas. [tag:mount_paths_no_commas]
+        if path.to_string_lossy().contains(',') {
+            return Err(Failure::User(
+                format!(
+                    "Mount path {} of task {} has a {}.",
+                    path.to_string_lossy().code_str(),
+                    name.code_str(),
+                    ",".code_str()
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check that `location` is absolute. [tag:location_absolute]
+    if task.location.is_relative() {
+        return Err(Failure::User(
+            format!(
+                "Task {} has a relative {}: {}.",
+                name.code_str(),
+                "location".code_str(),
+                task.location.to_string_lossy().code_str()
+            ),
+            None,
+        ));
+    }
+
+    // If a task exposes ports, then caching should be disabled. [tag:ports_nand_cache]
+    if !&task.ports.is_empty() && task.cache {
+        return Err(Failure::User(
+            format!(
+                "Task {} exposes ports but does not disable caching. \
+                 To fix this, set {} for this task.",
+                name.code_str(),
+                "cache: false".code_str(),
+            ),
+            None,
+        ));
+    }
+
+    // If a task has any mount paths, then caching should be disabled. [tag:mount_paths_nand_cache]
+    if !task.mount_paths.is_empty() && task.cache {
+        return Err(Failure::User(
+            format!(
+                "Task {} has {} but does not disable caching. \
+                 To fix this, set {} for this task.",
+                name.code_str(),
+                "mount_paths".code_str(),
+                "cache: false".code_str(),
+            ),
+            None,
+        ));
+    }
+
+    // If we made it this far, the task is valid.
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_caching, check_dependencies, check_environment, check_paths, environment, parse,
-        Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
+        check_dependencies, check_task, environment, parse, Task, Toastfile, DEFAULT_LOCATION,
+        DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -452,7 +467,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -466,62 +481,10 @@ tasks:
     }
 
     #[test]
-    fn parse_valid_default() {
-        let input = r#"
-image: encom:os-12
-default: foo
-tasks:
-  foo: {}
-    "#
-        .trim();
-
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: Some("foo".to_owned()),
-            tasks,
-        };
-
-        assert_eq!(parse(input).unwrap(), toastfile);
-    }
-
-    #[test]
-    fn parse_invalid_default() {
-        let input = r#"
-image: encom:os-12
-default: bar
-tasks:
-  foo: {}
-    "#
-        .trim();
-
-        let result = parse(input);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("bar"));
-    }
-
-    #[test]
     fn parse_comprehensive_task() {
         let input = r#"
 image: encom:os-12
+default: bar
 tasks:
   foo: {}
   bar:
@@ -530,7 +493,7 @@ tasks:
       - foo
     cache: false
     environment:
-      SPAM: null
+      SPAM: monty
       HAM: null
       EGGS: null
     input_paths:
@@ -557,7 +520,7 @@ tasks:
         .trim();
 
         let mut environment = HashMap::new();
-        environment.insert("SPAM".to_owned(), None);
+        environment.insert("SPAM".to_owned(), Some("monty".to_owned()));
         environment.insert("HAM".to_owned(), None);
         environment.insert("EGGS".to_owned(), None);
 
@@ -576,7 +539,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -605,13 +568,13 @@ tasks:
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
                 location: Path::new("/code").to_owned(),
                 user: "waldo".to_owned(),
-                command: Some("flob".to_owned()),
+                command: "flob".to_owned(),
             },
         );
 
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
-            default: None,
+            default: Some("bar".to_owned()),
             tasks,
         };
 
@@ -632,7 +595,7 @@ tasks:
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: None,
+            command: String::new(),
         };
 
         assert_eq!(environment(&task), Ok(HashMap::new()));
@@ -657,7 +620,7 @@ tasks:
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: None,
+            command: String::new(),
         };
 
         let mut expected = HashMap::new();
@@ -687,7 +650,7 @@ tasks:
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: None,
+            command: String::new(),
         };
 
         let mut expected = HashMap::new();
@@ -717,7 +680,7 @@ tasks:
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: None,
+            command: String::new(),
         };
 
         env::remove_var("foo3");
@@ -728,7 +691,7 @@ tasks:
     }
 
     #[test]
-    fn check_environment_empty() {
+    fn check_dependencies_valid_default() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -744,93 +707,21 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
-            default: None,
+            default: Some("foo".to_owned()),
             tasks,
         };
 
-        assert!(check_environment(&toastfile).is_ok());
+        assert!(check_dependencies(&toastfile).is_ok());
     }
 
     #[test]
-    fn check_environment_ok() {
-        let mut environment = HashMap::new();
-        environment.insert("corge".to_owned(), None);
-        environment.insert("grault".to_owned(), None);
-        environment.insert("garply".to_owned(), None);
-
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment,
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        assert!(check_environment(&toastfile).is_ok());
-    }
-
-    #[test]
-    fn check_environment_equals() {
-        let mut environment = HashMap::new();
-        environment.insert("corge".to_owned(), None);
-        environment.insert("gra=ult".to_owned(), None);
-        environment.insert("garply".to_owned(), None);
-
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment,
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_environment(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains('='));
-    }
-
-    #[test]
-    fn check_paths_none() {
+    fn check_dependencies_invalid_default() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -846,361 +737,19 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
-            default: None,
+            default: Some("bar".to_owned()),
             tasks,
         };
 
-        assert!(check_paths(&toastfile).is_ok());
-    }
-
-    #[test]
-    fn check_paths_ok() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("bar").to_owned()],
-                output_paths: vec![Path::new("baz").to_owned()],
-                mount_paths: vec![Path::new("qux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        assert!(check_paths(&toastfile).is_ok());
-    }
-
-    #[test]
-    fn check_paths_absolute_input_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("/bar").to_owned()],
-                output_paths: vec![Path::new("baz").to_owned()],
-                mount_paths: vec![Path::new("qux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_paths(&toastfile);
+        let result = check_dependencies(&toastfile);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/bar"));
-    }
-
-    #[test]
-    fn check_paths_absolute_output_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("bar").to_owned()],
-                output_paths: vec![Path::new("/baz").to_owned()],
-                mount_paths: vec![Path::new("qux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_paths(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/baz"));
-    }
-
-    #[test]
-    fn check_paths_absolute_mount_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("bar").to_owned()],
-                output_paths: vec![Path::new("baz").to_owned()],
-                mount_paths: vec![Path::new("/qux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_paths(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/qux"));
-    }
-
-    #[test]
-    fn check_paths_mount_paths_comma() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("bar").to_owned()],
-                output_paths: vec![Path::new("baz").to_owned()],
-                mount_paths: vec![Path::new("q,ux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_paths(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("q,ux"));
-    }
-
-    #[test]
-    fn check_paths_relative_location() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![Path::new("bar").to_owned()],
-                output_paths: vec![Path::new("baz").to_owned()],
-                mount_paths: vec![Path::new("qux").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new("code").to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_paths(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("code"));
-    }
-
-    #[test]
-    fn check_caching_enabled_with_no_ports_no_mount_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        assert!(check_caching(&toastfile).is_ok());
-    }
-
-    #[test]
-    fn check_caching_enabled_with_ports() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec!["3000:80".to_owned()],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_caching(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("caching"));
-    }
-
-    #[test]
-    fn check_caching_disabled_with_ports() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: false,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![],
-                mount_readonly: false,
-                ports: vec!["3000:80".to_owned()],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        assert!(check_caching(&toastfile).is_ok());
-    }
-
-    #[test]
-    fn check_caching_enabled_with_mount_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: true,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![Path::new("bar").to_owned()],
-                mount_readonly: false,
-                ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        let result = check_caching(&toastfile);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("mount_paths"));
-    }
-
-    #[test]
-    fn check_caching_disabled_with_mount_paths() {
-        let mut tasks = HashMap::new();
-        tasks.insert(
-            "foo".to_owned(),
-            Task {
-                description: None,
-                dependencies: vec![],
-                cache: false,
-                environment: HashMap::new(),
-                input_paths: vec![],
-                output_paths: vec![],
-                mount_paths: vec![Path::new("bar").to_owned()],
-                mount_readonly: false,
-                ports: vec!["3000:80".to_owned()],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
-                command: None,
-            },
-        );
-
-        let toastfile = Toastfile {
-            image: "encom:os-12".to_owned(),
-            default: None,
-            tasks,
-        };
-
-        assert!(check_caching(&toastfile).is_ok());
+        assert!(result.unwrap_err().to_string().contains("bar"));
     }
 
     #[test]
@@ -1231,7 +780,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1245,7 +794,7 @@ tasks:
     }
 
     #[test]
-    fn check_dependencies_nonempty() {
+    fn check_task_dependencies_nonempty() {
         let mut tasks = HashMap::new();
         tasks.insert(
             "foo".to_owned(),
@@ -1261,7 +810,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -1278,7 +827,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1308,7 +857,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -1325,7 +874,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1357,7 +906,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1389,7 +938,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -1406,7 +955,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1438,7 +987,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -1455,7 +1004,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
         tasks.insert(
@@ -1472,7 +1021,7 @@ tasks:
                 ports: vec![],
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
-                command: None,
+                command: String::new(),
             },
         );
 
@@ -1485,5 +1034,271 @@ tasks:
         let result = check_dependencies(&toastfile);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("cyclic"));
+    }
+
+    #[test]
+    fn check_task_environment_ok() {
+        let mut environment = HashMap::new();
+        environment.insert("corge".to_owned(), None);
+        environment.insert("grault".to_owned(), None);
+        environment.insert("garply".to_owned(), None);
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment,
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn check_task_environment_equals() {
+        let mut environment = HashMap::new();
+        environment.insert("corge".to_owned(), None);
+        environment.insert("gra=ult".to_owned(), None);
+        environment.insert("garply".to_owned(), None);
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment,
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains('='));
+    }
+
+    #[test]
+    fn check_task_paths_ok() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![Path::new("bar").to_owned()],
+            output_paths: vec![Path::new("baz").to_owned()],
+            mount_paths: vec![Path::new("qux").to_owned()],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn check_task_paths_absolute_input_paths() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![Path::new("/bar").to_owned()],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("/bar"));
+    }
+
+    #[test]
+    fn check_task_paths_absolute_output_paths() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![Path::new("/bar").to_owned()],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("/bar"));
+    }
+
+    #[test]
+    fn check_task_paths_absolute_mount_paths() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![Path::new("/bar").to_owned()],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("/bar"));
+    }
+
+    #[test]
+    fn check_task_paths_mount_paths_comma() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![Path::new("bar,baz").to_owned()],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("bar,baz"));
+    }
+
+    #[test]
+    fn check_task_paths_relative_location() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new("code").to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("code"));
+    }
+
+    #[test]
+    fn check_task_caching_enabled_with_ports() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec!["3000:80".to_owned()],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("caching"));
+    }
+
+    #[test]
+    fn check_task_caching_disabled_with_ports() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec!["3000:80".to_owned()],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn check_task_caching_enabled_with_mount_paths() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("mount_paths"));
+    }
+
+    #[test]
+    fn check_task_caching_disabled_with_mount_paths() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_readonly: false,
+            ports: vec!["3000:80".to_owned()],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        assert!(check_task("foo", &task).is_ok());
     }
 }
