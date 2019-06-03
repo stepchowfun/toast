@@ -146,8 +146,8 @@ pub fn create<W: Write>(
                     )))?;
 
                 // Compute the hash of the file contents and metadata.
-                file_hashes.push(cache::extend(
-                    &cache::extend(
+                file_hashes.push(cache::combine(
+                    &cache::combine(
                         &cache::hash_str(&relative_path.to_string_lossy()),
                         &cache::hash_read(&mut file)?,
                     ),
@@ -197,6 +197,6 @@ pub fn create<W: Write>(
             .map_err(failure::system("Error writing tar archive."))?,
         file_hashes
             .iter()
-            .fold(cache::hash_str(""), |acc, x| cache::extend(&acc, x)),
+            .fold(String::new(), |acc, x| cache::combine(&acc, x)),
     ))
 }

@@ -105,7 +105,7 @@ pub fn create_container(
 
     let mut mount_options = Vec::new();
     for path in mount_paths {
-        // [ref:mount_path_comma]
+        // [ref:mount_paths_no_commas]
         if mount_readonly {
             mount_options.push(format!(
                 "type=bind,source={},target={},readonly",
@@ -204,14 +204,13 @@ pub fn copy_from_container(
         );
 
         // `docker container cp` is not idempotent. For example, suppose there is a directory called
-        // `/foo` in the container and `/bar` does not exist on the host. Consider the following
-        // command:
-        //   `docker cp container:/foo /bar`
-        // The first time that command is run, Docker will create the directory `/bar` on the host
-        // and copy the files from `/foo` into it. But if you run it again, Docker will copy `/bar`
-        // into the directory `/foo`, resulting in `/foo/foo`, which is undesirable. To work around
-        // this, we first copy the path from the container into a temporary directory (where the
-        // target path is guaranteed to not exist). Then we copy/move that to the final destination.
+        // `/foo` in the container and `/bar` does not exist on the host. Consider the command
+        // `docker cp container:/foo /bar`. The first time that command is run, Docker will create
+        // the directory `/bar` on the host and copy the files from `/foo` into it. But if you run
+        // it again, Docker will copy `/bar` into the directory `/foo`, resulting in `/foo/foo`,
+        // which is undesirable. To work around this, we first copy the path from the container into
+        // a temporary directory (where the target path is guaranteed to not exist). Then we
+        // copy/move that path to the final destination.
         let temp_dir =
             tempdir().map_err(failure::system("Unable to create temporary directory."))?;
 

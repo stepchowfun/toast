@@ -30,7 +30,7 @@ pub fn number(n: usize, noun: &str) -> String {
 // (and an Oxford comma, if applicable) between the last two items.
 pub fn series(items: &[String]) -> String {
     match items.len() {
-        0 => "".to_owned(),
+        0 => String::new(),
         1 => items[0].clone(),
         2 => format!("{} and {}", items[0], items[1]),
         _ => format!(

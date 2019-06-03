@@ -94,7 +94,7 @@ mod tests {
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command: None,
+            command: String::new(),
         }
     }
 

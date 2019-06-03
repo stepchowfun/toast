@@ -139,9 +139,7 @@ pub fn run(
                 &task.ports,
                 &task.location,
                 &task.user,
-                task.command
-                    .as_ref()
-                    .map_or("true", |command| command as &str),
+                &task.command,
                 interrupted,
             ) {
                 Ok(container) => container,
@@ -198,9 +196,7 @@ pub fn run(
             &task.ports,
             &task.location,
             &task.user,
-            task.command
-                .as_ref()
-                .map_or("true", |command| command as &str),
+            &task.command,
             interrupted,
         ) {
             Ok(container) => container,

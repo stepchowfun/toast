@@ -285,7 +285,7 @@ mount_readonly: false # Whether to mount the `mount_paths` as readonly
 ports: []             # Port mappings to publish
 location: /scratch    # Path in the container for running this task
 user: root            # Name of the user in the container for running this task
-command: null         # Shell command to run in the container
+command: ''           # Shell command to run in the container
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.
