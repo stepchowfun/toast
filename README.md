@@ -297,8 +297,7 @@ Toast supports local and remote caching. By default, only local caching is enabl
 The caching behavior can be customized with a configuration file. The default location of the configuration file depends on the operating system:
 
 - For macOS, the default location is `~/Library/Preferences/toast/toast.yml`.
-- For Windows, the default location is `{FOLDERID_RoamingAppData}\toast\toast.yml`.
-- For other platforms, Toast follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `~/.config/toast/toast.yml` unless overridden by the `XDG_CONFIG_HOME` environment variable.
+- For other Unix platforms, Toast follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `~/.config/toast/toast.yml` unless overridden by the `XDG_CONFIG_HOME` environment variable.
 
 The configuration file has the following schema and defaults:
 
@@ -409,7 +408,7 @@ You can run that command with `--force` to update an existing installation.
 ## Requirements
 
 - Toast requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.06.0 or later.
-- Only Linux-based Docker images are supported. Toast can run on any platform capable of running such images, e.g., macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop).
+- Only Linux-based Docker images are supported. Toast can run on any Unix-based platform capable of running such images, e.g., macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ## Acknowledgements
 
