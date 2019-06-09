@@ -252,7 +252,7 @@ pub fn create<W: Write>(
 
                 // Unwrap the entry.
                 let entry = entry.map_err(failure::user(format!(
-                    "Unable to traverse path {}.",
+                    "Unable to traverse directory {}.",
                     input_path.to_string_lossy().code_str(),
                 )))?;
 

@@ -4,6 +4,7 @@ tasks:
     input_paths:
       - foo/bar
     command: |
+      set -euo pipefail
       ls -al
       ls -al foo
       ls -al foo/bar

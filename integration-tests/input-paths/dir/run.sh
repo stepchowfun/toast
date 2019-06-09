@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mkdir foo
 "$TOAST" --read-local-cache false --write-local-cache false > output.txt
 grep 'drwxrwxrwx .* root root .* foo' output.txt
-grep '\-rw\-rw\-rw\- .* root root .* bar\.txt' output.txt
 rm output.txt
+rm -r foo

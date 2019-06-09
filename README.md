@@ -17,6 +17,11 @@ Toast has no knowledge of specific programming languages or frameworks. You can 
 
 ## Table of contents
 
+* [Installation](#installation)
+   * [Easy installation](#easy-installation)
+      * [Customizing the installation](#customizing-the-installation)
+   * [Manual installation](#manual-installation)
+   * [Installation with Cargo](#installation-with-cargo)
 * [Tutorial](#tutorial)
    * [Defining a simple task](#declaring-a-simple-task)
    * [Adding a dependency](#adding-a-dependency)
@@ -29,13 +34,49 @@ Toast has no knowledge of specific programming languages or frameworks. You can 
 * [Toastfiles](#toastfiles)
 * [Cache configuration](#cache-configuration)
 * [Command-line options](#command-line-options)
-* [Installation](#installation)
-   * [Easy installation](#easy-installation)
-      * [Customizing the installation](#customizing-the-installation)
-   * [Manual installation](#manual-installation)
-   * [Installation with Cargo](#installation-with-cargo)
 * [Requirements](#requirements)
 * [Acknowledgements](#acknowledgements)
+
+## Installation
+
+### Easy installation
+
+If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
+```
+
+The same command can be used again to update Toast to the latest version.
+
+**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
+
+#### Customizing the installation
+
+The installation script supports the following environment variables:
+
+- `VERSION=x.y.z` (defaults to the latest version)
+- `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
+
+For example, the following will install Toast into the working directory:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
+```
+
+### Manual installation
+
+The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
+
+### Installation with Cargo
+
+If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Toast as follows:
+
+```sh
+cargo install toast
+```
+
+You can run that command with `--force` to update an existing installation.
 
 ## Tutorial
 
@@ -58,7 +99,7 @@ If you run it again, Toast will find that nothing has changed and skip the task:
 
 ![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/caching-0.svg?sanitize=true)
 
-Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like deploying your application. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
+Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like running your development server. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
 ```yaml
 image: ubuntu
@@ -363,47 +404,6 @@ OPTIONS:
         --write-remote-cache <BOOL>
             Sets whether remote cache writing is enabled
 ```
-
-## Installation
-
-### Easy installation
-
-If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
-
-```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
-```
-
-The same command can be used again to update Toast to the latest version.
-
-**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
-
-#### Customizing the installation
-
-The installation script supports the following environment variables:
-
-- `VERSION=x.y.z` (defaults to the latest version)
-- `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
-
-For example, the following will install Toast into the working directory:
-
-```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
-```
-
-### Manual installation
-
-The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
-
-### Installation with Cargo
-
-If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Toast as follows:
-
-```sh
-cargo install toast
-```
-
-You can run that command with `--force` to update an existing installation.
 
 ## Requirements
 
