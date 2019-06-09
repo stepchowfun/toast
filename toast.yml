@@ -102,6 +102,7 @@ tasks:
     user: user
     command: |
       set -euo pipefail
+      shopt -s globstar nullglob
       . $HOME/.cargo/env
       cargo clippy --all-targets --all-features -- \
         --deny warnings --deny clippy::all --deny clippy::pedantic

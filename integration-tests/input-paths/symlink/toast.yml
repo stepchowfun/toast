@@ -1,0 +1,6 @@
+image: debian
+tasks:
+  list:
+    input_paths:
+      - symlink
+    command: ls -al

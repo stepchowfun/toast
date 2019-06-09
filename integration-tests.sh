@@ -11,24 +11,13 @@ echo "Toast location: $TOAST"
 docker --version
 
 # Run the integration tests.
-# shellcheck disable=SC2045
-for TEST in $(ls integration-tests); do
+while IFS= read -d '' -r TEST; do
   # Log which integration test we're about to run.
   echo "Running integration test: $TEST"
 
-  # Stop all running Docker containers.
-  CONTAINERS="$(docker ps --no-trunc --quiet)"
-  if [ -n "$CONTAINERS" ]; then
-    # shellcheck disable=SC2086
-    docker container stop $CONTAINERS > /dev/null
-  fi
-
-  # Delete all Docker objects.
-  docker system prune --volumes --all --force > /dev/null
-
   # Go into the test directory and run the test.
-  (cd "./integration-tests/$TEST/" && ./run.sh)
-done
+  (cd "$(dirname "$TEST")" > /dev/null && ./run.sh)
+done < <(find integration-tests -name run.sh -print0)
 
 # Inform the user of the good news.
 echo 'All integration tests passed.'

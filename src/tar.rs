@@ -118,7 +118,7 @@ fn add_path<W: Write>(
     content_hashes: &mut Vec<String>,
     visited_paths: &mut HashSet<PathBuf>,
     source_path: &Path,
-    destination_path: &Path,
+    destination_path: &Path, // Must be relative
     metadata: &Metadata,
 ) -> Result<(), Failure> {
     // Add the ancestor directories. They would be created automatically, but we add them explicitly
