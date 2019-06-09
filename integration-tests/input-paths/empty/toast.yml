@@ -1,0 +1,4 @@
+image: debian
+tasks:
+  list:
+    command: ls -al

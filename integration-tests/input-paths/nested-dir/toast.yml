@@ -1,0 +1,9 @@
+image: debian
+tasks:
+  list:
+    input_paths:
+      - foo/bar
+    command: |
+      ls -al
+      ls -al foo
+      ls -al foo/bar
