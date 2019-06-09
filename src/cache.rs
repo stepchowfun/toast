@@ -1,9 +1,67 @@
 use crate::{failure, failure::Failure, toastfile::Task};
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, io, io::Read};
+use std::{
+    collections::HashMap,
+    io,
+    io::Read,
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+};
 
 // Bump this if we need to invalidate all existing caches for some reason.
 const CACHE_VERSION: usize = 0;
+
+// This trait is implemented by things we can take a cryptographic hash of, such as strings and
+// paths.
+pub trait CryptoHash {
+    // Compute a cryptographic hash. The guarantees:
+    //   1. For all `x`, `hash_str(x)` = `hash_str(x)`.
+    //   1. For all known `x` and `y`, `x` != `y` implies `hash_str(x)` != `hash_str(y)`.
+    fn crypto_hash(&self) -> String;
+}
+
+impl CryptoHash for str {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_bytes()))
+    }
+}
+
+impl CryptoHash for String {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_bytes()))
+    }
+}
+
+impl CryptoHash for Path {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_os_str().as_bytes()))
+    }
+}
+
+impl CryptoHash for PathBuf {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_os_str().as_bytes()))
+    }
+}
+
+// Combine two strings into a hash. The guarantees:
+//   1. For all `x` and `y`, `combine(x, y)` = `combine(x, y)`.
+//   2. For all known `x1`, `x2`, `y1`, and `y2`,
+//      `x1` != `x2` implies `combine(x1, y1)` != `combine(x2, y2)`.
+//   3. For all known `x1`, `x2`, `y1`, and `y2`,
+//      `y1` != `y2` implies `combine(x1, y1)` != `combine(x2, y2)`.
+pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> String {
+    format!("{}{}", x.crypto_hash(), y.crypto_hash()).crypto_hash()
+}
+
+// Compute a cryptographic hash of a readable object (e.g., a file). This function does not need to
+// load all the data in memory at the same time. The guarantees are the same as those of
+// `crypto_hash`.
+pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
+    let mut hasher = Sha256::new();
+    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
+    Ok(hex::encode(hasher.result()))
+}
 
 // Determine the cache ID of a task based on the cache ID of the previous task in the schedule (or
 // the hash of the base image, if this is the first task).
@@ -14,7 +72,7 @@ pub fn key(
     environment: &HashMap<String, String>,
 ) -> String {
     // Start with the previous key.
-    let mut cache_key = previous_key.to_owned();
+    let mut cache_key: String = previous_key.to_owned();
 
     // If there are no environment variables, no input paths, no command to run, we can just use the
     // cache key from the previous task.
@@ -39,10 +97,10 @@ pub fn key(
     cache_key = combine(&cache_key, &environment_hash);
 
     // Input paths and contents
-    cache_key = combine(&cache_key, &input_files_hash);
+    cache_key = combine(&cache_key, input_files_hash);
 
     // Location
-    cache_key = combine(&cache_key, &task.location.to_string_lossy());
+    cache_key = combine(&cache_key, &task.location);
 
     // User
     cache_key = combine(&cache_key, &task.user);
@@ -55,43 +113,73 @@ pub fn key(
     format!("toast-{}", cache_key)
 }
 
-// Compute the hash of a readable object (e.g., a file). This function does not need to load all the
-// data in memory at the same time. The guarantees:
-//   1. For all `x`, `hash_str(x)` = `hash_str(x)`.
-//   1. For all known `x` and `y`, `x` != `y` implies `hash_str(x)` != `hash_str(y)`.
-pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
-    let mut hasher = Sha256::new();
-    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
-    Ok(hex::encode(hasher.result()))
-}
-
-// Compute the hash of a string. The guarantees:
-//   1. For all `x`, `hash_str(x)` = `hash_str(x)`.
-//   1. For all known `x` and `y`, `x` != `y` implies `hash_str(x)` != `hash_str(y)`.
-pub fn hash_str(input: &str) -> String {
-    hex::encode(Sha256::digest(input.as_bytes()))
-}
-
-// Combine two strings into a hash. The guarantees:
-//   1. For all `x` and `y`, `combine(x, y)` = `combine(x, y)`.
-//   2. For all known `x1`, `x2`, `y1`, and `y2`,
-//      `x1` != `x2` implies `combine(x1, y1)` != `combine(x2, y2)`.
-//   3. For all known `x1`, `x2`, `y1`, and `y2`,
-//      `y1` != `y2` implies `combine(x1, y1)` != `combine(x2, y2)`.
-pub fn combine(x: &str, y: &str) -> String {
-    // Why not just take the hash of the concatenation of the two strings? Because then ("foo",
-    // "bar") would have the same hash as ("foob", "ar"). To disambiguate in this situation, we also
-    // include the length of the first string.
-    hash_str(&format!("{}:{}{}", x.len(), x, y))
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
-        cache::{combine, hash_read, hash_str, key},
+        cache::{combine, hash_read, key, CryptoHash},
         toastfile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
     };
     use std::{collections::HashMap, path::Path};
+
+    #[test]
+    fn hash_str_pure() {
+        assert_eq!("foo".crypto_hash(), "foo".crypto_hash());
+    }
+
+    #[test]
+    fn hash_str_not_constant() {
+        assert_ne!("foo".crypto_hash(), "bar".crypto_hash());
+    }
+
+    #[test]
+    fn hash_path_pure() {
+        assert_eq!(
+            Path::new("foo").crypto_hash(),
+            Path::new("foo").crypto_hash()
+        );
+    }
+
+    #[test]
+    fn hash_path_not_constant() {
+        assert_ne!(
+            Path::new("foo").crypto_hash(),
+            Path::new("bar").crypto_hash()
+        );
+    }
+
+    #[test]
+    fn combine_pure() {
+        assert_eq!(combine("foo", "bar"), combine("foo", "bar"));
+    }
+
+    #[test]
+    fn combine_first_different() {
+        assert_ne!(combine("foo", "bar"), combine("foo", "baz"));
+    }
+
+    #[test]
+    fn combine_second_different() {
+        assert_ne!(combine("foo", "bar"), combine("baz", "bar"));
+    }
+
+    #[test]
+    fn combine_concat() {
+        assert_ne!(combine("foo", "bar"), combine("foob", "ar"));
+    }
+
+    #[test]
+    fn hash_read_pure() {
+        let mut str1 = b"foo" as &[u8];
+        let mut str2 = b"foo" as &[u8];
+        assert_eq!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
+    }
+
+    #[test]
+    fn hash_read_not_constant() {
+        let mut str1 = b"foo" as &[u8];
+        let mut str2 = b"bar" as &[u8];
+        assert_ne!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
+    }
 
     #[test]
     fn key_noop() {
@@ -488,49 +576,5 @@ mod tests {
             key(previous_key, &task1, input_files_hash, &full_environment),
             key(previous_key, &task2, input_files_hash, &full_environment)
         );
-    }
-
-    #[test]
-    fn hash_read_pure() {
-        let mut str1 = b"foo" as &[u8];
-        let mut str2 = b"foo" as &[u8];
-        assert_eq!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
-    }
-
-    #[test]
-    fn hash_read_not_constant() {
-        let mut str1 = b"foo" as &[u8];
-        let mut str2 = b"bar" as &[u8];
-        assert_ne!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
-    }
-
-    #[test]
-    fn hash_str_pure() {
-        assert_eq!(hash_str("foo"), hash_str("foo"));
-    }
-
-    #[test]
-    fn hash_str_not_constant() {
-        assert_ne!(hash_str("foo"), hash_str("bar"));
-    }
-
-    #[test]
-    fn combine_pure() {
-        assert_eq!(combine("foo", "bar"), combine("foo", "bar"));
-    }
-
-    #[test]
-    fn combine_first_different() {
-        assert_ne!(combine("foo", "bar"), combine("foo", "baz"));
-    }
-
-    #[test]
-    fn combine_second_different() {
-        assert_ne!(combine("foo", "bar"), combine("baz", "bar"));
-    }
-
-    #[test]
-    fn combine_concat() {
-        assert_ne!(combine("foo", "bar"), combine("foob", "ar"));
     }
 }
