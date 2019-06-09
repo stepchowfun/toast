@@ -422,31 +422,24 @@ fn run_quiet(
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let output = command(args)
-        .stderr(Stdio::null())
-        .output()
-        .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
-            error
-        )))?;
+    let child = command(args).output().map_err(failure::system(format!(
+        "{} Perhaps you don't have Docker installed.",
+        error
+    )))?;
 
     // Handle the result.
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    if child.status.success() {
+        Ok(String::from_utf8_lossy(&child.stdout).to_string())
     } else {
         Err(
-            if output.status.code().is_none()
+            if child.status.code().is_none()
                 || (!was_interrupted && interrupted.load(Ordering::SeqCst))
             {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
             } else {
                 Failure::System(
-                    format!(
-                        "{} Details:\n{}",
-                        error,
-                        String::from_utf8_lossy(&output.stderr)
-                    ),
+                    format!("{}\n{}", error, String::from_utf8_lossy(&child.stderr)),
                     None,
                 )
             },
@@ -502,11 +495,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
                 Failure::Interrupted
             } else {
                 Failure::System(
-                    format!(
-                        "{} Details:\n{}",
-                        error,
-                        String::from_utf8_lossy(&output.stderr)
-                    ),
+                    format!("{}\n{}", error, String::from_utf8_lossy(&output.stderr)),
                     None,
                 )
             },
@@ -557,17 +546,17 @@ fn run_attach(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Resu
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let status = command(args).status().map_err(failure::system(format!(
+    let child = command(args).status().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
         error
     )))?;
 
     // Handle the result.
-    if status.success() {
+    if child.success() {
         Ok(())
     } else {
         Err(
-            if status.code().is_none() || (!was_interrupted && interrupted.load(Ordering::SeqCst)) {
+            if child.code().is_none() || (!was_interrupted && interrupted.load(Ordering::SeqCst)) {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
             } else {
