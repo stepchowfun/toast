@@ -14,7 +14,7 @@
   DESTINATION="${PREFIX:-/usr/local/bin}/toast"
 
   # Which version to download
-  RELEASE="v${VERSION:-0.25.0}"
+  RELEASE="v${VERSION:-0.26.0}"
 
   # Determine which binary to download.
   FILENAME=''
