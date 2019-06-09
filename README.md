@@ -19,7 +19,6 @@ Toast has no knowledge of specific programming languages or frameworks. You can 
 
 * [Installation](#installation)
    * [Easy installation](#easy-installation)
-      * [Customizing the installation](#customizing-the-installation)
    * [Manual installation](#manual-installation)
    * [Installation with Cargo](#installation-with-cargo)
 * [Tutorial](#tutorial)
@@ -51,9 +50,7 @@ The same command can be used again to update Toast to the latest version.
 
 **NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
 
-#### Customizing the installation
-
-The installation script supports the following environment variables:
+The installation script can be customized with the following environment variables:
 
 - `VERSION=x.y.z` (defaults to the latest version)
 - `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
