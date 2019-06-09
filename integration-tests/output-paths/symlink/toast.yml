@@ -1,0 +1,6 @@
+image: debian
+tasks:
+  list:
+    output_paths:
+      - symlink
+    command: ln -s non-existent symlink

@@ -1,9 +1,9 @@
 image: debian
 tasks:
   list:
-    input_paths:
+    output_paths:
       - foo/symlink
     command: |
       set -euo pipefail
-      ls -al
-      ls -al foo
+      mkdir foo
+      ln -s non-existent foo/symlink
