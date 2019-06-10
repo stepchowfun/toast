@@ -299,31 +299,35 @@ pub fn copy_from_container(
 
                 // Figure out what needs to go where. The `unwrap` is safe because `entry` is
                 // guaranteed to be inside `intermediate` (or equal to it).
-                let entry_path = entry.path();
-                let destination_path =
-                    destination.join(entry_path.strip_prefix(&intermediate).unwrap());
+                let entry_source_path = entry.path();
+                let entry_destination_path =
+                    destination.join(entry_source_path.strip_prefix(&intermediate).unwrap());
 
                 // Check if the entry is a file or a directory.
                 if entry.file_type().is_dir() {
                     // It's a directory. Create a directory at the destination.
-                    create_dir_all(&destination_path).map_err(failure::system(format!(
+                    create_dir_all(&entry_destination_path).map_err(failure::system(format!(
                         "Unable to create directory {}.",
-                        destination_path.to_string_lossy().code_str(),
+                        entry_destination_path.to_string_lossy().code_str(),
                     )))?;
                 } else {
                     // It's a file or symlink. Move or copy it to the destination.
-                    rename_or_copy_file_or_symlink(entry_path, &destination_path, &entry_metadata)?;
+                    rename_or_copy_file_or_symlink(
+                        entry_source_path,
+                        &entry_destination_path,
+                        &entry_metadata,
+                    )?;
                 }
             }
         } else {
             // It's a file or symlink. Determine the destination directory. The `unwrap` is safe
             // because the root of the filesystem cannot be a file or symlink.
-            let destination_dir = destination.parent().unwrap().to_owned();
+            let destination_parent = destination.parent().unwrap().to_owned();
 
             // Make sure the destination directory exists.
-            create_dir_all(&destination_dir).map_err(failure::system(format!(
+            create_dir_all(&destination_parent).map_err(failure::system(format!(
                 "Unable to create directory {}.",
-                destination_dir.to_string_lossy().code_str(),
+                destination_parent.to_string_lossy().code_str(),
             )))?;
 
             // Move or copy it to the destination.

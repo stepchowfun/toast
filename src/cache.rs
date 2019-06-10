@@ -63,7 +63,12 @@ pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     Ok(hex::encode(hasher.result()))
 }
 
-// Determine the cache ID of a task based on the cache ID of the previous task in the schedule (or
+// Determine the initial cache key. [ref:cache_prefix]
+pub fn initial_key(image: &str) -> String {
+    format!("toast-{}", image.crypto_hash())
+}
+
+// Determine the cache key of a task based on the cache key of the previous task in the schedule (or
 // the hash of the base image, if this is the first task).
 pub fn key(
     previous_key: &str,
@@ -74,8 +79,8 @@ pub fn key(
     // Start with the previous key.
     let mut cache_key: String = previous_key.to_owned();
 
-    // If there are no environment variables, no input paths, no command to run, we can just use the
-    // cache key from the previous task.
+    // If there are no environment variables, no input paths, and no command to run, we can just use
+    // the cache key from the previous task.
     if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_empty() {
         return cache_key;
     }
@@ -110,6 +115,7 @@ pub fn key(
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
+    // [tag:cache_prefix]
     format!("toast-{}", cache_key)
 }
 
