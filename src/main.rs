@@ -464,8 +464,8 @@ fn run_tasks(
     // `false`.
     let mut caching_enabled = true;
 
-    // This is the cache key for the current task. We initialize it with the base image name.
-    let mut cache_key = toastfile.image.clone();
+    // This is the cache key for the current task.
+    let mut cache_key = cache::initial_key(&toastfile.image);
 
     // We start with the base image.
     let mut context = runner::Context {

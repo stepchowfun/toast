@@ -18,7 +18,7 @@ pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> 
     // For each root, compute its transitive reflexive closure, topsort it, and add it to the
     // schedule.
     for root in roots {
-        // The frontier is a stack, which means we are doing a depth-first traversal.
+        // We'll this frontier as a stack for a depth-first traversal.
         let mut frontier: Vec<(&'a str, bool)> = vec![(root, true)];
 
         // This vector will accumulate the topsorted tasks.

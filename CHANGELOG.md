@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] - 2019-06-09
+
+### Fixed
+- Fixed a bug that would cause Toast to crash if the first task had no environment variables, no input paths, and no command to run.
+
 ## [0.26.0] - 2019-06-09
 
 ### Fixed
