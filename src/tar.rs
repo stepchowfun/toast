@@ -5,6 +5,7 @@ use std::{
     io::{empty, Read, Seek, SeekFrom, Write},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
+    ffi::OsStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -18,6 +19,13 @@ use walkdir::WalkDir;
 fn strip_root(absolute_path: &Path) -> &Path {
     // The `unwrap` is safe since `absolute_path` is absolute and Toast only supports Unix.
     absolute_path.strip_prefix("/").unwrap()
+}
+
+fn strip_relative(absolute_path: &Path) -> PathBuf {
+    absolute_path
+        .iter()
+        .skip_while(|p| *p == OsStr::new(".."))
+        .collect::<PathBuf>()
 }
 
 // Add a file to a tar archive.
@@ -275,7 +283,7 @@ pub fn create<W: Write>(
                                 entry.path().to_string_lossy().code_str(),
                                 source_dir.to_string_lossy().code_str(),
                             )),
-                        )?),
+                        ).map(|p| strip_relative(p))?),
                     ),
                     &entry_metadata,
                 )?;
@@ -294,7 +302,7 @@ pub fn create<W: Write>(
                             input_path.to_string_lossy().code_str(),
                             source_dir.to_string_lossy().code_str(),
                         )),
-                    )?),
+                    ).map(|p| strip_relative(p))?),
                 ),
                 &input_path_metadata,
             )?;

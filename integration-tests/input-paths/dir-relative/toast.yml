@@ -1,0 +1,9 @@
+image: debian
+tasks:
+  list:
+    input_paths:
+      - ../foo
+    command: |
+      set -euo pipefail
+      ls -al
+      ls -al foo
