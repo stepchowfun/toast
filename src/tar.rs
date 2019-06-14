@@ -1,11 +1,11 @@
 use crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin};
 use std::{
     collections::HashSet,
+    ffi::OsStr,
     fs::{read_link, symlink_metadata, File, Metadata},
     io::{empty, Read, Seek, SeekFrom, Write},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    ffi::OsStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -277,13 +277,17 @@ pub fn create<W: Write>(
                     &mut visited_paths,
                     entry.path(),
                     strip_root(
-                        &destination_dir.join(entry.path().strip_prefix(&source_dir).map_err(
-                            failure::system(format!(
-                                "Unable to relativize path {} with respect to {}.",
-                                entry.path().to_string_lossy().code_str(),
-                                source_dir.to_string_lossy().code_str(),
-                            )),
-                        ).map(|p| strip_relative(p))?),
+                        &destination_dir.join(
+                            entry
+                                .path()
+                                .strip_prefix(&source_dir)
+                                .map_err(failure::system(format!(
+                                    "Unable to relativize path {} with respect to {}.",
+                                    entry.path().to_string_lossy().code_str(),
+                                    source_dir.to_string_lossy().code_str(),
+                                )))
+                                .map(|p| strip_relative(p))?,
+                        ),
                     ),
                     &entry_metadata,
                 )?;
@@ -296,13 +300,16 @@ pub fn create<W: Write>(
                 &mut visited_paths,
                 &input_path,
                 strip_root(
-                    &destination_dir.join(input_path.strip_prefix(&source_dir).map_err(
-                        failure::system(format!(
-                            "Unable to relativize path {} with respect to {}.",
-                            input_path.to_string_lossy().code_str(),
-                            source_dir.to_string_lossy().code_str(),
-                        )),
-                    ).map(|p| strip_relative(p))?),
+                    &destination_dir.join(
+                        input_path
+                            .strip_prefix(&source_dir)
+                            .map_err(failure::system(format!(
+                                "Unable to relativize path {} with respect to {}.",
+                                input_path.to_string_lossy().code_str(),
+                                source_dir.to_string_lossy().code_str(),
+                            )))
+                            .map(|p| strip_relative(p))?,
+                    ),
                 ),
                 &input_path_metadata,
             )?;
