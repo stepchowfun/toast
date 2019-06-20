@@ -22,7 +22,7 @@ Toast has no knowledge of specific programming languages or frameworks. You can 
    * [Manual installation](#manual-installation)
    * [Installation with Cargo](#installation-with-cargo)
 * [Tutorial](#tutorial)
-   * [Defining a simple task](#declaring-a-simple-task)
+   * [Defining a simple task](#defining-a-simple-task)
    * [Adding a dependency](#adding-a-dependency)
    * [Importing files from the host](#importing-files-from-the-host)
    * [Exporting files from the container](#exporting-files-from-the-container)
