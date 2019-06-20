@@ -233,6 +233,8 @@ tasks:
 
 Now if you run `toast deploy` without specifying a `CLUSTER`, Toast will complain about the missing variable and refuse to run the task.
 
+Environment variables listed in a task are also set for any tasks that run after it.
+
 ### Running a server and mounting paths into the container
 
 Toast can be used for more than just building a project. Suppose you're developing a website. You can define a Toast task to run your web server! Create a file called `index.html` with the following contents:
