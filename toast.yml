@@ -1,5 +1,5 @@
 image: ubuntu:18.04
-default: build-test-lint
+default: build
 tasks:
   install_packages:
     description: Install system packages.
@@ -112,13 +112,6 @@ tasks:
       shellcheck integration-tests.sh
       shellcheck integration-tests/**/*.sh
       shellcheck release.sh
-
-  build-test-lint:
-    description: Build, test, and lint the program.
-    dependencies:
-      - build
-      - lint
-      - test
 
   check:
     description: Type-check the program.

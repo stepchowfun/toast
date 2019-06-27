@@ -14,7 +14,7 @@ script:
     else
       WRITE_REMOTE_CACHE=false
     fi
-    toast build-test-lint release \
+    toast build test lint release \
       --repo stephanmisc/toast \
       --read-remote-cache true \
       --write-remote-cache "$WRITE_REMOTE_CACHE"
