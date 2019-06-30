@@ -32,7 +32,10 @@ pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, 
     match run_quiet(
         "Checking existence of image\u{2026}",
         "The image doesn't exist.",
-        &["image", "inspect", image],
+        &vec!["image", "inspect", image]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     ) {
         Ok(_) => Ok(true),
@@ -48,7 +51,10 @@ pub fn push_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fail
     run_quiet(
         "Pushing image\u{2026}",
         "Unable to push image.",
-        &["image", "push", image],
+        &vec!["image", "push", image]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -61,7 +67,10 @@ pub fn pull_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fail
     run_quiet(
         "Pulling image\u{2026}",
         "Unable to pull image.",
-        &["image", "pull", image],
+        &vec!["image", "pull", image]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -74,7 +83,10 @@ pub fn delete_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fa
     run_quiet(
         "Deleting image\u{2026}",
         "Unable to delete image.",
-        &["image", "rm", "--force", image],
+        &vec!["image", "rm", "--force", image]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -96,61 +108,26 @@ pub fn create_container(
 ) -> Result<String, Failure> {
     debug!("Creating container from image {}\u{2026}", image.code_str(),);
 
-    let workdir = location.to_string_lossy();
+    let mut args = vec!["container", "create"]
+        .into_iter()
+        .map(std::borrow::ToOwned::to_owned)
+        .collect::<Vec<_>>();
 
-    let mut environment_pairs = Vec::new();
-
-    for (variable, value) in environment {
-        environment_pairs.push(format!("{}={}", variable, value)); // [ref:env_var_equals]
-    }
-
-    let mut mount_options = Vec::new();
-    for path in mount_paths {
-        // [ref:mount_paths_no_commas]
-        if mount_readonly {
-            mount_options.push(format!(
-                "type=bind,source={},target={},readonly",
-                source_dir.join(path).to_string_lossy(),
-                location.join(path).to_string_lossy()
-            ));
-        } else {
-            mount_options.push(format!(
-                "type=bind,source={},target={}",
-                source_dir.join(path).to_string_lossy(),
-                location.join(path).to_string_lossy()
-            ));
-        }
-    }
-
-    // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes, otherwise they can
-    // accumulate. Bash does this, but we run `/bin/sh` in the container, which may or may not be
-    // Bash. So `--init` runs Tini (https://github.com/krallin/tini) as PID 1, which properly reaps
-    // orphaned zombies. (2) PID 1 also does not exhibit the default behavior (crashing) for signals
-    // like SIGINT and SIGTERM. However, PID 1 can still handle these signals by explicitly trapping
-    // them. Tini traps these signals and forwards them to the child process. Then the default
-    // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
-    // [tag:--init]
-    let mut args = vec!["container", "create", "--init", "--workdir", &workdir];
+    args.extend(container_args(
+        source_dir,
+        environment,
+        location,
+        mount_paths,
+        mount_readonly,
+        ports,
+    ));
 
     args.extend(
-        environment_pairs
-            .iter()
-            .flat_map(|pair| vec!["--env", pair])
+        vec![image, "/bin/su", "-c", command, user]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
     );
-
-    args.extend(
-        mount_options
-            .iter()
-            .flat_map(|options| vec!["--mount", options])
-            .collect::<Vec<_>>(),
-    );
-
-    for port in ports {
-        args.extend(vec!["--publish", port]);
-    }
-
-    args.extend(vec![image, "/bin/su", "-c", command, user]);
 
     Ok(run_quiet(
         "Creating container\u{2026}",
@@ -176,7 +153,12 @@ pub fn copy_into_container<R: Read>(
     run_quiet_stdin(
         "Copying files into container\u{2026}",
         "Unable to copy files into the container.",
-        &["container", "cp", "-", &format!("{}:/", container)],
+        &[
+            "container".to_owned(),
+            "cp".to_owned(),
+            "-".to_owned(),
+            format!("{}:/", container),
+        ],
         |mut stdin| {
             io::copy(&mut tar, &mut stdin)
                 .map_err(failure::system("Unable to copy files into the container."))?;
@@ -265,10 +247,10 @@ pub fn copy_from_container(
             "Copying files from the container\u{2026}",
             "Unable to copy files from the container.",
             &[
-                "container",
-                "cp",
-                &format!("{}:{}", container, source.to_string_lossy()),
-                &intermediate.to_string_lossy(),
+                "container".to_owned(),
+                "cp".to_owned(),
+                format!("{}:{}", container, source.to_string_lossy()),
+                intermediate.to_string_lossy().into_owned(),
             ],
             interrupted,
         )
@@ -344,7 +326,10 @@ pub fn start_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result
 
     run_loud(
         "Unable to start container.",
-        &["container", "start", "--attach", container],
+        &vec!["container", "start", "--attach", container]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -357,7 +342,10 @@ pub fn stop_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<
     run_quiet(
         "Stopping container\u{2026}",
         "Unable to stop container.",
-        &["container", "stop", container],
+        &vec!["container", "stop", container]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -378,7 +366,10 @@ pub fn commit_container(
     run_quiet(
         "Committing container\u{2026}",
         "Unable to commit container.",
-        &["container", "commit", container, image],
+        &vec!["container", "commit", container, image]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
@@ -391,17 +382,25 @@ pub fn delete_container(container: &str, interrupted: &Arc<AtomicBool>) -> Resul
     run_quiet(
         "Deleting container\u{2026}",
         "Unable to delete container.",
-        &["container", "rm", "--force", container],
+        &vec!["container", "rm", "--force", container]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         interrupted,
     )
     .map(|_| ())
 }
 
 // Run an interactive shell.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_shell(
     image: &str,
+    source_dir: &Path,
     environment: &HashMap<String, String>,
     location: &Path,
+    mount_paths: &[PathBuf],
+    mount_readonly: bool,
+    ports: &[String],
     user: &str,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<(), Failure> {
@@ -410,42 +409,111 @@ pub fn spawn_shell(
         image.code_str()
     );
 
-    let workdir = location.to_string_lossy();
+    let mut args = vec!["container", "run", "--rm", "--interactive", "--tty"]
+        .into_iter()
+        .map(std::borrow::ToOwned::to_owned)
+        .collect::<Vec<_>>();
 
-    let mut environment_pairs = Vec::new();
-
-    for (variable, value) in environment {
-        environment_pairs.push(format!("{}={}", variable, value)); // [ref:env_var_equals]
-    }
-
-    let mut args = vec![
-        "container",
-        "run",
-        "--rm",
-        "--init", // [ref:--init]
-        "--interactive",
-        "--tty",
-        "--workdir",
-        &workdir,
-    ];
+    args.extend(container_args(
+        source_dir,
+        environment,
+        location,
+        mount_paths,
+        mount_readonly,
+        ports,
+    ));
 
     args.extend(
-        environment_pairs
-            .iter()
-            .flat_map(|pair| vec!["--env", pair])
+        vec![image, "/bin/su", user]
+            .into_iter()
+            .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
     );
 
-    args.extend(vec![image, "/bin/su", user]);
-
     run_attach("The shell exited with a failure.", &args, interrupted)
+}
+
+// This function returns arguments for `docker create` or `docker run`.
+fn container_args(
+    source_dir: &Path,
+    environment: &HashMap<String, String>,
+    location: &Path,
+    mount_paths: &[PathBuf],
+    mount_readonly: bool,
+    ports: &[String],
+) -> Vec<String> {
+    // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes, otherwise they can
+    // accumulate. Bash does this, but we run `/bin/sh` in the container, which may or may not be
+    // Bash. So `--init` runs Tini (https://github.com/krallin/tini) as PID 1, which properly reaps
+    // orphaned zombies. (2) PID 1 also does not exhibit the default behavior (crashing) for signals
+    // like SIGINT and SIGTERM. However, PID 1 can still handle these signals by explicitly trapping
+    // them. Tini traps these signals and forwards them to the child process. Then the default
+    // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
+    let mut args = vec!["--init".to_owned()];
+
+    // Environment
+    args.extend(
+        environment
+            .iter()
+            .flat_map(|(variable, value)| {
+                vec!["--env".to_owned(), format!("{}={}", variable, value)]
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    // Location
+    args.extend(vec![
+        "--workdir".to_owned(),
+        location.to_string_lossy().into_owned(),
+    ]);
+
+    // Mount paths
+    args.extend(
+        mount_paths
+            .iter()
+            .flat_map(|mount_path| {
+                // [ref:mount_paths_no_commas]
+                vec![
+                    "--mount".to_owned(),
+                    if mount_readonly {
+                        format!(
+                            "type=bind,source={},target={},readonly",
+                            source_dir.join(mount_path).to_string_lossy(),
+                            location.join(mount_path).to_string_lossy()
+                        )
+                    } else {
+                        format!(
+                            "type=bind,source={},target={}",
+                            source_dir.join(mount_path).to_string_lossy(),
+                            location.join(mount_path).to_string_lossy()
+                        )
+                    },
+                ]
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    // Ports
+    args.extend(
+        ports
+            .iter()
+            .flat_map(|port| {
+                vec!["--publish", port]
+                    .into_iter()
+                    .map(std::borrow::ToOwned::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    args
 }
 
 // Run a command and return its standard output.
 fn run_quiet(
     spinner_message: &str,
     error: &str,
-    args: &[&str],
+    args: &[String],
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
     // Render a spinner animation and clear it when we're done.
@@ -486,7 +554,7 @@ fn run_quiet(
 fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     spinner_message: &str,
     error: &str,
-    args: &[&str],
+    args: &[String],
     writer: W,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
@@ -538,7 +606,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
 }
 
 // Run a command and inherit standard output and error streams.
-fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+fn run_loud(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
     let was_interrupted = interrupted.load(Ordering::SeqCst);
@@ -574,7 +642,7 @@ fn run_loud(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result
 }
 
 // Run a command and inherit standard input, output, and error streams.
-fn run_attach(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+fn run_attach(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
     let was_interrupted = interrupted.load(Ordering::SeqCst);
@@ -601,7 +669,7 @@ fn run_attach(error: &str, args: &[&str], interrupted: &Arc<AtomicBool>) -> Resu
 }
 
 // Construct a Docker `Command` from an array of arguments.
-fn command(args: &[&str]) -> Command {
+fn command(args: &[String]) -> Command {
     let mut command = Command::new("docker");
     for arg in args {
         command.arg(arg);

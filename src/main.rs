@@ -291,9 +291,9 @@ fn settings() -> Result<Settings, Failure> {
         "Unable to parse file {}.",
         config_file_path
             .as_ref()
-            .unwrap()
+            .unwrap() // Manually verified safe
             .to_string_lossy()
-            .code_str(), // Manually verified safe
+            .code_str(),
     )))?;
 
     // Read the local caching switches.
@@ -627,39 +627,54 @@ fn entry() -> Result<(), Failure> {
         // Inform the user of what's about to happen.
         info!("Preparing a shell\u{2026}");
 
-        // Determine the environment, location, and user for the shell.
-        let (task_environment, location, user) = if let Some(last_task) = last_task {
-            // Get the data for the last task.
-            let last_task = &toastfile.tasks[&last_task]; // [ref:tasks_valid]
+        // Determine the environment, location, mount settings, ports, and user for the shell.
+        let (task_environment, location, mount_paths, mount_readonly, ports, user) =
+            if let Some(last_task) = last_task {
+                // Get the data for the last task.
+                let last_task = &toastfile.tasks[&last_task]; // [ref:tasks_valid]
 
-            // Prepare the environment.
-            let mut task_environment = HashMap::<String, String>::new();
-            for variable in last_task.environment.keys() {
-                // [ref:environment_valid]
-                task_environment.insert(variable.to_owned(), environment[variable].clone());
-            }
+                // Prepare the environment.
+                let mut task_environment = HashMap::<String, String>::new();
+                for variable in last_task.environment.keys() {
+                    // [ref:environment_valid]
+                    task_environment.insert(variable.to_owned(), environment[variable].clone());
+                }
 
-            // Use the environment, path, and user from the last task.
-            (
-                task_environment,
-                last_task.location.clone(),
-                last_task.user.clone(),
-            )
-        } else {
-            // There is no last task, so the context will be the base image. Use the empty
-            // environment, the root path, and the root user.
-            (
-                HashMap::<String, String>::new(),
-                Path::new("/").to_owned(),
-                "root".to_owned(),
-            )
-        };
+                // Use the settings from the last task.
+                (
+                    task_environment,
+                    last_task.location.to_owned(),
+                    last_task.mount_paths.to_owned(),
+                    last_task.mount_readonly,
+                    last_task.ports.to_owned(),
+                    last_task.user.to_owned(),
+                )
+            } else {
+                // There is no last task, so the context will be the base image. Use default
+                // settings.
+                (
+                    HashMap::<String, String>::new(),
+                    Path::new("/").to_owned(),
+                    vec![],
+                    false,
+                    vec![],
+                    "root".to_owned(),
+                )
+            };
+
+        // All relative paths are relative to where the toastfile lives.
+        let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
+        toastfile_dir.pop();
 
         // Spawn the shell.
         docker::spawn_shell(
             &context.image,
+            &toastfile_dir,
             &task_environment,
             &location,
+            &mount_paths,
+            mount_readonly,
+            &ports,
             &user,
             &interrupted,
         )?;
