@@ -152,7 +152,7 @@ pub struct Settings {
     tasks: Option<Vec<String>>,
 }
 
-// Parse the command-line arguments;
+// Parse the command-line arguments.
 fn settings() -> Result<Settings, Failure> {
     let matches = App::new("Toast")
         .version(VERSION)
