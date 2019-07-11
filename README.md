@@ -2,18 +2,18 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
 
-*Toast* is a tool for doing work in containers. You define tasks in a *toastfile*, and Toast runs them in an environment based on a Docker image of your choosing. Tasks can depend on other tasks, which makes Toast similar to a build system. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, serve web pages, deploy a service, etc.
-
-Toast supports local and remote caching to avoid repeating work. Toast records a diff of the entire filesystem after each task by committing the container to an image. Each image is tagged with a cryptographic hash of the shell command for the task, the contents of the files copied into the container, and all the other task inputs. If remote caching is enabled, Toast will upload the images to a Docker registry to be used by Toast running on other machines.
+*Toast* is a tool for doing work in containers. You define tasks in a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages. Toast makes it easy for contributors to get started on new codebase—just run `toast`.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
-The tutorial below aims to demonstrate how Toast can simplify your development workflow. On the other hand, here are two situations for which Toast is *not* suitable:
+Toast caches each task by committing the container to an image. The image is tagged with a cryptographic hash of the shell command for the task, the contents of the files copied into the container, and all the other task inputs. This hash allows Toast to skip tasks that haven't changed since the last run.
 
-- Tasks that cannot run in Linux containers: for example, you wouldn't use Toast to build an iOS application.
-- Multi-container applications: you can use a tool like [Docker Compose](https://docs.docker.com/compose/overview/) for that, but you'll forgo some toasty benefits like remote caching and the ability to define tasks and dependencies.
+In addition to local caching, Toast can use a Docker registry as a remote cache. You, your teammates, and your continuous integration (CI) system can all share the same remote cache. Used in this way, your CI system can do all the heavy lifting like building and installing dependencies so you and your team can focus on development.
 
-Toast has no knowledge of specific programming languages or frameworks. You can use Toast with another tool like [Bazel](https://bazel.build/) or [Buck](https://buckbuild.com/) to perform language-specific build tasks.
+Related tools:
+
+- [Docker Compose](https://docs.docker.com/compose/): Docker Compose is a convenient Docker-based development environment which shares many features with Toast. However, it doesn't support defining tasks (like `lint`, `test`, `run`, etc.) or remote caching.
+- [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix involves a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. Toast allows you to use familiar idioms like `apt-get install ...`.
 
 ## Table of contents
 
@@ -351,7 +351,7 @@ write_remote_cache: false # Whether Toast should write to remote cache
 
 Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
-A typical configuration for a continuous integration (CI) environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/.travis.yml) for a complete example of how to use Toast in a CI environment.
+A typical configuration for a CI environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/.travis.yml) for a complete example of how to use Toast in a CI environment.
 
 ## Command-line options
 
