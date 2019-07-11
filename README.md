@@ -6,6 +6,29 @@
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
+Here's the toastfile for the example shown above:
+
+```yml
+image: ubuntu
+tasks:
+  install_gcc:
+    command: |
+      apt-get update
+      apt-get install --yes gcc
+
+  build:
+    dependencies:
+      - install_gcc
+    input_paths:
+      - main.c
+    command: gcc main.c
+
+  run:
+    dependencies:
+      - build
+    command: ./a.out
+```
+
 Toast caches each task by committing the container to an image. The image is tagged with a cryptographic hash of the shell command for the task, the contents of the files copied into the container, and all the other task inputs. This hash allows Toast to skip tasks that haven't changed since the last run.
 
 In addition to local caching, Toast can use a Docker registry as a remote cache. You, your teammates, and your continuous integration (CI) system can all share the same remote cache. Used in this way, your CI system can do all the heavy lifting like building and installing dependencies so you and your team can focus on development.
