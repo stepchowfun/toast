@@ -41,7 +41,8 @@ pub struct Task {
     #[serde(default)]
     pub output_paths: Vec<PathBuf>,
 
-    // Must be relative [ref:mount_paths_relative]
+    // Can be relative or absolute (absolute paths are allowed in order to support mounting the
+    //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
     // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
     #[serde(default)]
@@ -347,19 +348,6 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check `mount_paths`.
     for path in &task.mount_paths {
-        // Check that the path is relative. [tag:mount_paths_relative]
-        if path.is_absolute() {
-            return Err(Failure::User(
-                format!(
-                    "Task {} has an absolute {}: {}.",
-                    name.code_str(),
-                    "mount_path".code_str(),
-                    path.to_string_lossy().code_str()
-                ),
-                None,
-            ));
-        }
-
         // Check that the path doesn't contain any commas. [tag:mount_paths_no_commas]
         if path.to_string_lossy().contains(',') {
             return Err(Failure::User(
@@ -1135,7 +1123,7 @@ tasks:
         let task = Task {
             description: None,
             dependencies: vec![],
-            cache: true,
+            cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![Path::new("/bar").to_owned()],
@@ -1157,7 +1145,7 @@ tasks:
         let task = Task {
             description: None,
             dependencies: vec![],
-            cache: true,
+            cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
@@ -1169,9 +1157,7 @@ tasks:
             command: String::new(),
         };
 
-        let result = check_task("foo", &task);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/bar"));
+        assert!(check_task("foo", &task).is_ok());
     }
 
     #[test]

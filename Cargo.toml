@@ -1,6 +1,6 @@
 [package]
 name = "toast"
-version = "0.28.0"
+version = "0.29.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 description = "Containerize your development and continuous integration environments."
 license = "MIT"
