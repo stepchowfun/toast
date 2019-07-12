@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
 
-*Toast* is a tool for doing work in containers. You define tasks in a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages. Toast makes it easy for contributors to get started on new codebase—just run `toast`.
+*Toast* is a tool for doing work in containers. You define tasks in a YAML file called a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages. Toast makes it easy for contributors to get started on new codebase—just run `toast`.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
 
@@ -36,7 +36,7 @@ In addition to local caching, Toast can use a Docker registry as a remote cache.
 Related tools:
 
 - [Docker Compose](https://docs.docker.com/compose/): Docker Compose is a convenient Docker-based development environment which shares many features with Toast. However, it doesn't support defining tasks (like `lint`, `test`, `run`, etc.) or remote caching.
-- [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix involves a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. Toast allows you to use familiar idioms like `apt-get install ...`.
+- [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix involves a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. For better or worse, Toast allows you to use familiar idioms like `apt-get install ...`.
 
 ## Table of contents
 
