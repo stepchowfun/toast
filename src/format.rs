@@ -7,6 +7,9 @@ pub trait CodeStr {
 }
 
 impl CodeStr for str {
+    // This particular lint check is buggy and reports a nonsensical error in this function, so we
+    // disable it here.
+    #![allow(clippy::use_self)]
     fn code_str(&self) -> ColoredString {
         if atty::is(Stream::Stdout) {
             self.magenta()
