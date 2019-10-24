@@ -21,6 +21,9 @@ pub trait CryptoHash {
 }
 
 impl CryptoHash for str {
+    // This particular lint check is buggy and reports a nonsensical error in this function, so we
+    // disable it here.
+    #![allow(clippy::use_self)]
     fn crypto_hash(&self) -> String {
         hex::encode(Sha256::digest(self.as_bytes()))
     }

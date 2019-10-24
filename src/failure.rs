@@ -14,13 +14,11 @@ pub enum Failure {
 impl fmt::Display for Failure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Failure::System(message, None) | Failure::User(message, None) => {
-                write!(f, "{}", message)
-            }
-            Failure::System(message, Some(source)) | Failure::User(message, Some(source)) => {
+            Self::System(message, None) | Self::User(message, None) => write!(f, "{}", message),
+            Self::System(message, Some(source)) | Self::User(message, Some(source)) => {
                 write!(f, "{} Reason: {}", message, source)
             }
-            Failure::Interrupted => write!(f, "Interrupted."),
+            Self::Interrupted => write!(f, "Interrupted."),
         }
     }
 }
@@ -28,9 +26,9 @@ impl fmt::Display for Failure {
 impl error::Error for Failure {
     fn source<'a>(&'a self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Failure::System(_, source) => source.as_ref().map(|e| &**e),
-            Failure::User(_, source) => source.as_ref().map(|e| &**e),
-            Failure::Interrupted => None,
+            Self::System(_, source) => source.as_ref().map(|e| &**e),
+            Self::User(_, source) => source.as_ref().map(|e| &**e),
+            Self::Interrupted => None,
         }
     }
 }
