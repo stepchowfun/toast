@@ -146,6 +146,7 @@ pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).
+#[allow(clippy::too_many_lines)]
 fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     // Check the default task. [tag:valid_default]
     let valid_default = toastfile

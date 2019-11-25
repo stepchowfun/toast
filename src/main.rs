@@ -153,6 +153,7 @@ pub struct Settings {
 }
 
 // Parse the command-line arguments.
+#[allow(clippy::too_many_lines)]
 fn settings() -> Result<Settings, Failure> {
     let matches = App::new("Toast")
         .version(VERSION)
@@ -520,6 +521,7 @@ fn run_tasks(
 }
 
 // Program entrypoint
+#[allow(clippy::too_many_lines)]
 fn entry() -> Result<(), Failure> {
     // Determine whether to print colored output.
     colored::control::set_override(atty::is(Stream::Stdout));

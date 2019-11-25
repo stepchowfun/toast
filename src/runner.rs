@@ -31,6 +31,7 @@ impl Drop for Context {
 
 // Run a task and return the new cache key.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)]
 pub fn run(
     settings: &super::Settings,
     environment: &HashMap<String, String>,
