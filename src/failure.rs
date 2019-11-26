@@ -7,8 +7,8 @@ use std::{error, fmt};
 #[derive(Debug)]
 pub enum Failure {
     Interrupted, // E.g., by SIGINT or SIGTERM
-    System(String, Option<Box<dyn error::Error + 'static>>),
-    User(String, Option<Box<dyn error::Error + 'static>>),
+    System(String, Option<Box<dyn error::Error>>),
+    User(String, Option<Box<dyn error::Error>>),
 }
 
 impl fmt::Display for Failure {
