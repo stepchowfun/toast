@@ -524,7 +524,7 @@ fn run_tasks(
 #[allow(clippy::too_many_lines)]
 fn entry() -> Result<(), Failure> {
     // Determine whether to print colored output.
-    colored::control::set_override(atty::is(Stream::Stdout));
+    colored::control::set_override(atty::is(Stream::Stderr));
 
     // Set up the logger.
     set_up_logging();

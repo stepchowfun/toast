@@ -1,3 +1,4 @@
+use atty::Stream;
 use crossbeam::channel::{bounded, Sender};
 use indicatif::{ProgressBar, ProgressStyle};
 use scopeguard::guard;
@@ -26,6 +27,12 @@ pub fn spin(message: &str) -> impl Drop {
           // Wait for a request. The `unwrap` is safe since we never hang up the channel.
           let (message, spinning, response_sender) =
             request_receiver.recv().unwrap();
+
+          // If STDERR is not a TTY, the spinner will be hidden. In that case, just print
+          // the message to STDERR.
+          if !atty::is(Stream::Stderr) {
+            info!("{}", message);
+          }
 
           // Create the spinner!
           let spinner = ProgressBar::new(1);
