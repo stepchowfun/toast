@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] - 2019-12-31
+
+### Fixed
+- Toast now decides whether to print colored output based on whether STDERR is connected to a TTY. Previously, this decision was based on whether STDOUT is connected to a TTY, even though Toast mostly prints colored output to STDERR.
+- When STDERR is not connected to a TTY, Toast now logs spinner messages. Previously, these messages were only displayed as part of a spinner animation when STDERR is connected to a TTY.
+
 ## [0.29.0] - 2019-07-11
 
 ### Changed
