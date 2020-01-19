@@ -4,7 +4,6 @@ use std::{
     collections::HashMap,
     io,
     io::Read,
-    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 
@@ -35,15 +34,25 @@ impl CryptoHash for String {
     }
 }
 
+#[cfg(unix)]
+fn path_as_bytes(path: &Path) -> &[u8] {
+    use std::os::unix::ffi::OsStrExt;
+    path.as_os_str().as_bytes()
+}
+#[cfg(windows)]
+fn path_as_bytes(path: &Path) -> &[u8] {
+    path.as_os_str().to_str().map(|s| s.as_bytes()).expect("Invalid UTF8")
+}
+
 impl CryptoHash for Path {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(self.as_os_str().as_bytes()))
+        hex::encode(Sha256::digest(path_as_bytes(&self)))
     }
 }
 
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(self.as_os_str().as_bytes()))
+        hex::encode(Sha256::digest(path_as_bytes(&self)))
     }
 }
 
