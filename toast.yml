@@ -123,6 +123,7 @@ tasks:
     command: |
       set -euo pipefail
       . $HOME/.cargo/env
+      find src -type f -name '*.rs' -exec touch {} +
       cargo check --all --all-targets --all-features
 
   format:
