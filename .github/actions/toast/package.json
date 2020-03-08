@@ -1,0 +1,16 @@
+{
+  "name": "toast",
+  "version": "1.0.0",
+  "description": "A GitHub action for running Toast",
+  "repository": "https://github.com/stepchowfun/toast",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Stephan Boyer",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.2.3"
+  }
+}

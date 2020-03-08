@@ -1,0 +1,22 @@
+name: Toast
+description: Run Toast
+inputs:
+  tasks:
+    description: 'A list of tasks to run, separated by spaces'
+    required: true
+    default: ''
+  file:
+    description: 'The location of the toastfile relative to the repository root'
+    required: true
+    default: ''
+  repo:
+    description: 'The Docker repository for remote caching'
+    required: true
+    default: ''
+  write_remote_cache:
+    description: 'Whether to write to the Docker repository for remote caching'
+    required: true
+    default: 'false'
+runs:
+  using: node12
+  main: index.js

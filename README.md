@@ -1,6 +1,6 @@
 # Toast 🥂
 
-[![Build Status](https://travis-ci.org/stepchowfun/toast.svg?branch=master)](https://travis-ci.org/stepchowfun/toast)
+[![Build status](https://github.com/actions/toast/workflows/Continuous%20integration/badge.svg)](https://github.com/stepchowfun/toast/actions)
 
 *Toast* is a tool for doing work in containers. You define tasks in a YAML file called a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages.
 
@@ -8,7 +8,7 @@
 
 Here's the toastfile for the example shown above:
 
-```yml
+```yaml
 image: ubuntu
 tasks:
   install_gcc:
@@ -42,10 +42,6 @@ To prevent Docker images from accumulating on your machine when using Docker-rel
 
 ## Table of contents
 
-* [Installation](#installation)
-   * [Easy installation](#easy-installation)
-   * [Manual installation](#manual-installation)
-   * [Installation with Cargo](#installation-with-cargo)
 * [Tutorial](#tutorial)
    * [Defining a simple task](#defining-a-simple-task)
    * [Adding a dependency](#adding-a-dependency)
@@ -58,47 +54,12 @@ To prevent Docker images from accumulating on your machine when using Docker-rel
 * [Toastfiles](#toastfiles)
 * [Cache configuration](#cache-configuration)
 * [Command-line options](#command-line-options)
+* [Installation](#installation)
+   * [Easy installation](#easy-installation)
+   * [Manual installation](#manual-installation)
+   * [Installation with Cargo](#installation-with-cargo)
 * [Requirements](#requirements)
 * [Acknowledgements](#acknowledgements)
-
-## Installation
-
-### Easy installation
-
-If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
-
-```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
-```
-
-The same command can be used again to update Toast to the latest version.
-
-**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
-
-The installation script can be customized with the following environment variables:
-
-- `VERSION=x.y.z` (defaults to the latest version)
-- `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
-
-For example, the following will install Toast into the working directory:
-
-```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
-```
-
-### Manual installation
-
-The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
-
-### Installation with Cargo
-
-If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Toast as follows:
-
-```sh
-cargo install toast
-```
-
-You can run that command with `--force` to update an existing installation.
 
 ## Tutorial
 
@@ -280,7 +241,7 @@ We can use a web server like [nginx](https://www.nginx.com/). The official `ngin
 
 In our `toast.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also use `mount_paths` rather than `input_paths` to synchronize files between the host and the container while the server is running.
 
-```yml
+```yaml
 image: nginx
 tasks:
   serve:
@@ -376,7 +337,7 @@ write_remote_cache: false # Whether Toast should write to remote cache
 
 Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
-A typical configuration for a CI environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes. See [`.travis.yml`](https://github.com/stepchowfun/toast/blob/master/.travis.yml) for a complete example of how to use Toast in a CI environment.
+A typical configuration for a CI environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes.
 
 ## Command-line options
 
@@ -428,6 +389,45 @@ OPTIONS:
         --write-remote-cache <BOOL>
             Sets whether remote cache writing is enabled
 ```
+
+## Installation
+
+### Easy installation
+
+If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
+```
+
+The same command can be used again to update Toast to the latest version.
+
+**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
+
+The installation script can be customized with the following environment variables:
+
+- `VERSION=x.y.z` (defaults to the latest version)
+- `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
+
+For example, the following will install Toast into the working directory:
+
+```sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
+```
+
+### Manual installation
+
+The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
+
+### Installation with Cargo
+
+If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Toast as follows:
+
+```sh
+cargo install toast
+```
+
+You can run that command with `--force` to update an existing installation.
 
 ## Requirements
 
