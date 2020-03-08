@@ -10,7 +10,8 @@ set -euo pipefail
 #    `CHANGELOG.md` with information about the new version. Once this PR is merged, run
 #    `cargo publish`.
 # 2. Run this script and upload the files in the `release` directory to GitHub as release artifacts.
-# 3. Update the version in `install.sh` to point to the new release.
+# 3. Update the version in `install.sh` and `.github/actions/toast/index.js` to point to the new
+#    release.
 
 # We wrap everything in parentheses to ensure that any working directory changes with `cd` are local
 # to this script and don't affect the calling user's shell.
