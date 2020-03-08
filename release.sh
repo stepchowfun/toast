@@ -5,10 +5,10 @@ set -euo pipefail
 # macOS machine with an x86-64 processor. Usage:
 #   ./release.sh
 
-# The release process involves three pull requests:
+# The release process involves three steps:
 # 1. Bump the version in `Cargo.toml`, run `cargo build` to update `Cargo.lock`, and update
-#    `CHANGELOG.md` with information about the new version. Once this PR is merged, run
-#    `cargo publish`.
+#    `CHANGELOG.md` with information about the new version. Ship those changes as a single pull
+#    request.
 # 2. Run this script and upload the files in the `release` directory to GitHub as release artifacts.
 # 3. Update the version in `install.sh` and `.github/actions/toast/index.js` to point to the new
 #    release.
@@ -40,4 +40,7 @@ set -euo pipefail
   # Verify the checksums.
   shasum --algorithm 256 --check --status toast-x86_64-apple-darwin.sha256
   shasum --algorithm 256 --check --status toast-x86_64-unknown-linux-gnu.sha256
+
+  # Publish to crates.io.
+  cargo publish
 )
