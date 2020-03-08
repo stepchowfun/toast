@@ -14,6 +14,6 @@ jobs:
       with:
         tasks: build test lint release
         repo: stephanmisc/toast
-        write_remote_cache: github.event_name == 'push'
+        write_remote_cache: ${{ github.event_name == 'push' }}
     - name: Run integration tests
       run: TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh
