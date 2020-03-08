@@ -467,7 +467,7 @@ jobs:
         file: toastfiles/toast.yml
         tasks: build lint test
         repo: DOCKER_USERNAME/DOCKER_REPO
-        write_remote_cache: github.event_name == 'push'
+        write_remote_cache: ${{ github.event_name == 'push' }}
 ```
 
 ## Requirements
