@@ -56,6 +56,7 @@ To prevent Docker images from accumulating on your machine when using Docker-rel
    * [Easy installation](#easy-installation)
    * [Manual installation](#manual-installation)
    * [Installation with Cargo](#installation-with-cargo)
+* [Running Toast in CI](#running-toast-in-ci)
 * [Requirements](#requirements)
 * [Acknowledgements](#acknowledgements)
 
@@ -426,6 +427,46 @@ cargo install toast
 ```
 
 You can run that command with `--force` to update an existing installation.
+
+## Running Toast in CI
+
+The easiest way to run Toast in CI is to use [GitHub Actions](https://help.github.com/en/actions). Toast provides a convenient GitHub action that you can use in your [workflows](https://help.github.com/en/actions/configuring-and-managing-workflows/configuring-and-managing-workflow-files-and-runs). Here's a simple workflow that runs Toast with no arguments:
+
+```yaml
+# .github/workflows/ci.yml
+name: Continuous integration
+on: [push, pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: stepchowfun/toast/.github/actions/toast@master
+```
+
+Here's a more customized workflow that showcases all the options:
+
+```yaml
+# .github/workflows/ci.yml
+name: Continuous integration
+on: [push, pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: azure/docker-login@v1
+      with:
+        username: DOCKER_USERNAME
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: github.event_name == 'push'
+    - uses: stepchowfun/toast/.github/actions/toast@master
+      with:
+        file: toastfiles/toast.yml
+        tasks: build lint test
+        repo: DOCKER_USERNAME/DOCKER_REPO
+        write_remote_cache: github.event_name == 'push'
+```
 
 ## Requirements
 
