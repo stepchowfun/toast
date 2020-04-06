@@ -301,18 +301,19 @@ tasks:   <map from task name to task>
 Tasks have the following schema and defaults:
 
 ```yaml
-description: null     # A description of the task for the `--list` option
-dependencies: []      # Names of dependencies
-cache: true           # Whether a task can be cached
-environment: {}       # Map from environment variable to optional default
-input_paths: []       # Paths to copy into the container
-output_paths: []      # Paths to copy out of the container
-mount_paths: []       # Paths to mount into the container
-mount_readonly: false # Whether to mount the `mount_paths` as readonly
-ports: []             # Port mappings to publish
-location: /scratch    # Path in the container for running this task
-user: root            # Name of the user in the container for running this task
-command: ''           # Shell command to run in the container
+description: null           # A description of the task for the `--list` option
+dependencies: []            # Names of dependencies
+cache: true                 # Whether a task can be cached
+environment: {}             # Map from environment variable to optional default
+input_paths: []             # Paths to copy into the container
+output_paths: []            # Paths to copy out of the container if the task succeeds
+output_paths_on_failure: [] # Paths to copy out of the container if the task fails
+mount_paths: []             # Paths to mount into the container
+mount_readonly: false       # Whether to mount the `mount_paths` as readonly
+ports: []                   # Port mappings to publish
+location: /scratch          # Path in the container for running this task
+user: root                  # Name of the user in the container for running this task
+command: ''                 # Shell command to run in the container
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.

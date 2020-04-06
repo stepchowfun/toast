@@ -940,7 +940,7 @@ dependencies = [
 
 [[package]]
 name = "toast"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "atty 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",

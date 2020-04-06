@@ -242,16 +242,30 @@ pub fn run(
         });
 
         // Copy files from the container, if applicable.
-        if result.is_ok() && !task.output_paths.is_empty() {
-            if let Err(e) = docker::copy_from_container(
-                &container,
-                &task.output_paths,
-                &task.location,
-                &toastfile_dir,
-                interrupted,
-            ) {
-                return (Err(e), context);
+        match result {
+            Ok(_) if !task.output_paths.is_empty() => {
+                if let Err(e) = docker::copy_from_container(
+                    &container,
+                    &task.output_paths,
+                    &task.location,
+                    &toastfile_dir,
+                    interrupted,
+                ) {
+                    return (Err(e), context);
+                }
             }
+            Err(_) if !task.output_paths_on_failure.is_empty() => {
+                if let Err(e) = docker::copy_from_container(
+                    &container,
+                    &task.output_paths_on_failure,
+                    &task.location,
+                    &toastfile_dir,
+                    interrupted,
+                ) {
+                    return (Err(e), context);
+                }
+            }
+            _ => {}
         }
 
         // Decide whether to commit the container to a permanent image or a temporary one.
