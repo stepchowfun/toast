@@ -3,7 +3,7 @@ const core = require('@actions/core');
 const path = require('path');
 
 // The Toast version
-const toastVersion = '0.30.0';
+const toastVersion = '0.31.0';
 
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
