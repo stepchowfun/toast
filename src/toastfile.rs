@@ -41,6 +41,10 @@ pub struct Task {
     #[serde(default)]
     pub output_paths: Vec<PathBuf>,
 
+    // Must be relative [ref:output_paths_on_failure_relative]
+    #[serde(default)]
+    pub output_paths_on_failure: Vec<PathBuf>,
+
     // Can be relative or absolute (absolute paths are allowed in order to support mounting the
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
@@ -337,9 +341,24 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         if path.is_absolute() {
             return Err(Failure::User(
                 format!(
-                    "Task {} has an absolute {}: {}.",
+                    "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
-                    "output_path".code_str(),
+                    "output_paths".code_str(),
+                    path.to_string_lossy().code_str()
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check that `output_paths_on_failure` are relative. [tag:output_paths_on_failure_relative]
+    for path in &task.output_paths_on_failure {
+        if path.is_absolute() {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has an absolute path in {}: {}.",
+                    name.code_str(),
+                    "output_paths_on_failure".code_str(),
                     path.to_string_lossy().code_str()
                 ),
                 None,
@@ -451,6 +470,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -470,6 +490,7 @@ tasks:
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn parse_comprehensive_task() {
         let input = r#"
 image: encom:os-12
@@ -493,6 +514,10 @@ tasks:
       - corge
       - grault
       - garply
+    output_paths_on_failure:
+      - fnord
+      - smurf
+      - xyzzy
     mount_paths:
       - wibble
       - wobble
@@ -523,6 +548,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -547,6 +573,11 @@ tasks:
                     Path::new("corge").to_owned(),
                     Path::new("grault").to_owned(),
                     Path::new("garply").to_owned(),
+                ],
+                output_paths_on_failure: vec![
+                    Path::new("fnord").to_owned(),
+                    Path::new("smurf").to_owned(),
+                    Path::new("xyzzy").to_owned(),
                 ],
                 mount_paths: vec![
                     Path::new("wibble").to_owned(),
@@ -579,6 +610,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -604,6 +636,7 @@ tasks:
             environment: env_map,
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -634,6 +667,7 @@ tasks:
             environment: env_map,
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -664,6 +698,7 @@ tasks:
             environment: env_map,
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -691,6 +726,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -721,6 +757,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -764,6 +801,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -794,6 +832,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -811,6 +850,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -841,6 +881,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -858,6 +899,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -890,6 +932,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -922,6 +965,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -939,6 +983,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -971,6 +1016,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -988,6 +1034,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -1005,6 +1052,7 @@ tasks:
                 environment: HashMap::new(),
                 input_paths: vec![],
                 output_paths: vec![],
+                output_paths_on_failure: vec![],
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
@@ -1039,6 +1087,7 @@ tasks:
             environment,
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1064,6 +1113,7 @@ tasks:
             environment,
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1086,6 +1136,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![Path::new("bar").to_owned()],
             output_paths: vec![Path::new("baz").to_owned()],
+            output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("qux").to_owned()],
             mount_readonly: false,
             ports: vec![],
@@ -1106,6 +1157,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![Path::new("/bar").to_owned()],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1128,6 +1180,30 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![Path::new("/bar").to_owned()],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("/bar"));
+    }
+
+    #[test]
+    fn check_task_paths_absolute_output_paths_on_failure() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![Path::new("/bar").to_owned()],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1150,6 +1226,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("/bar").to_owned()],
             mount_readonly: false,
             ports: vec![],
@@ -1170,6 +1247,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar,baz").to_owned()],
             mount_readonly: false,
             ports: vec![],
@@ -1192,6 +1270,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1214,6 +1293,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
@@ -1236,6 +1316,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
@@ -1256,6 +1337,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar").to_owned()],
             mount_readonly: false,
             ports: vec![],
@@ -1278,6 +1360,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar").to_owned()],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],

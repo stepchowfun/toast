@@ -89,6 +89,7 @@ mod tests {
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
+            output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
