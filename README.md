@@ -36,7 +36,7 @@ In addition to local caching, Toast can use a Docker registry as a remote cache.
 Related tools:
 
 - [Docker Compose](https://docs.docker.com/compose/): Docker Compose is a convenient Docker-based development environment which shares many features with Toast. However, it doesn't support defining tasks (like `lint`, `test`, `run`, etc.) or remote caching.
-- [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix involves a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. For better or worse, Toast allows you to use familiar idioms like `apt-get install ...`.
+- [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix requires a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. For better or worse, Toast allows you to use familiar idioms like `apt-get install ...`.
 
 To prevent Docker images from accumulating on your machine when using Docker-related tools such as Toast or Docker Compose, we recommend using [Docuum](https://github.com/stepchowfun/docuum) to perform least recently used (LRU) image eviction.
 
