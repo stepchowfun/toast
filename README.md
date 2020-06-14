@@ -431,6 +431,14 @@ cargo install toast
 
 You can run that command with `--force` to update an existing installation.
 
+### Installation with Homebrew
+
+On macOS with Homebrew installed, you can install Toast by running:
+
+```sh
+brew install toast
+```
+
 ## Running Toast in CI
 
 The easiest way to run Toast in CI is to use [GitHub Actions](https://help.github.com/en/actions). Toast provides a convenient GitHub action that you can use in your [workflows](https://help.github.com/en/actions/configuring-and-managing-workflows/configuring-and-managing-workflow-files-and-runs). Here's a simple workflow that runs Toast with no arguments:
