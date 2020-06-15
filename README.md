@@ -56,8 +56,9 @@ To prevent Docker images from accumulating on your machine when using Docker-rel
 * [Command-line options](#command-line-options)
 * [Installation](#installation)
    * [Easy installation](#easy-installation)
-   * [Manual installation](#manual-installation)
+   * [Installation with Homebrew](#installation-with-homebrew)
    * [Installation with Cargo](#installation-with-cargo)
+   * [Manual installation](#manual-installation)
 * [Running Toast in CI](#running-toast-in-ci)
 * [Requirements](#requirements)
 * [Acknowledgements](#acknowledgements)
@@ -417,9 +418,13 @@ For example, the following will install Toast into the working directory:
 curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
 ```
 
-### Manual installation
+### Installation with Homebrew
 
-The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
+On macOS with Homebrew installed, you can install Toast by running:
+
+```sh
+brew install toast
+```
 
 ### Installation with Cargo
 
@@ -431,13 +436,9 @@ cargo install toast
 
 You can run that command with `--force` to update an existing installation.
 
-### Installation with Homebrew
+### Manual installation
 
-On macOS with Homebrew installed, you can install Toast by running:
-
-```sh
-brew install toast
-```
+The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
 
 ## Running Toast in CI
 
