@@ -169,7 +169,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                 // [tag:dependencies_exist]
                 violations
                     .entry(task.to_owned())
-                    .or_insert_with(|| vec![])
+                    .or_insert_with(Vec::new)
                     .push(dependency.to_owned());
             }
         }
