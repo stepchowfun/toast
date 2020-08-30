@@ -140,6 +140,7 @@ fn parse_bool(s: &str) -> Result<bool, Failure> {
 }
 
 // This struct represents the command-line arguments.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Settings {
     toastfile_path: PathBuf,
     docker_repo: String,

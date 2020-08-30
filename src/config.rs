@@ -7,6 +7,7 @@ pub const EMPTY_CONFIG: &str = "{}";
 // A program configuration
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Config {
     #[serde(default = "default_docker_repo")]
     pub docker_repo: String,
