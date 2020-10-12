@@ -1,17 +1,3 @@
 # Toast GitHub action
 
-This action runs Toast.
-
-## Inputs
-
-None.
-
-## Outputs
-
-None.
-
-## Example usage
-
-```yaml
-uses: ./.github/actions/toast
-```
+This GitHub action runs Toast. See [the Toast README](https://github.com/stepchowfun/toast#running-toast-in-ci) for usage instructions.
