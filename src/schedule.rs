@@ -7,7 +7,7 @@ use std::{collections::HashSet, convert::AsRef};
 pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> {
     // Sort the input tasks to ensure the given order doesn't matter.
     let mut roots: Vec<&'a str> = tasks.to_vec();
-    roots.sort();
+    roots.sort_unstable();
 
     // We will use this set to keep track of what tasks have already been seen.
     let mut visited: HashSet<&'a str> = HashSet::new();
@@ -54,7 +54,7 @@ pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> 
                     .iter()
                     .map(AsRef::as_ref)
                     .collect();
-                dependencies.sort();
+                dependencies.sort_unstable();
                 dependencies.reverse();
                 frontier.extend(
                     dependencies
