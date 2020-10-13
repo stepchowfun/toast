@@ -40,7 +40,7 @@ pub fn series(items: &[String]) -> String {
         _ => format!(
             "{}, and {}",
             items[..items.len() - 1].join(", "),
-            items[items.len() - 1]
+            items[items.len() - 1],
         ),
     }
 }
@@ -83,7 +83,7 @@ mod tests {
     fn series_three() {
         assert_eq!(
             series(&["foo".to_owned(), "bar".to_owned(), "baz".to_owned()]),
-            "foo, bar, and baz"
+            "foo, bar, and baz",
         );
     }
 }
