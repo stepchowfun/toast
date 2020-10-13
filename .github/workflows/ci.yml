@@ -2,8 +2,8 @@ name: Continuous integration
 on: [push, pull_request]
 jobs:
   ci:
-    runs-on: ubuntu-latest
     name: Build and test on Linux
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: azure/docker-login@v1

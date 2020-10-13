@@ -105,7 +105,7 @@ pub fn create_container(
     command: &str,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
-    debug!("Creating container from image {}\u{2026}", image.code_str(),);
+    debug!("Creating container from image {}\u{2026}", image.code_str());
 
     let mut args = vec!["container", "create"]
         .into_iter()
@@ -146,7 +146,7 @@ pub fn copy_into_container<R: Read>(
 ) -> Result<(), Failure> {
     debug!(
         "Copying files into container {}\u{2026}",
-        container.code_str()
+        container.code_str(),
     );
 
     run_quiet_stdin(
@@ -235,7 +235,7 @@ pub fn copy_from_container(
         debug!(
             "Copying {} from container {}\u{2026}",
             path.to_string_lossy().code_str(),
-            container.code_str()
+            container.code_str(),
         );
 
         // `docker container cp` is not idempotent. For example, suppose there is a directory called
@@ -372,7 +372,7 @@ pub fn commit_container(
     debug!(
         "Committing container {} to image {}\u{2026}",
         container.code_str(),
-        image.code_str()
+        image.code_str(),
     );
 
     run_quiet(
@@ -418,7 +418,7 @@ pub fn spawn_shell(
 ) -> Result<(), Failure> {
     debug!(
         "Spawning an interactive shell for image {}\u{2026}",
-        image.code_str()
+        image.code_str(),
     );
 
     let mut args = vec!["container", "run", "--rm", "--interactive", "--tty"]
@@ -491,13 +491,13 @@ fn container_args(
                         format!(
                             "type=bind,source={},target={},readonly",
                             source_dir.join(mount_path).to_string_lossy(),
-                            location.join(mount_path).to_string_lossy()
+                            location.join(mount_path).to_string_lossy(),
                         )
                     } else {
                         format!(
                             "type=bind,source={},target={}",
                             source_dir.join(mount_path).to_string_lossy(),
-                            location.join(mount_path).to_string_lossy()
+                            location.join(mount_path).to_string_lossy(),
                         )
                     },
                 ]
@@ -538,7 +538,7 @@ fn run_quiet(
     // Run the child process.
     let child = command(args).output().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
-        error
+        error,
     )))?;
 
     // Handle the result.
@@ -585,7 +585,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
         .spawn()
         .map_err(failure::system(format!(
             "{} Perhaps you don't have Docker installed.",
-            error
+            error,
         )))?;
 
     // Pipe data to the child's standard input stream.
@@ -594,7 +594,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     // Wait for the child to terminate.
     let output = child.wait_with_output().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
-        error
+        error,
     )))?;
 
     // Handle the result.
@@ -629,13 +629,13 @@ fn run_loud(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Resu
         .spawn()
         .map_err(failure::system(format!(
             "{} Perhaps you don't have Docker installed.",
-            error
+            error,
         )))?;
 
     // Wait for the child to terminate.
     let status = child.wait().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
-        error
+        error,
     )))?;
 
     // Handle the result.
@@ -662,7 +662,7 @@ fn run_attach(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Re
     // Run the child process.
     let child = command(args).status().map_err(failure::system(format!(
         "{} Perhaps you don't have Docker installed.",
-        error
+        error,
     )))?;
 
     // Handle the result.

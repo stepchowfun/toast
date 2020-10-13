@@ -92,7 +92,7 @@ fn set_up_logging() {
                 buf,
                 "{} {}",
                 style.value(format!("[{}]", record.level())),
-                record.args().to_string()
+                record.args().to_string(),
             )
         })
         .init();
@@ -252,7 +252,7 @@ fn settings() -> Result<Settings, Failure> {
                     return Err(Failure::User(
                         format!(
                             "Unable to locate file {}.",
-                            TOASTFILE_DEFAULT_NAME.code_str()
+                            TOASTFILE_DEFAULT_NAME.code_str(),
                         ),
                         None,
                     ));
@@ -275,7 +275,7 @@ fn settings() -> Result<Settings, Failure> {
         .and_then(|path| {
             debug!(
                 "Attempting to load configuration file {}\u{2026}",
-                path.to_string_lossy().code_str()
+                path.to_string_lossy().code_str(),
             );
             fs::read_to_string(path).ok()
         })
@@ -357,7 +357,7 @@ fn parse_toastfile(toastfile_path: &Path) -> Result<toastfile::Toastfile, Failur
     // Parse it.
     toastfile::parse(&toastfile_data).map_err(failure::user(format!(
         "Unable to parse file {}.",
-        toastfile_path.to_string_lossy().code_str()
+        toastfile_path.to_string_lossy().code_str(),
     )))
 }
 
@@ -390,7 +390,7 @@ fn get_roots<'a>(
                         format!(
                             "No task named {} in {}.",
                             task.code_str(),
-                            settings.toastfile_path.to_string_lossy().code_str()
+                            settings.toastfile_path.to_string_lossy().code_str(),
                         ),
                         None,
                     ));
@@ -437,12 +437,12 @@ fn fetch_environment(
                                 vars.iter()
                                     .map(|var| format!("{}", var.code_str()))
                                     .collect::<Vec<_>>()
-                                    .as_ref()
-                            )
+                                    .as_ref(),
+                            ),
                         ))
                         .collect::<Vec<_>>()
-                        .as_ref()
-                )
+                        .as_ref(),
+                ),
             ),
             None,
         ));
@@ -591,8 +591,8 @@ fn entry() -> Result<(), Failure> {
                     .iter()
                     .map(|task| task.code_str().to_string())
                     .collect::<Vec<_>>()
-                    .as_ref()
-            )
+                    .as_ref(),
+            ),
         );
     }
 

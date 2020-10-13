@@ -1,12 +1,12 @@
-image: ubuntu:18.04
-default: build
+image: ubuntu:19.10
+default: check
 tasks:
   install_packages:
     description: Install system packages.
     command: |
       set -euo pipefail
       apt-get update
-      apt-get install --yes build-essential curl shellcheck
+      apt-get install --yes build-essential curl ripgrep shellcheck
 
   install_tagref:
     description: Install Tagref, a reference checking tool.
@@ -101,16 +101,52 @@ tasks:
     user: user
     command: |
       set -euo pipefail
-      shopt -s globstar nullglob
       . $HOME/.cargo/env
+
+      # Lint Rust files.
       cargo clippy --all-targets --all-features -- \
         --deny warnings --deny clippy::all --deny clippy::pedantic
-      cargo fmt --all -- --check
+
+      # Check code formatting.
+      cargo fmt --all -- --check || echo 'ERROR: Please correct the formatting errors above.' 1>&2
+
+      # Check references.
       tagref
-      shellcheck install.sh
-      shellcheck integration-tests.sh
-      shellcheck integration-tests/**/*.sh
-      shellcheck release.sh
+
+      # Lint shell files.
+      shellcheck \
+        $(find integration-tests -name '*.sh' -print) \
+        install.sh \
+        integration-tests.sh \
+        release.sh
+
+      # Enforce that lines span no more than 100 columns.
+      if rg --line-number --type rust '.{101}'; then
+        echo "There are lines spanning more than 100 columns." >&2
+        exit 1
+      fi
+
+      # Enforce trailing commas in multi-line sequences.
+      if rg --line-number --multiline --type rust '[^,]\n(\s*)\)'; then
+        echo "There are multi-line sequences without trailing commas." >&2
+        exit 1
+      fi
+
+      # Forbid trailing commas in single-line sequences.
+      if rg --line-number --type rust '[^(],\s*\)'; then
+        echo "There are single-line sequences with trailing commas." >&2
+        exit 1
+      fi
+
+  run:
+    description: Run the program.
+    dependencies:
+      - build
+    user: user
+    command: |
+      set -euo pipefail
+      . $HOME/.cargo/env
+      cargo run -- --help
 
   check:
     description: Type-check the program.

@@ -189,8 +189,8 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                                 .iter()
                                 .map(|task| format!("{}", task.code_str()))
                                 .collect::<Vec<_>>()
-                                .as_ref()
-                        )
+                                .as_ref(),
+                        ),
                     )
                 })
                 .collect::<Vec<_>>()
@@ -201,7 +201,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
             return Err(Failure::User(
                 format!(
                     "The following tasks have invalid dependencies: {}.",
-                    violations_series
+                    violations_series,
                 ),
                 None,
             ));
@@ -211,7 +211,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                     "The default task {} does not exist, and the following tasks have invalid \
                      dependencies: {}.",
                     toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
-                    violations_series
+                    violations_series,
                 ),
                 None,
             ));
@@ -220,7 +220,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         return Err(Failure::User(
             format!(
                 "The default task {} does not exist.",
-                toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default]
+                toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default] ,
             ),
             None,
         ));
@@ -259,7 +259,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                     format!(
                         "{} and {} depend on each other.",
                         cycle[0].code_str(),
-                        cycle[1].code_str()
+                        cycle[1].code_str(),
                     )
                 } else {
                     let mut cycle_dependencies = cycle[1..].to_owned();
@@ -273,11 +273,11 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                                 .map(|(x, y)| format!(
                                     "{} depends on {}",
                                     x.code_str(),
-                                    y.code_str()
+                                    y.code_str(),
                                 ))
                                 .collect::<Vec<_>>()
                                 .as_ref(),
-                        )
+                        ),
                     )
                 };
                 return Err(Failure::User(
@@ -346,7 +346,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "input_path".code_str(),
-                    path.to_string_lossy().code_str()
+                    path.to_string_lossy().code_str(),
                 ),
                 None,
             ));
@@ -361,7 +361,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths".code_str(),
-                    path.to_string_lossy().code_str()
+                    path.to_string_lossy().code_str(),
                 ),
                 None,
             ));
@@ -376,7 +376,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths_on_failure".code_str(),
-                    path.to_string_lossy().code_str()
+                    path.to_string_lossy().code_str(),
                 ),
                 None,
             ));
@@ -392,7 +392,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Mount path {} of task {} has a {}.",
                     path.to_string_lossy().code_str(),
                     name.code_str(),
-                    ",".code_str()
+                    ",".code_str(),
                 ),
                 None,
             ));
@@ -406,7 +406,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                 "Task {} has a relative {}: {}.",
                 name.code_str(),
                 "location".code_str(),
-                task.location.to_string_lossy().code_str()
+                task.location.to_string_lossy().code_str(),
             ),
             None,
         ));

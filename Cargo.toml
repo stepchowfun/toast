@@ -2,13 +2,13 @@
 name = "toast"
 version = "0.32.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
+edition = "2018"
 description = "Containerize your development and continuous integration environments."
 license = "MIT"
 documentation = "https://github.com/stepchowfun/toast"
 homepage = "https://github.com/stepchowfun/toast"
 repository = "https://github.com/stepchowfun/toast"
 readme = "README.md"
-edition = "2018"
 
 [dependencies]
 atty = "0.2"

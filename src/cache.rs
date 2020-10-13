@@ -156,7 +156,7 @@ mod tests {
     fn hash_path_pure() {
         assert_eq!(
             Path::new("foo").crypto_hash(),
-            Path::new("foo").crypto_hash()
+            Path::new("foo").crypto_hash(),
         );
     }
 
@@ -164,7 +164,7 @@ mod tests {
     fn hash_path_not_constant() {
         assert_ne!(
             Path::new("foo").crypto_hash(),
-            Path::new("bar").crypto_hash()
+            Path::new("bar").crypto_hash(),
         );
     }
 
@@ -264,7 +264,7 @@ mod tests {
 
         assert_eq!(
             key(previous_key, &task, input_files_hash, &full_environment),
-            key(previous_key, &task, input_files_hash, &full_environment)
+            key(previous_key, &task, input_files_hash, &full_environment),
         );
     }
 
@@ -295,7 +295,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key1, &task, input_files_hash, &full_environment),
-            key(previous_key2, &task, input_files_hash, &full_environment)
+            key(previous_key2, &task, input_files_hash, &full_environment),
         );
     }
 
@@ -351,7 +351,7 @@ mod tests {
 
         assert_eq!(
             key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
+            key(previous_key, &task2, input_files_hash, &full_environment),
         );
     }
 
@@ -405,7 +405,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
+            key(previous_key, &task2, input_files_hash, &full_environment),
         );
     }
 
@@ -441,7 +441,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task, input_files_hash, &full_environment1),
-            key(previous_key, &task, input_files_hash, &full_environment2)
+            key(previous_key, &task, input_files_hash, &full_environment2),
         );
     }
 
@@ -472,7 +472,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task, input_files_hash1, &full_environment),
-            key(previous_key, &task, input_files_hash2, &full_environment)
+            key(previous_key, &task, input_files_hash2, &full_environment),
         );
     }
 
@@ -518,7 +518,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
+            key(previous_key, &task2, input_files_hash, &full_environment),
         );
     }
 
@@ -564,7 +564,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
+            key(previous_key, &task2, input_files_hash, &full_environment),
         );
     }
 
@@ -610,7 +610,7 @@ mod tests {
 
         assert_ne!(
             key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment)
+            key(previous_key, &task2, input_files_hash, &full_environment),
         );
     }
 }
