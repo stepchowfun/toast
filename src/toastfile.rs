@@ -304,11 +304,21 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     Ok(())
 }
 
-fn host_path_is_absolute(path: &Path) -> bool {
+// Check if a path is an absolute Linux path.
+#[cfg(unix)]
+fn is_absolute_linux_path(path: &Path) -> bool {
     path.is_absolute()
 }
-fn guest_path_is_relative(path: &Path) -> bool {
-    !path.has_root()
+
+// Check if a path is an absolute Linux path.
+#[cfg(windows)]
+fn is_absolute_linux_path(path: &Path) -> bool {
+    path.has_root() && !path.is_absolute()
+}
+
+// Check if a path is a relative Linux path.
+fn is_relative_linux_path(path: &Path) -> bool {
+    path.is_relative() && !path.has_root()
 }
 
 // Check that a task is valid.
@@ -330,7 +340,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `input_paths` are relative. [tag:input_paths_relative]
     for path in &task.input_paths {
-        if host_path_is_absolute(path) {
+        if !is_relative_linux_path(path) {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute {}: {}.",
@@ -345,7 +355,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `output_paths` are relative. [tag:output_paths_relative]
     for path in &task.output_paths {
-        if host_path_is_absolute(path) {
+        if !is_relative_linux_path(path) {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute path in {}: {}.",
@@ -360,7 +370,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `output_paths_on_failure` are relative. [tag:output_paths_on_failure_relative]
     for path in &task.output_paths_on_failure {
-        if path.is_absolute() {
+        if !is_relative_linux_path(path) {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute path in {}: {}.",
@@ -390,7 +400,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     }
 
     // Check that `location` is absolute. [tag:location_absolute]
-    if guest_path_is_relative(&task.location) {
+    if !is_absolute_linux_path(&task.location) {
         return Err(Failure::User(
             format!(
                 "Task {} has a relative {}: {}.",
@@ -1159,6 +1169,7 @@ tasks:
     fn check_task_paths_absolute_input_paths() {
         #[cfg(unix)]
         const ABSOLUTE_PATH: &str = "/bar";
+
         #[cfg(windows)]
         const ABSOLUTE_PATH: &str = "C:\\bar";
 
@@ -1187,6 +1198,7 @@ tasks:
     fn check_task_paths_absolute_output_paths() {
         #[cfg(unix)]
         const ABSOLUTE_PATH: &str = "/bar";
+
         #[cfg(windows)]
         const ABSOLUTE_PATH: &str = "C:\\bar";
 
@@ -1215,6 +1227,7 @@ tasks:
     fn check_task_paths_absolute_output_paths_on_failure() {
         #[cfg(unix)]
         const ABSOLUTE_PATH: &str = "/bar";
+
         #[cfg(windows)]
         const ABSOLUTE_PATH: &str = "C:\\bar";
 
