@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   ci:
     runs-on: ubuntu-latest
-    name: build, check, unit test, and integration test on linux
+    name: Build and test on Linux
     steps:
     - uses: actions/checkout@v2
     - uses: azure/docker-login@v1
@@ -19,7 +19,7 @@ jobs:
     - name: Run integration tests
       run: TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh
   windows_ci:
-    name: build and unit test on windows
+    name: Build and test on Windows
     runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2

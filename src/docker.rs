@@ -190,22 +190,23 @@ fn rename_or_copy_file_or_symlink(
                 source_path.to_string_lossy().code_str(),
             )))?;
 
-            #[cfg(unix)]
             // Create a copy of the symlink at the destination.
+            #[cfg(unix)]
             std::os::unix::fs::symlink(target_path, destination_path).map_err(failure::system(
                 format!(
                     "Unable to create symbolic link at {}.",
                     destination_path.to_string_lossy().code_str(),
                 ),
             ))?;
-            #[cfg(not(unix))]
+
+            #[cfg(windows)]
             return Err(failure::Failure::System(
                 format!(
-                    "Creation of symbolic link is not supported on Windows yet. Source path: {:?}, target path: {:?}",
-                    source_path,
-                    target_path
+                    "Unable to create symbolic link at {}, because symlinks are not currently \
+                    supported on Windows.",
+                    destination_path.to_string_lossy().code_str(),
                 ),
-                None
+                None,
             ));
         } else {
             // It's a file. Copy it to the destination.

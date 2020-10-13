@@ -12,6 +12,9 @@ use std::{
 use tar::{Builder, EntryType, Header};
 use walkdir::WalkDir;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 // Tar archives must contain only relative paths. For our purposes, the paths will be relative to
 // the filesystem root, so we need to strip the leading `/` before adding paths to the archive.
 fn strip_root(absolute_path: &Path) -> &Path {
@@ -113,14 +116,14 @@ fn add_directory<W: Write>(
 
 #[cfg(unix)]
 fn is_file_executable(metadata: &Metadata) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    let mode = metadata.permissions().mode();
     // Determine if the file has the executable bit set.
+    let mode = metadata.permissions().mode();
     mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
 fn is_file_executable(_metadata: &Metadata) -> bool {
+    // Every file on Windows is executable.
     true
 }
 

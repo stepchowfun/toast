@@ -7,6 +7,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+
 // Bump this if we need to invalidate all existing caches for some reason.
 const CACHE_VERSION: usize = 0;
 
@@ -33,9 +36,9 @@ impl CryptoHash for String {
 
 #[cfg(unix)]
 fn path_as_bytes(path: &Path) -> &[u8] {
-    use std::os::unix::ffi::OsStrExt;
     path.as_os_str().as_bytes()
 }
+
 #[cfg(windows)]
 fn path_as_bytes(path: &Path) -> &[u8] {
     path.as_os_str()
