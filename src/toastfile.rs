@@ -304,6 +304,13 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     Ok(())
 }
 
+fn host_path_is_absolute(path: &Path) -> bool {
+    path.is_absolute()
+}
+fn guest_path_is_relative(path: &Path) -> bool {
+    !path.has_root()
+}
+
 // Check that a task is valid.
 fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     // Check that environment variable names don't have `=` in them. [tag:env_var_equals]
@@ -323,7 +330,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `input_paths` are relative. [tag:input_paths_relative]
     for path in &task.input_paths {
-        if path.is_absolute() {
+        if host_path_is_absolute(path) {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute {}: {}.",
@@ -338,7 +345,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `output_paths` are relative. [tag:output_paths_relative]
     for path in &task.output_paths {
-        if path.is_absolute() {
+        if host_path_is_absolute(path) {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute path in {}: {}.",
@@ -383,7 +390,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     }
 
     // Check that `location` is absolute. [tag:location_absolute]
-    if task.location.is_relative() {
+    if guest_path_is_relative(&task.location) {
         return Err(Failure::User(
             format!(
                 "Task {} has a relative {}: {}.",
@@ -1150,12 +1157,17 @@ tasks:
 
     #[test]
     fn check_task_paths_absolute_input_paths() {
+        #[cfg(unix)]
+        const ABSOLUTE_PATH: &str = "/bar";
+        #[cfg(windows)]
+        const ABSOLUTE_PATH: &str = "C:\\bar";
+
         let task = Task {
             description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            input_paths: vec![Path::new("/bar").to_owned()],
+            input_paths: vec![Path::new(ABSOLUTE_PATH).to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1168,18 +1180,23 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/bar"));
+        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths() {
+        #[cfg(unix)]
+        const ABSOLUTE_PATH: &str = "/bar";
+        #[cfg(windows)]
+        const ABSOLUTE_PATH: &str = "C:\\bar";
+
         let task = Task {
             description: None,
             dependencies: vec![],
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
-            output_paths: vec![Path::new("/bar").to_owned()],
+            output_paths: vec![Path::new(ABSOLUTE_PATH).to_owned()],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
@@ -1191,11 +1208,16 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/bar"));
+        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths_on_failure() {
+        #[cfg(unix)]
+        const ABSOLUTE_PATH: &str = "/bar";
+        #[cfg(windows)]
+        const ABSOLUTE_PATH: &str = "C:\\bar";
+
         let task = Task {
             description: None,
             dependencies: vec![],
@@ -1203,7 +1225,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             output_paths: vec![],
-            output_paths_on_failure: vec![Path::new("/bar").to_owned()],
+            output_paths_on_failure: vec![Path::new(ABSOLUTE_PATH).to_owned()],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1214,7 +1236,7 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("/bar"));
+        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
     }
 
     #[test]

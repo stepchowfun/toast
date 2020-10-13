@@ -3,7 +3,6 @@ use std::{
     collections::HashSet,
     fs::{read_link, symlink_metadata, File, Metadata},
     io::{empty, Read, Seek, SeekFrom, Write},
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -112,6 +111,19 @@ fn add_directory<W: Write>(
     Ok(())
 }
 
+#[cfg(unix)]
+fn is_file_executable(metadata: &Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = metadata.permissions().mode();
+    // Determine if the file has the executable bit set.
+    mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0
+}
+
+#[cfg(not(unix))]
+fn is_file_executable(_metadata: &Metadata) -> bool {
+    true
+}
+
 // Add a file, symlink, or directory to a tar archive.
 fn add_path<W: Write>(
     builder: &mut Builder<W>,
@@ -131,9 +143,7 @@ fn add_path<W: Write>(
 
     // Check the type of the entry.
     if metadata.file_type().is_file() {
-        // Determine if the file has the executable bit set.
-        let mode = metadata.permissions().mode();
-        let executable = mode & 0o1 > 0 || mode & 0o10 > 0 || mode & 0o100 > 0;
+        let executable = is_file_executable(metadata);
 
         // It's a file. Open it so we can compute the hash of its contents and add it to the
         // archive.

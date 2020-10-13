@@ -3,6 +3,7 @@ on: [push, pull_request]
 jobs:
   ci:
     runs-on: ubuntu-latest
+    name: build, check, unit test, and integration test on linux
     steps:
     - uses: actions/checkout@v2
     - uses: azure/docker-login@v1
@@ -17,3 +18,31 @@ jobs:
         write_remote_cache: ${{ github.event_name == 'push' }}
     - name: Run integration tests
       run: TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh
+  windows_ci:
+    name: build and unit test on windows
+    runs-on: windows-2019
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=x86_64-pc-windows-msvc --release --all-features
+    - name: cargo test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --target=x86_64-pc-windows-msvc --release --all-features
