@@ -9,7 +9,8 @@ set -euo pipefail
 # 1. Bump the version in `Cargo.toml`, run `cargo build` to update `Cargo.lock`, and update
 #    `CHANGELOG.md` with information about the new version. Ship those changes as a single pull
 #    request.
-# 2. Run this script and upload the files in the `release` directory to GitHub as release artifacts.
+# 2. Run this script on an x86-64 machine and upload the files in the `release` directory to GitHub
+#    as release artifacts.
 # 3. Update the version in `install.sh` and `.github/actions/toast/index.js` to point to the new
 #    release.
 
@@ -29,8 +30,8 @@ set -euo pipefail
   mkdir release
 
   # Copy the artifacts into the `release` directory.
-  cp artifacts/toast-x86_64-unknown-linux-gnu release/toast-x86_64-unknown-linux-gnu
   cp target/release/toast release/toast-x86_64-apple-darwin
+  cp artifacts/toast-x86_64-unknown-linux-gnu release/toast-x86_64-unknown-linux-gnu
 
   # Compute checksums of the artifacts.
   cd release
