@@ -1,4 +1,4 @@
-image: ubuntu:19.10
+image: ubuntu:20.04
 default: check
 tasks:
   install_packages:
@@ -31,7 +31,7 @@ tasks:
     command: |
       set -euo pipefail
       curl https://sh.rustup.rs -sSf |
-        sh -s -- -y --default-toolchain 1.47.0
+        sh -s -- -y --default-toolchain 1.49.0
       . $HOME/.cargo/env
       rustup component add clippy
       rustup component add rustfmt
