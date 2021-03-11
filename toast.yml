@@ -14,7 +14,7 @@ tasks:
       - install_packages
     command: |
       set -euo pipefail
-      curl https://raw.githubusercontent.com/stepchowfun/tagref/master/install.sh -LSfs | sh
+      curl https://raw.githubusercontent.com/stepchowfun/tagref/main/install.sh -LSfs | sh
 
   create_user:
     description: Create a user who doesn't have root privileges.

@@ -1,10 +1,10 @@
 # Toast 🥂
 
-[![Build status](https://github.com/stepchowfun/toast/workflows/Continuous%20integration/badge.svg?branch=master)](https://github.com/stepchowfun/toast/actions?query=branch%3Amaster)
+[![Build status](https://github.com/stepchowfun/toast/workflows/Continuous%20integration/badge.svg?branch=main)](https://github.com/stepchowfun/toast/actions?query=branch%3Amain)
 
 *Toast* is a tool for doing work in containers. You define tasks in a YAML file called a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages.
 
-![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/welcome-0.svg?sanitize=true)
+![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/welcome-0.svg?sanitize=true)
 
 Here's the toastfile for the example shown above:
 
@@ -78,11 +78,11 @@ tasks:
 
 Now run `toast`. You should see the following:
 
-![Defining a simple task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/simple-task-0.svg?sanitize=true)
+![Defining a simple task.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/simple-task-0.svg?sanitize=true)
 
 If you run it again, Toast will find that nothing has changed and skip the task:
 
-![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/caching-0.svg?sanitize=true)
+![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/caching-0.svg?sanitize=true)
 
 Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like running your development server. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
@@ -114,7 +114,7 @@ tasks:
 
 Run `toast` to see a marvelous greeting:
 
-![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/dependencies-0.svg?sanitize=true)
+![Adding a dependency.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/dependencies-0.svg?sanitize=true)
 
 ### Importing files from the host
 
@@ -155,7 +155,7 @@ Notice the `input_paths` array in the `build` task. Here we are copying a single
 
 Now if you run `toast`, you'll see this:
 
-![Importing files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/input-paths-0.svg?sanitize=true)
+![Importing files from the host.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/input-paths-0.svg?sanitize=true)
 
 For subsequent runs, Toast will skip the task if nothing has changed. But if you update the greeting in `main.c`, Toast will detect the change and rerun the `build` and `run` tasks on the next invocation.
 
@@ -183,7 +183,7 @@ tasks:
 
 When Toast runs the `build` task, it will copy the `a.out` file to the host.
 
-![Exporting files from the container.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/output-paths-0.svg?sanitize=true)
+![Exporting files from the container.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/output-paths-0.svg?sanitize=true)
 
 ### Passing arguments to a task
 
@@ -201,11 +201,11 @@ tasks:
 
 When you run this task, Toast will read the value from the environment:
 
-![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/arguments-explicit-0.svg?sanitize=true)
+![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/arguments-explicit-0.svg?sanitize=true)
 
 If the variable does not exist in the environment, Toast will use the default value:
 
-![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/arguments-default-0.svg?sanitize=true)
+![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/arguments-default-0.svg?sanitize=true)
 
 If you don't want to have a default, set it to `null`:
 
@@ -258,7 +258,7 @@ tasks:
 
 Now you can use Toast to run the server:
 
-![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/server-1.svg?sanitize=true)
+![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/server-1.svg?sanitize=true)
 
 ### Dropping into a shell
 
@@ -275,7 +275,7 @@ tasks:
 
 You can run `toast --shell` to play with the `figlet` program:
 
-![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/master/media/shell-0.svg?sanitize=true)
+![Dropping into a shell.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/shell-0.svg?sanitize=true)
 
 When you're done, the container is deleted automatically.
 
@@ -317,7 +317,7 @@ user: root                  # Name of the user in the container for running this
 command: ''                 # Shell command to run in the container
 ```
 
-The [toastfile](https://github.com/stepchowfun/toast/blob/master/toast.yml) for Toast itself is a comprehensive real-world example.
+The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for Toast itself is a comprehensive real-world example.
 
 ## Cache configuration
 
@@ -400,7 +400,7 @@ OPTIONS:
 If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | sh
 ```
 
 The same command can be used again to update Toast to the latest version.
@@ -415,7 +415,7 @@ The installation script can be customized with the following environment variabl
 For example, the following will install Toast into the working directory:
 
 ```sh
-curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | PREFIX=. sh
+curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | PREFIX=. sh
 ```
 
 ### Installation with Homebrew
@@ -453,7 +453,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: stepchowfun/toast/.github/actions/toast@master
+    - uses: stepchowfun/toast/.github/actions/toast@main
 ```
 
 Here's a more customized workflow that showcases all the options:
@@ -472,7 +472,7 @@ jobs:
         username: DOCKER_USERNAME
         password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.event_name == 'push'
-    - uses: stepchowfun/toast/.github/actions/toast@master
+    - uses: stepchowfun/toast/.github/actions/toast@main
       with:
         file: toastfiles/toast.yml
         tasks: build lint test
