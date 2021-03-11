@@ -31,7 +31,7 @@ console.log(`::stop-commands::${token}`);
 
 // Install Toast.
 childProcess.execSync(
-  'curl https://raw.githubusercontent.com/stepchowfun/toast/master/install.sh -LSfs | ' +
+  'curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | ' +
     `PREFIX="${toastPrefix}" VERSION="${toastVersion}" sh`,
   { stdio: 'inherit' },
 );
