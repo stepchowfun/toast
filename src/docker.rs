@@ -1,4 +1,6 @@
 use crate::{failure, failure::Failure, format::CodeStr, spinner::spin};
+
+#[cfg(unix)]
 use std::{
     collections::HashMap,
     fs::{copy, create_dir_all, read_link, rename, symlink_metadata, Metadata},
@@ -12,6 +14,22 @@ use std::{
         Arc,
     },
 };
+
+#[cfg(windows)]
+use std::{
+    collections::HashMap,
+    fs::{copy, create_dir_all, rename, symlink_metadata, Metadata},
+    io,
+    io::Read,
+    path::{Path, PathBuf},
+    process::{ChildStdin, Command, Stdio},
+    string::ToString,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
+
 use tempfile::tempdir;
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -185,6 +203,7 @@ fn rename_or_copy_file_or_symlink(
         // symlink instead of moving it. First, let's determine what it is.
         if metadata.file_type().is_symlink() {
             // It's a symlink. Figure out what it points to.
+            #[cfg(unix)]
             let target_path = read_link(source_path).map_err(failure::system(format!(
                 "Unable to read target of symbolic link {}.",
                 source_path.to_string_lossy().code_str(),

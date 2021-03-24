@@ -117,7 +117,7 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
 }
 
 // Fetch the variables for a task from the environment.
-pub fn environment<'a>(task: &'a Task) -> Result<HashMap<String, String>, Vec<&'a str>> {
+pub fn environment(task: &Task) -> Result<HashMap<String, String>, Vec<&str>> {
     // The result will be a map from variable name to value.
     let mut result = HashMap::new();
 
@@ -205,17 +205,17 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                 ),
                 None,
             ));
-        } else {
-            return Err(Failure::User(
-                format!(
-                    "The default task {} does not exist, and the following tasks have invalid \
-                     dependencies: {}.",
-                    toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
-                    violations_series,
-                ),
-                None,
-            ));
         }
+
+        return Err(Failure::User(
+            format!(
+                "The default task {} does not exist, and the following tasks have invalid \
+                 dependencies: {}.",
+                toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
+                violations_series,
+            ),
+            None,
+        ));
     } else if !valid_default {
         return Err(Failure::User(
             format!(

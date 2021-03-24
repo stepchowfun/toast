@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 mod cache;
 mod config;
 mod docker;
@@ -68,7 +70,7 @@ fn set_up_logging() {
             LevelFilter::from_str(
                 &env::var("LOG_LEVEL").unwrap_or_else(|_| DEFAULT_LOG_LEVEL.to_string()),
             )
-            .unwrap_or_else(|_| DEFAULT_LOG_LEVEL),
+            .unwrap_or(DEFAULT_LOG_LEVEL),
         )
         .format(|buf, record| {
             let mut style = buf.style();
