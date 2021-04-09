@@ -43,6 +43,8 @@ jobs:
         args: --target=x86_64-pc-windows-msvc --release --all-features
     - name: cargo test
       uses: actions-rs/cargo@v1
+      env:
+        NO_COLOR: true # [ref:colorless_tests]
       with:
         command: test
-        args: --target=x86_64-pc-windows-msvc --release --all-features
+        args: --target=x86_64-pc-windows-msvc --release --all-features -- --test-threads=1 # [ref:sequential_tests]
