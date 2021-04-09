@@ -86,18 +86,20 @@ tasks:
     command: |
       set -euo pipefail
       . $HOME/.cargo/env
-      cargo test
+      NO_COLOR=true cargo test -- --test-threads=1 # [tag:colorless_tests] [tag:sequential_tests]
 
   lint:
     description: Run the linters.
     dependencies:
       - build
     input_paths:
+      - .github/workflows/ci.yml # Contains references checked by `tagref`
       - .ignore # Used by `tagref`
       - install.sh # Linted by ShellCheck
       - integration-tests # Linted by ShellCheck
       - integration-tests.sh # Linted by ShellCheck
       - release.sh # Linted by ShellCheck
+      - toast.yml # Contains tags checked by `tagref`
     user: user
     command: |
       set -euo pipefail
