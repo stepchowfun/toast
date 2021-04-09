@@ -47,4 +47,4 @@ jobs:
         NO_COLOR: true # [ref:colorless_tests]
       with:
         command: test
-        args: --target=x86_64-pc-windows-msvc --release --all-features -- --test-threads=1 # [ref:sequential_tests]
+        args: --target=x86_64-pc-windows-msvc --release --all-features

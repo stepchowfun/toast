@@ -49,20 +49,9 @@ mod tests {
     use crate::format::{number, series, CodeStr};
 
     #[test]
-    fn code_str_colorize_off_display() {
+    fn code_str_display() {
         // This test, like many others, depends on colors being disabled [ref:colorless_tests].
         assert_eq!(format!("{}", "foo".code_str()), "`foo`");
-    }
-
-    #[test]
-    fn code_str_colorize_on_display() {
-        // If tests are run in parallel, then this may interfere with other tests. So we are forced
-        // to run tests sequentially [ref:sequential_tests].
-        colored::control::set_override(true);
-
-        assert_eq!(format!("{}", "foo".code_str()), "\u{1b}[35mfoo\u{1b}[0m");
-
-        colored::control::unset_override();
     }
 
     #[test]

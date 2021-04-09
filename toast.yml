@@ -86,7 +86,7 @@ tasks:
     command: |
       set -euo pipefail
       . $HOME/.cargo/env
-      NO_COLOR=true cargo test -- --test-threads=1 # [tag:colorless_tests] [tag:sequential_tests]
+      NO_COLOR=true cargo test # [tag:colorless_tests]
 
   lint:
     description: Run the linters.
@@ -104,6 +104,9 @@ tasks:
     command: |
       set -euo pipefail
       . $HOME/.cargo/env
+
+      # This is sometimes needed to force Clippy to actually run.
+      cargo clean --package toast
 
       # Lint Rust files.
       cargo clippy --all-targets --all-features -- \
