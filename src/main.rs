@@ -432,16 +432,18 @@ fn fetch_environment(
                 format::series(
                     violations
                         .iter()
-                        .map(|(task, vars)| format!(
-                            "{} ({})",
-                            task.code_str(),
-                            format::series(
-                                vars.iter()
-                                    .map(|var| format!("{}", var.code_str()))
-                                    .collect::<Vec<_>>()
-                                    .as_ref(),
-                            ),
-                        ))
+                        .map(|(task, vars)| {
+                            format!(
+                                "{} ({})",
+                                task.code_str(),
+                                format::series(
+                                    vars.iter()
+                                        .map(|var| format!("{}", var.code_str()))
+                                        .collect::<Vec<_>>()
+                                        .as_ref(),
+                                ),
+                            )
+                        })
                         .collect::<Vec<_>>()
                         .as_ref(),
                 ),

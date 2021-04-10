@@ -220,7 +220,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         return Err(Failure::User(
             format!(
                 "The default task {} does not exist.",
-                toastfile.default.as_ref().unwrap().code_str() // [ref:valid_default] ,
+                toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default] ,
             ),
             None,
         ));
@@ -270,11 +270,9 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                             cycle
                                 .iter()
                                 .zip(cycle_dependencies)
-                                .map(|(x, y)| format!(
-                                    "{} depends on {}",
-                                    x.code_str(),
-                                    y.code_str(),
-                                ))
+                                .map(|(x, y)| {
+                                    format!("{} depends on {}", x.code_str(), y.code_str())
+                                })
                                 .collect::<Vec<_>>()
                                 .as_ref(),
                         ),
