@@ -51,16 +51,16 @@ const CONFIG_FILE_XDG_PATH: &str = "toast/toast.yml";
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 
 // Command-line argument and option names
-const TOASTFILE_ARG: &str = "file";
-const CONFIG_FILE_ARG: &str = "config-file";
-const READ_LOCAL_CACHE_ARG: &str = "read-local-cache";
-const WRITE_LOCAL_CACHE_ARG: &str = "write-local-cache";
-const READ_REMOTE_CACHE_ARG: &str = "read-remote-cache";
-const WRITE_REMOTE_CACHE_ARG: &str = "write-remote-cache";
-const REPO_ARG: &str = "repo";
-const LIST_ARG: &str = "list";
-const SHELL_ARG: &str = "shell";
-const TASKS_ARG: &str = "tasks";
+const TOASTFILE_OPTION: &str = "file";
+const CONFIG_FILE_OPTION: &str = "config-file";
+const READ_LOCAL_CACHE_OPTION: &str = "read-local-cache";
+const WRITE_LOCAL_CACHE_OPTION: &str = "write-local-cache";
+const READ_REMOTE_CACHE_OPTION: &str = "read-remote-cache";
+const WRITE_REMOTE_CACHE_OPTION: &str = "write-remote-cache";
+const REPO_OPTION: &str = "repo";
+const LIST_OPTION: &str = "list";
+const SHELL_OPTION: &str = "shell";
+const TASKS_OPTION: &str = "tasks";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -167,64 +167,64 @@ fn settings() -> Result<Settings, Failure> {
         .setting(AppSettings::NextLineHelp)
         .setting(AppSettings::UnifiedHelpMessage)
         .arg(
-            Arg::with_name(TOASTFILE_ARG)
+            Arg::with_name(TOASTFILE_OPTION)
                 .value_name("PATH")
                 .short("f")
-                .long(TOASTFILE_ARG)
+                .long(TOASTFILE_OPTION)
                 .help("Sets the path to the toastfile"),
         )
         .arg(
-            Arg::with_name(CONFIG_FILE_ARG)
+            Arg::with_name(CONFIG_FILE_OPTION)
                 .value_name("PATH")
                 .short("c")
-                .long(CONFIG_FILE_ARG)
+                .long(CONFIG_FILE_OPTION)
                 .help("Sets the path of the config file"),
         )
         .arg(
-            Arg::with_name(READ_LOCAL_CACHE_ARG)
+            Arg::with_name(READ_LOCAL_CACHE_OPTION)
                 .value_name("BOOL")
-                .long(READ_LOCAL_CACHE_ARG)
+                .long(READ_LOCAL_CACHE_OPTION)
                 .help("Sets whether local cache reading is enabled"),
         )
         .arg(
-            Arg::with_name(WRITE_LOCAL_CACHE_ARG)
+            Arg::with_name(WRITE_LOCAL_CACHE_OPTION)
                 .value_name("BOOL")
-                .long(WRITE_LOCAL_CACHE_ARG)
+                .long(WRITE_LOCAL_CACHE_OPTION)
                 .help("Sets whether local cache writing is enabled"),
         )
         .arg(
-            Arg::with_name(READ_REMOTE_CACHE_ARG)
+            Arg::with_name(READ_REMOTE_CACHE_OPTION)
                 .value_name("BOOL")
-                .long(READ_REMOTE_CACHE_ARG)
+                .long(READ_REMOTE_CACHE_OPTION)
                 .help("Sets whether remote cache reading is enabled"),
         )
         .arg(
-            Arg::with_name(WRITE_REMOTE_CACHE_ARG)
+            Arg::with_name(WRITE_REMOTE_CACHE_OPTION)
                 .value_name("BOOL")
-                .long(WRITE_REMOTE_CACHE_ARG)
+                .long(WRITE_REMOTE_CACHE_OPTION)
                 .help("Sets whether remote cache writing is enabled"),
         )
         .arg(
-            Arg::with_name(REPO_ARG)
+            Arg::with_name(REPO_OPTION)
                 .value_name("REPO")
                 .short("r")
-                .long(REPO_ARG)
+                .long(REPO_OPTION)
                 .help("Sets the Docker repository"),
         )
         .arg(
-            Arg::with_name(LIST_ARG)
+            Arg::with_name(LIST_OPTION)
                 .short("l")
-                .long(LIST_ARG)
+                .long(LIST_OPTION)
                 .help("Lists the tasks in the toastfile"),
         )
         .arg(
-            Arg::with_name(SHELL_ARG)
+            Arg::with_name(SHELL_OPTION)
                 .short("s")
-                .long(SHELL_ARG)
+                .long(SHELL_OPTION)
                 .help("Drops you into a shell after the tasks are finished"),
         )
         .arg(
-            Arg::with_name(TASKS_ARG)
+            Arg::with_name(TASKS_OPTION)
                 .value_name("TASKS")
                 .help("Sets the tasks to run")
                 .multiple(true),
@@ -232,7 +232,7 @@ fn settings() -> Result<Settings, Failure> {
         .get_matches();
 
     // Find the toastfile.
-    let toastfile_path = matches.value_of(TOASTFILE_ARG).map_or_else(
+    let toastfile_path = matches.value_of(TOASTFILE_OPTION).map_or_else(
         || {
             let mut candidate_dir =
                 current_dir().map_err(failure::system("Unable to determine working directory."))?;
@@ -259,7 +259,7 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the config file path.
     let default_config_file_path = dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
-    let config_file_path = matches.value_of(CONFIG_FILE_ARG).map_or_else(
+    let config_file_path = matches.value_of(CONFIG_FILE_OPTION).map_or_else(
         || default_config_file_path,
         |path| Some(PathBuf::from(path)),
     );
@@ -295,34 +295,34 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the local caching switches.
     let read_local_cache = matches
-        .value_of(READ_LOCAL_CACHE_ARG)
+        .value_of(READ_LOCAL_CACHE_OPTION)
         .map_or(Ok(config.read_local_cache), |s| parse_bool(s))?;
     let write_local_cache = matches
-        .value_of(WRITE_LOCAL_CACHE_ARG)
+        .value_of(WRITE_LOCAL_CACHE_OPTION)
         .map_or(Ok(config.write_local_cache), |s| parse_bool(s))?;
 
     // Read the remote caching switches.
     let read_remote_cache = matches
-        .value_of(READ_REMOTE_CACHE_ARG)
+        .value_of(READ_REMOTE_CACHE_OPTION)
         .map_or(Ok(config.read_remote_cache), |s| parse_bool(s))?;
     let write_remote_cache = matches
-        .value_of(WRITE_REMOTE_CACHE_ARG)
+        .value_of(WRITE_REMOTE_CACHE_OPTION)
         .map_or(Ok(config.write_remote_cache), |s| parse_bool(s))?;
 
     // Read the Docker repo.
     let docker_repo = matches
-        .value_of(REPO_ARG)
+        .value_of(REPO_OPTION)
         .unwrap_or(&config.docker_repo)
         .to_owned();
 
     // Read the list switch.
-    let list = matches.is_present(LIST_ARG);
+    let list = matches.is_present(LIST_OPTION);
 
     // Read the shell switch.
-    let spawn_shell = matches.is_present(SHELL_ARG);
+    let spawn_shell = matches.is_present(SHELL_OPTION);
 
     // Read the list of tasks.
-    let tasks = matches.values_of(TASKS_ARG).map(|tasks| {
+    let tasks = matches.values_of(TASKS_OPTION).map(|tasks| {
         tasks
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>()
