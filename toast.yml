@@ -105,7 +105,9 @@ tasks:
       set -euo pipefail
       . $HOME/.cargo/env
 
-      # This is sometimes needed to force Clippy to actually run.
+      # The command below is sometimes needed to force Clippy to actually run. It shouldn't be
+      # needed once https://github.com/rust-lang/rust-clippy/issues/4612 lands. At the time of this
+      # writing, it seems that will land in Rust 1.52.0 on 2021-05-06.
       cargo clean --package toast
 
       # Lint Rust files.
