@@ -168,55 +168,48 @@ fn settings() -> Result<Settings, Failure> {
         .setting(AppSettings::UnifiedHelpMessage)
         .arg(
             Arg::with_name(TOASTFILE_ARG)
+                .value_name("PATH")
                 .short("f")
                 .long(TOASTFILE_ARG)
-                .value_name("PATH")
-                .help("Sets the path to the toastfile")
-                .takes_value(true),
+                .help("Sets the path to the toastfile"),
         )
         .arg(
             Arg::with_name(CONFIG_FILE_ARG)
+                .value_name("PATH")
                 .short("c")
                 .long(CONFIG_FILE_ARG)
-                .value_name("PATH")
-                .help("Sets the path of the config file")
-                .takes_value(true),
+                .help("Sets the path of the config file"),
         )
         .arg(
             Arg::with_name(READ_LOCAL_CACHE_ARG)
-                .long(READ_LOCAL_CACHE_ARG)
                 .value_name("BOOL")
-                .help("Sets whether local cache reading is enabled")
-                .takes_value(true),
+                .long(READ_LOCAL_CACHE_ARG)
+                .help("Sets whether local cache reading is enabled"),
         )
         .arg(
             Arg::with_name(WRITE_LOCAL_CACHE_ARG)
-                .long(WRITE_LOCAL_CACHE_ARG)
                 .value_name("BOOL")
-                .help("Sets whether local cache writing is enabled")
-                .takes_value(true),
+                .long(WRITE_LOCAL_CACHE_ARG)
+                .help("Sets whether local cache writing is enabled"),
         )
         .arg(
             Arg::with_name(READ_REMOTE_CACHE_ARG)
-                .long(READ_REMOTE_CACHE_ARG)
                 .value_name("BOOL")
-                .help("Sets whether remote cache reading is enabled")
-                .takes_value(true),
+                .long(READ_REMOTE_CACHE_ARG)
+                .help("Sets whether remote cache reading is enabled"),
         )
         .arg(
             Arg::with_name(WRITE_REMOTE_CACHE_ARG)
-                .long(WRITE_REMOTE_CACHE_ARG)
                 .value_name("BOOL")
-                .help("Sets whether remote cache writing is enabled")
-                .takes_value(true),
+                .long(WRITE_REMOTE_CACHE_ARG)
+                .help("Sets whether remote cache writing is enabled"),
         )
         .arg(
             Arg::with_name(REPO_ARG)
+                .value_name("REPO")
                 .short("r")
                 .long(REPO_ARG)
-                .value_name("REPO")
-                .help("Sets the Docker repository")
-                .takes_value(true),
+                .help("Sets the Docker repository"),
         )
         .arg(
             Arg::with_name(LIST_ARG)
@@ -233,8 +226,8 @@ fn settings() -> Result<Settings, Failure> {
         .arg(
             Arg::with_name(TASKS_ARG)
                 .value_name("TASKS")
-                .multiple(true)
-                .help("Sets the tasks to run"),
+                .help("Sets the tasks to run")
+                .multiple(true),
         )
         .get_matches();
 
