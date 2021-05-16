@@ -88,7 +88,7 @@ pub fn run(
     let mut task_environment = HashMap::<String, String>::new();
     for variable in task.environment.keys() {
         // [ref:environment_valid]
-        task_environment.insert(variable.to_owned(), environment[variable].clone());
+        task_environment.insert(variable.clone(), environment[variable].clone());
     }
 
     // Check the cache, if applicable.
@@ -207,10 +207,7 @@ pub fn run(
         // If the user interrupts the program, kill the container. The `unwrap` will only fail if a
         // panic already occurred.
         {
-            active_containers
-                .lock()
-                .unwrap()
-                .insert(container.to_owned());
+            active_containers.lock().unwrap().insert(container.clone());
         }
 
         // Delete the container when we're done.

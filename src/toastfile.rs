@@ -168,9 +168,9 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
             if !toastfile.tasks.contains_key(dependency) {
                 // [tag:dependencies_exist]
                 violations
-                    .entry(task.to_owned())
+                    .entry(task.clone())
                     .or_insert_with(Vec::new)
-                    .push(dependency.to_owned());
+                    .push(dependency.clone());
             }
         }
     }
