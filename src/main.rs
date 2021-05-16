@@ -23,6 +23,7 @@ use std::{
     env::current_dir,
     fs,
     io::{stdout, Write},
+    mem::drop,
     path::Path,
     path::PathBuf,
     process::exit,
@@ -122,7 +123,7 @@ fn set_up_signal_handlers(
 
             // We may have been in the middle of printing a line of output. Here we print a newline
             // to prepare for further printing.
-            let _ = stdout().write(b"\n");
+            drop(stdout().write(b"\n"));
         }
     })
     .map_err(failure::system("Error installing signal handler."))
@@ -330,11 +331,11 @@ fn settings() -> Result<Settings, Failure> {
 
     Ok(Settings {
         toastfile_path,
+        docker_repo,
         read_local_cache,
         write_local_cache,
         read_remote_cache,
         write_remote_cache,
-        docker_repo,
         list,
         spawn_shell,
         tasks,
@@ -637,17 +638,17 @@ fn entry() -> Result<(), Failure> {
                 let mut task_environment = HashMap::<String, String>::new();
                 for variable in last_task.environment.keys() {
                     // [ref:environment_valid]
-                    task_environment.insert(variable.to_owned(), environment[variable].clone());
+                    task_environment.insert(variable.clone(), environment[variable].clone());
                 }
 
                 // Use the settings from the last task.
                 (
                     task_environment,
-                    last_task.location.to_owned(),
-                    last_task.mount_paths.to_owned(),
+                    last_task.location.clone(),
+                    last_task.mount_paths.clone(),
                     last_task.mount_readonly,
-                    last_task.ports.to_owned(),
-                    last_task.user.to_owned(),
+                    last_task.ports.clone(),
+                    last_task.user.clone(),
                 )
             } else {
                 // There is no last task, so the context will be the base image. Use default
