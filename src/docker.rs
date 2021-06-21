@@ -57,7 +57,7 @@ pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, 
     ) {
         Ok(_) => Ok(true),
         Err(Failure::Interrupted) => Err(Failure::Interrupted),
-        Err(Failure::System(_, _)) | Err(Failure::User(_, _)) => Ok(false),
+        Err(Failure::System(_, _) | Failure::User(_, _)) => Ok(false),
     }
 }
 
@@ -556,7 +556,7 @@ fn run_quiet(
 
     // Run the child process.
     let child = command(args).output().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
+        "{} Perhaps you don't have Docker installed [1].",
         error,
     )))?;
 
@@ -603,7 +603,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
+            "{} Perhaps you don't have Docker installed [2].",
             error,
         )))?;
 
@@ -612,7 +612,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
 
     // Wait for the child to terminate.
     let output = child.wait_with_output().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
+        "{} Perhaps you don't have Docker installed [3].",
         error,
     )))?;
 
@@ -647,13 +647,13 @@ fn run_loud(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Resu
         .stdin(Stdio::null())
         .spawn()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
+            "{} Perhaps you don't have Docker installed [4].",
             error,
         )))?;
 
     // Wait for the child to terminate.
     let status = child.wait().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
+        "{} Perhaps you don't have Docker installed [5].",
         error,
     )))?;
 
@@ -680,7 +680,7 @@ fn run_attach(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Re
 
     // Run the child process.
     let child = command(args).status().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
+        "{} Perhaps you don't have Docker installed [6].",
         error,
     )))?;
 

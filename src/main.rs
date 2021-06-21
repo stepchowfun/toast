@@ -612,7 +612,7 @@ fn entry() -> Result<(), Failure> {
         Ok(_) | Err(Failure::User(_, _)) => {
             // Proceed in case the user wants to drop into a shell.
         }
-        Err(Failure::Interrupted) | Err(Failure::System(_, _)) => {
+        Err(Failure::Interrupted | Failure::System(_, _)) => {
             // There was an error not caused by a regular task failure. Quit now.
             return result;
         }

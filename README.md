@@ -393,11 +393,19 @@ OPTIONS:
             Sets whether remote cache writing is enabled
 ```
 
-## Installation
+## Installation instructions
 
-### Easy installation
+### Installation with Homebrew
 
-If you are running macOS or a GNU-based Linux on an x86-64 CPU, you can install Toast with this command:
+On macOS with Homebrew installed, you can install Toast by running:
+
+```sh
+brew install toast
+```
+
+### Easy installation on macOS or Linux
+
+If you are running macOS or Linux on an x86-64 CPU, you can install Toast with this command:
 
 ```sh
 curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | sh
@@ -405,9 +413,11 @@ curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs |
 
 The same command can be used again to update Toast to the latest version.
 
-**NOTE:** Piping `curl` to `sh` is dangerous since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
+**NOTE:** Piping `curl` to `sh` is considered dangerous by some since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
 
-The installation script can be customized with the following environment variables:
+#### Customizing the installation
+
+The installation script supports the following environment variables:
 
 - `VERSION=x.y.z` (defaults to the latest version)
 - `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
@@ -418,13 +428,9 @@ For example, the following will install Toast into the working directory:
 curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | PREFIX=. sh
 ```
 
-### Installation with Homebrew
+### Manual installation for macOS, Linux, or Windows
 
-On macOS with Homebrew installed, you can install Toast by running:
-
-```sh
-brew install toast
-```
+The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS, Linux, and Windows systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
 
 ### Installation with Cargo
 
@@ -435,10 +441,6 @@ cargo install toast
 ```
 
 You can run that command with `--force` to update an existing installation.
-
-### Manual installation
-
-The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS or Linux systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
 
 ## Running Toast in CI
 
