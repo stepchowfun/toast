@@ -3,9 +3,6 @@ const core = require('@actions/core');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-// The Toast version
-const toastVersion = '0.32.0';
-
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
 const fileInput = core.getInput('file').trim();
@@ -32,7 +29,7 @@ console.log(`::stop-commands::${token}`);
 // Install Toast.
 childProcess.execSync(
   'curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | ' +
-    `PREFIX="${toastPrefix}" VERSION="${toastVersion}" sh`,
+    `PREFIX="${toastPrefix}" sh`,
   { stdio: 'inherit' },
 );
 
@@ -40,25 +37,26 @@ childProcess.execSync(
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
 const repositoryArgs = repo === null ? [] : ['--repo', repo];
-const readRemoteCacheArgs =
-  repo === null ? [] : ['--read-remote-cache', 'true'];
-const writeRemoteCacheArgs = writeRemoteCache
-  ? ['--write-remote-cache', 'true']
-  : [];
+const readRemoteCacheArgs = repo === null ? [] : ['--read-remote-cache', 'true'];
+const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
 
 // Run Toast.
-childProcess.execFileSync(
-  path.join(toastPrefix, 'toast'),
-  fileArgs
-    .concat(repositoryArgs)
-    .concat(readRemoteCacheArgs)
-    .concat(writeRemoteCacheArgs)
-    .concat(taskArgs),
-  {
-    cwd: process.env.GITHUB_WORKSPACE,
-    stdio: 'inherit',
-  },
-);
-
-// To be a good citizen, we now re-enable command workflow processing.
-console.log(`::${token}::`);
+try {
+  childProcess.execFileSync(
+    path.join(toastPrefix, 'toast'),
+    fileArgs
+      .concat(repositoryArgs)
+      .concat(readRemoteCacheArgs)
+      .concat(writeRemoteCacheArgs)
+      .concat(taskArgs),
+    {
+      cwd: process.env.GITHUB_WORKSPACE,
+      stdio: 'inherit',
+    },
+  );
+} catch (_) {
+  // Toast should print a helpful error message. There's no need to log anything more.
+} finally {
+  // To be a good citizen, we now re-enable command workflow processing.
+  console.log(`::${token}::`);
+}
