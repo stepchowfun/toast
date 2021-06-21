@@ -118,19 +118,8 @@ pub fn run(
     // If the task is cached, extract the output files if applicable.
     if cached {
         // The task is cached. Check if there are any output files.
-        if task.output_paths.is_empty() {
-            // There are no output files, so we're done.
-            (
-                Ok(cache_key),
-                Context {
-                    image,
-                    persist: true,
-                    interrupted: interrupted.clone(),
-                },
-            )
-        } else {
-            // If we made it this far, we need to create a container from which we can extract the
-            // output files.
+        if !task.output_paths.is_empty() {
+            // We need to create a container from which we can extract the output files.
             let container = match docker::create_container(
                 &image,
                 &toastfile_dir,
@@ -164,17 +153,17 @@ pub fn run(
             ) {
                 return (Err(e), context);
             }
-
-            // The cached image becomes the new context.
-            (
-                Ok(cache_key),
-                Context {
-                    image,
-                    persist: true,
-                    interrupted: interrupted.clone(),
-                },
-            )
         }
+
+        // The cached image becomes the new context.
+        (
+            Ok(cache_key),
+            Context {
+                image,
+                persist: true,
+                interrupted: interrupted.clone(),
+            },
+        )
     } else {
         // Pull the image if necessary. Note that this is not considered reading from the remote
         // cache.
