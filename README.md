@@ -43,22 +43,22 @@ To prevent Docker images from accumulating on your machine when using Docker-rel
 ## Table of contents
 
 * [Tutorial](#tutorial)
-   * [Defining a simple task](#defining-a-simple-task)
-   * [Adding a dependency](#adding-a-dependency)
-   * [Importing files from the host](#importing-files-from-the-host)
-   * [Exporting files from the container](#exporting-files-from-the-container)
-   * [Passing arguments to a task](#passing-arguments-to-a-task)
-   * [Running a server and mounting paths into the container](#running-a-server-and-mounting-paths-into-the-container)
-   * [Dropping into a shell](#dropping-into-a-shell)
+  * [Defining a simple task](#defining-a-simple-task)
+  * [Adding a dependency](#adding-a-dependency)
+  * [Importing files from the host](#importing-files-from-the-host)
+  * [Exporting files from the container](#exporting-files-from-the-container)
+  * [Passing arguments to a task](#passing-arguments-to-a-task)
+  * [Running a server and mounting paths into the container](#running-a-server-and-mounting-paths-into-the-container)
+  * [Dropping into a shell](#dropping-into-a-shell)
 * [How Toast works](#how-toast-works)
 * [Toastfiles](#toastfiles)
 * [Cache configuration](#cache-configuration)
 * [Command-line options](#command-line-options)
-* [Installation](#installation)
-   * [Easy installation](#easy-installation)
-   * [Installation with Homebrew](#installation-with-homebrew)
-   * [Installation with Cargo](#installation-with-cargo)
-   * [Manual installation](#manual-installation)
+* [Installation instructions](#installation-instructions)
+  * [Installation with Homebrew](#installation-with-homebrew)
+  * [Automated installation on macOS or Linux](#automated-installation-on-macos-or-linux)
+  * [Manual installation for macOS, Linux, or Windows](#manual-installation-for-macos--linux--or-windows)
+  * [Installation with Cargo](#installation-with-cargo)
 * [Running Toast in CI](#running-toast-in-ci)
 * [Requirements](#requirements)
 * [Acknowledgements](#acknowledgements)
@@ -403,7 +403,7 @@ On macOS with Homebrew installed, you can install Toast by running:
 brew install toast
 ```
 
-### Easy installation on macOS or Linux
+### Automated installation on macOS or Linux
 
 If you are running macOS or Linux on an x86-64 CPU, you can install Toast with this command:
 
@@ -415,9 +415,7 @@ The same command can be used again to update Toast to the latest version.
 
 **NOTE:** Piping `curl` to `sh` is considered dangerous by some since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
 
-#### Customizing the installation
-
-The installation script supports the following environment variables:
+The installation script supports the following optional environment variables:
 
 - `VERSION=x.y.z` (defaults to the latest version)
 - `PREFIX=/path/to/install` (defaults to `/usr/local/bin`)
