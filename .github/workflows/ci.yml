@@ -14,7 +14,7 @@ jobs:
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
-    - uses: stepchowfun/toast/.github/actions/toast@main
+    - uses: ./.github/actions/toast
       with:
         tasks: build test lint release run
         repo: stephanmisc/toast
@@ -168,7 +168,7 @@ jobs:
           --attach 'artifacts/toast-x86_64-pc-windows-msvc.exe' \
           "v$VERSION"
         echo "Created release v$VERSION."
-    - uses: stepchowfun/toast/.github/actions/toast@main
+    - uses: ./.github/actions/toast
       with:
         tasks: publish
         repo: stephanmisc/toast
