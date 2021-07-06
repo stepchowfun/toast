@@ -30,7 +30,7 @@ pub struct Task {
     pub cache: bool,
 
     // Keys must not contain `=` [ref:env_var_equals]
-    #[serde(default)]
+    #[serde(default)] // [tag:default_environment]
     pub environment: HashMap<String, Option<String>>,
 
     // Must be relative [ref:input_paths_relative]
@@ -49,14 +49,14 @@ pub struct Task {
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
     // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
-    #[serde(default)]
+    #[serde(default)] // [tag:default_mount_paths]
     pub mount_paths: Vec<PathBuf>,
 
     #[serde(default = "default_task_mount_readonly")]
     pub mount_readonly: bool,
 
     // Must be empty if `cache` is enabled [ref:ports_nand_cache]
-    #[serde(default)]
+    #[serde(default)] // [tag:default_ports]
     pub ports: Vec<String>,
 
     // Must be absolute [ref:location_absolute]
@@ -74,7 +74,7 @@ fn default_task_cache() -> bool {
     true
 }
 
-fn default_task_mount_readonly() -> bool {
+pub fn default_task_mount_readonly() -> bool {
     false
 }
 

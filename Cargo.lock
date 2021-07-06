@@ -629,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "toast"
-version = "0.34.0"
+version = "0.35.0"
 dependencies = [
  "atty",
  "clap",
@@ -648,7 +648,6 @@ dependencies = [
  "sha2",
  "tar",
  "tempfile",
- "uuid",
  "walkdir",
 ]
 
@@ -669,15 +668,6 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom",
-]
 
 [[package]]
 name = "vec_map"

@@ -31,16 +31,7 @@ use std::{
 };
 
 use tempfile::tempdir;
-use uuid::Uuid;
 use walkdir::WalkDir;
-
-// Construct a random image tag.
-pub fn random_tag() -> String {
-    Uuid::new_v4()
-        .to_simple()
-        .encode_lower(&mut Uuid::encode_buffer())
-        .to_owned()
-}
 
 // Query whether an image exists locally.
 pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, Failure> {
@@ -706,14 +697,4 @@ fn command(args: &[String]) -> Command {
         command.arg(arg);
     }
     command
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::docker::random_tag;
-
-    #[test]
-    fn random_impure() {
-        assert_ne!(random_tag(), random_tag());
-    }
 }

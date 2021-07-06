@@ -29,7 +29,8 @@ impl Drop for Context {
     }
 }
 
-// Run a task and return the new cache key.
+// Run a task in a given context and return a new context. The returned context should not be `None`
+// if `need_context` is `true`.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_lines)]
 pub fn run(
@@ -38,10 +39,10 @@ pub fn run(
     interrupted: &Arc<AtomicBool>,
     active_containers: &Arc<Mutex<HashSet<String>>>,
     task: &Task,
-    previous_cache_key: &str,
     caching_enabled: bool,
     context: Context,
-) -> (Result<String, Failure>, Context) {
+    need_context: bool,
+) -> (Result<(), Failure>, Option<Context>) {
     // All relative paths are relative to where the toastfile lives.
     let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
     toastfile_dir.pop();
@@ -52,7 +53,7 @@ pub fn run(
         Err(e) => {
             return (
                 Err(failure::system("Unable to create temporary file.")(e)),
-                context,
+                Some(context),
             )
         }
     };
@@ -67,22 +68,25 @@ pub fn run(
         &interrupted,
     ) {
         Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
-        Err(e) => return (Err(e), context),
+        Err(e) => return (Err(e), Some(context)),
     };
 
     // Seek back to the beginning of the archive to prepare for copying it into the container.
     if let Err(e) = tar_file.seek(SeekFrom::Start(0)) {
         return (
             Err(failure::system("Unable to seek temporary file.")(e)),
-            context,
+            Some(context),
         );
     };
 
-    // Compute the cache key.
-    let cache_key = cache::key(previous_cache_key, &task, &input_files_hash, &environment);
-
-    // This is the image we'll look for in the caches.
-    let image = format!("{}:{}", settings.docker_repo, cache_key);
+    // Compute the name of the image that this task produces.
+    let image = cache::image_name(
+        &context.image,
+        &settings.docker_repo,
+        &task,
+        &input_files_hash,
+        &environment,
+    );
 
     // Construct the environment.
     let mut task_environment = HashMap::<String, String>::new();
@@ -98,7 +102,7 @@ pub fn run(
         cached = settings.read_local_cache
             && match docker::image_exists(&image, interrupted) {
                 Ok(exists) => exists,
-                Err(e) => return (Err(e), context),
+                Err(e) => return (Err(e), Some(context)),
             };
 
         // Check the remote cache.
@@ -107,7 +111,7 @@ pub fn run(
                 // If the pull failed, it could be because the user killed the child process (e.g.,
                 // by hitting CTRL+C).
                 if interrupted.load(Ordering::SeqCst) {
-                    return (Err(e), context);
+                    return (Err(e), Some(context));
                 }
             } else {
                 cached = true;
@@ -133,7 +137,7 @@ pub fn run(
                 interrupted,
             ) {
                 Ok(container) => container,
-                Err(e) => return (Err(e), context),
+                Err(e) => return (Err(e), Some(context)),
             };
 
             // Delete the container when we're done.
@@ -151,28 +155,28 @@ pub fn run(
                 &toastfile_dir,
                 interrupted,
             ) {
-                return (Err(e), context);
+                return (Err(e), Some(context));
             }
         }
 
         // The cached image becomes the new context.
         (
-            Ok(cache_key),
-            Context {
+            Ok(()),
+            Some(Context {
                 image,
                 persist: true,
                 interrupted: interrupted.clone(),
-            },
+            }),
         )
     } else {
         // Pull the image if necessary. Note that this is not considered reading from the remote
         // cache.
         if !match docker::image_exists(&context.image, interrupted) {
             Ok(exists) => exists,
-            Err(e) => return (Err(e), context),
+            Err(e) => return (Err(e), Some(context)),
         } {
             if let Err(e) = docker::pull_image(&context.image, interrupted) {
-                return (Err(e), context);
+                return (Err(e), Some(context));
             }
         }
 
@@ -190,7 +194,7 @@ pub fn run(
             interrupted,
         ) {
             Ok(container) => container,
-            Err(e) => return (Err(e), context),
+            Err(e) => return (Err(e), Some(context)),
         };
 
         // If the user interrupts the program, kill the container. The `unwrap` will only fail if a
@@ -216,7 +220,7 @@ pub fn run(
         // Copy files into the container. If `task.input_paths` is empty, then this will just create
         // a directory for `task.location`.
         if let Err(e) = docker::copy_into_container(&container, &mut tar_file, interrupted) {
-            return (Err(e), context);
+            return (Err(e), Some(context));
         }
 
         // Start the container to run the command.
@@ -237,7 +241,7 @@ pub fn run(
                     &toastfile_dir,
                     interrupted,
                 ) {
-                    return (Err(e), context);
+                    return (Err(e), Some(context));
                 }
             }
             Err(_) if !task.output_paths_on_failure.is_empty() => {
@@ -248,43 +252,43 @@ pub fn run(
                     &toastfile_dir,
                     interrupted,
                 ) {
-                    return (Err(e), context);
+                    return (Err(e), Some(context));
                 }
             }
             _ => {}
         }
 
-        // Decide whether to commit the container to a permanent image or a temporary one.
-        let (new_image, persist) =
-            if result.is_ok() && caching_enabled && settings.write_local_cache {
-                (image, true)
-            } else {
-                (
-                    format!("{}:{}", settings.docker_repo, docker::random_tag()),
-                    false,
-                )
+        // Decide whether to the image needs to be persisted.
+        let cacheable = result.is_ok() && caching_enabled;
+        let persist_locally = cacheable && settings.write_local_cache;
+        let persist_remotely = cacheable && settings.write_remote_cache;
+
+        // Only commit the container if we actually need to return a context.
+        if need_context || persist_locally || persist_remotely {
+            // Commit the container.
+            if let Err(e) = docker::commit_container(&container, &image, interrupted) {
+                return (Err(e), Some(context));
+            }
+
+            // Construct the new context.
+            let new_context = Context {
+                image,
+                persist: persist_locally,
+                interrupted: interrupted.clone(),
             };
 
-        // Commit the container.
-        if let Err(e) = docker::commit_container(&container, &new_image, interrupted) {
-            return (Err(e), context);
-        }
-
-        // Construct the new context.
-        let new_context = Context {
-            image: new_image,
-            persist,
-            interrupted: interrupted.clone(),
-        };
-
-        // Write to remote cache, if applicable.
-        if result.is_ok() && caching_enabled && settings.write_remote_cache {
-            if let Err(e) = docker::push_image(&new_context.image, interrupted) {
-                return (Err(e), new_context);
+            // Write to remote cache, if applicable.
+            if persist_remotely {
+                if let Err(e) = docker::push_image(&new_context.image, interrupted) {
+                    return (Err(e), Some(new_context));
+                }
             }
-        }
 
-        // Return the new context.
-        (result.map(|_| cache_key), new_context)
+            // Return the new context.
+            (result.map(|_| ()), Some(new_context))
+        } else {
+            // The caller doesn't need a context to be returned.
+            (result.map(|_| ()), None)
+        }
     }
 }
