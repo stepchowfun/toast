@@ -75,7 +75,7 @@ pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> 
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
     io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
-    Ok(hex::encode(hasher.result()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 // Determine the initial cache key. [ref:cache_prefix]
