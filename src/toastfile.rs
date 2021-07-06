@@ -220,7 +220,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         return Err(Failure::User(
             format!(
                 "The default task {} does not exist.",
-                toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default] ,
+                toastfile.default.as_ref().unwrap().code_str(), // [ref:valid_default]
             ),
             None,
         ));

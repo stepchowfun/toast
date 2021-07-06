@@ -85,7 +85,7 @@ fn add_symlink<W: Write>(
 fn add_directory<W: Write>(
     builder: &mut Builder<W>,
     visited_paths: &mut HashSet<PathBuf>,
-    path: &Path, // Must be relative ,
+    path: &Path, // Must be relative
 ) -> Result<(), Failure> {
     // Only visit this path once.
     if !visited_paths.insert(path.to_owned()) {

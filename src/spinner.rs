@@ -37,7 +37,7 @@ pub fn spin(message: &str) -> impl Drop {
           // Create the spinner!
           let spinner = ProgressBar::new(1);
           spinner.set_style(ProgressStyle::default_spinner());
-          spinner.set_message(&message);
+          spinner.set_message(message.clone());
 
           // Animate the spinner for as long as necessary.
           let now = Instant::now();
