@@ -37,6 +37,10 @@ pub struct Task {
     #[serde(default)]
     pub input_paths: Vec<PathBuf>,
 
+    // Must be relative [ref:excluded_input_paths_relative]
+    #[serde(default)]
+    pub excluded_input_paths: Vec<PathBuf>,
+
     // Must be relative [ref:output_paths_relative]
     #[serde(default)]
     pub output_paths: Vec<PathBuf>,
@@ -320,6 +324,7 @@ fn is_relative_linux_path(path: &Path) -> bool {
 }
 
 // Check that a task is valid.
+#[allow(clippy::too_many_lines)]
 fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     // Check that environment variable names don't have `=` in them. [tag:env_var_equals]
     for variable in task.environment.keys() {
@@ -344,6 +349,21 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "input_path".code_str(),
+                    path.to_string_lossy().code_str(),
+                ),
+                None,
+            ));
+        }
+    }
+
+    // Check that `excluded_input_paths` are relative. [tag:excluded_input_paths_relative]
+    for path in &task.excluded_input_paths {
+        if !is_relative_linux_path(path) {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has an absolute {}: {}.",
+                    name.code_str(),
+                    "excluded_input_path".code_str(),
                     path.to_string_lossy().code_str(),
                 ),
                 None,
@@ -484,6 +504,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -525,6 +546,10 @@ tasks:
       - qux
       - quux
       - quuz
+    excluded_input_paths:
+      - spam
+      - ham
+      - eggs
     output_paths:
       - corge
       - grault
@@ -562,6 +587,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -583,6 +609,11 @@ tasks:
                     Path::new("qux").to_owned(),
                     Path::new("quux").to_owned(),
                     Path::new("quuz").to_owned(),
+                ],
+                excluded_input_paths: vec![
+                    Path::new("spam").to_owned(),
+                    Path::new("ham").to_owned(),
+                    Path::new("eggs").to_owned(),
                 ],
                 output_paths: vec![
                     Path::new("corge").to_owned(),
@@ -624,6 +655,7 @@ tasks:
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -650,6 +682,7 @@ tasks:
             cache: true,
             environment: env_map,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -681,6 +714,7 @@ tasks:
             cache: true,
             environment: env_map,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -712,6 +746,7 @@ tasks:
             cache: true,
             environment: env_map,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -740,6 +775,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -771,6 +807,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -815,6 +852,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -846,6 +884,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -864,6 +903,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -895,6 +935,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -913,6 +954,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -946,6 +988,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -979,6 +1022,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -997,6 +1041,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -1030,6 +1075,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -1048,6 +1094,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -1066,6 +1113,7 @@ tasks:
                 cache: true,
                 environment: HashMap::new(),
                 input_paths: vec![],
+                excluded_input_paths: vec![],
                 output_paths: vec![],
                 output_paths_on_failure: vec![],
                 mount_paths: vec![],
@@ -1101,6 +1149,7 @@ tasks:
             cache: true,
             environment,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1127,6 +1176,7 @@ tasks:
             cache: true,
             environment,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1150,9 +1200,10 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![Path::new("bar").to_owned()],
-            output_paths: vec![Path::new("baz").to_owned()],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("qux").to_owned()],
+            excluded_input_paths: vec![Path::new("baz").to_owned()],
+            output_paths: vec![Path::new("qux").to_owned()],
+            output_paths_on_failure: vec![Path::new("quux").to_owned()],
+            mount_paths: vec![Path::new("quuz").to_owned()],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1166,17 +1217,18 @@ tasks:
     #[test]
     fn check_task_paths_absolute_input_paths() {
         #[cfg(unix)]
-        const ABSOLUTE_PATH: &str = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-        const ABSOLUTE_PATH: &str = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            input_paths: vec![Path::new(ABSOLUTE_PATH).to_owned()],
+            input_paths: vec![Path::new(absolute_path).to_owned()],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1189,16 +1241,46 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
+        assert!(result.unwrap_err().to_string().contains(absolute_path));
+    }
+
+    #[test]
+    fn check_task_paths_absolute_excluded_input_paths() {
+        #[cfg(unix)]
+        let absolute_path = "/bar";
+
+        #[cfg(windows)]
+        let absolute_path = "C:\\bar";
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![Path::new(absolute_path).to_owned()],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains(absolute_path));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths() {
         #[cfg(unix)]
-        const ABSOLUTE_PATH: &str = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-        const ABSOLUTE_PATH: &str = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
@@ -1206,7 +1288,8 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
-            output_paths: vec![Path::new(ABSOLUTE_PATH).to_owned()],
+            excluded_input_paths: vec![],
+            output_paths: vec![Path::new(absolute_path).to_owned()],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
@@ -1218,16 +1301,16 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
+        assert!(result.unwrap_err().to_string().contains(absolute_path));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths_on_failure() {
         #[cfg(unix)]
-        const ABSOLUTE_PATH: &str = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-        const ABSOLUTE_PATH: &str = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
@@ -1235,8 +1318,9 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
-            output_paths_on_failure: vec![Path::new(ABSOLUTE_PATH).to_owned()],
+            output_paths_on_failure: vec![Path::new(absolute_path).to_owned()],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1247,7 +1331,7 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(ABSOLUTE_PATH));
+        assert!(result.unwrap_err().to_string().contains(absolute_path));
     }
 
     #[test]
@@ -1258,6 +1342,7 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("/bar").to_owned()],
@@ -1279,6 +1364,7 @@ tasks:
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar,baz").to_owned()],
@@ -1302,6 +1388,7 @@ tasks:
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1325,6 +1412,7 @@ tasks:
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1348,6 +1436,7 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1369,6 +1458,7 @@ tasks:
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar").to_owned()],
@@ -1392,6 +1482,7 @@ tasks:
             cache: false,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![Path::new("bar").to_owned()],

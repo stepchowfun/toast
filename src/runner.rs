@@ -63,6 +63,7 @@ pub fn run(
         "Reading files\u{2026}",
         tar_file,
         &task.input_paths,
+        &task.excluded_input_paths,
         &toastfile_dir,
         &task.location,
         &interrupted,

@@ -3,6 +3,9 @@ tasks:
   list:
     input_paths:
       - foo
+    excluded_input_paths:
+      - foo/bar
     command: |
       set -euo pipefail
       ls -al
+      ls -al foo
