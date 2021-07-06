@@ -78,27 +78,23 @@ pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-// Determine the initial cache key. [ref:cache_prefix]
-pub fn initial_key(image: &str) -> String {
-    format!("toast-{}", image.crypto_hash())
-}
-
-// Determine the cache key of a task based on the cache key of the previous task in the schedule (or
-// the hash of the base image, if this is the first task).
-pub fn key(
-    previous_key: &str,
+// Determine the image name for a task based on the name of the image for the previous task in the
+// schedule (or the base image, if this is the first task).
+pub fn image_name(
+    previous_image: &str,
+    docker_repo: &str,
     task: &Task,
     input_files_hash: &str,
     environment: &HashMap<String, String>,
 ) -> String {
-    // Start with the previous key.
-    let mut cache_key: String = previous_key.to_owned();
-
     // If there are no environment variables, no input paths, and no command to run, we can just use
-    // the cache key from the previous task.
+    // the image from the previous task.
     if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_empty() {
-        return cache_key;
+        return previous_image.to_owned();
     }
+
+    // Start with a hash of the previous image.
+    let mut cache_key: String = previous_image.crypto_hash();
 
     // Incorporate the cache version.
     cache_key = combine(&cache_key, &format!("{}", CACHE_VERSION));
@@ -130,14 +126,13 @@ pub fn key(
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
-    // [tag:cache_prefix]
-    format!("toast-{}", cache_key)
+    format!("{}:toast-{}", docker_repo, cache_key)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        cache::{combine, hash_read, key, CryptoHash},
+        cache::{combine, hash_read, image_name, CryptoHash},
         toastfile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
     };
     use std::{collections::HashMap, path::Path};
@@ -203,8 +198,9 @@ mod tests {
     }
 
     #[test]
-    fn key_noop() {
-        let previous_key = "corge";
+    fn image_name_noop() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let environment: HashMap<String, Option<String>> = HashMap::new();
 
@@ -229,14 +225,21 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_eq!(
-            previous_key,
-            key(previous_key, &task, input_files_hash, &full_environment),
+            previous_image,
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_pure() {
-        let previous_key = "corge";
+    fn image_name_pure() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let mut environment: HashMap<String, Option<String>> = HashMap::new();
         environment.insert("foo".to_owned(), None);
@@ -263,15 +266,28 @@ mod tests {
         full_environment.insert("foo".to_owned(), "qux".to_owned());
 
         assert_eq!(
-            key(previous_key, &task, input_files_hash, &full_environment),
-            key(previous_key, &task, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_previous_key() {
-        let previous_key1 = "foo";
-        let previous_key2 = "bar";
+    fn image_name_previous_image() {
+        let previous_image1 = "foo";
+        let previous_image2 = "bar";
+        let docker_repo = "toast";
 
         let task = Task {
             description: None,
@@ -294,14 +310,27 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_ne!(
-            key(previous_key1, &task, input_files_hash, &full_environment),
-            key(previous_key2, &task, input_files_hash, &full_environment),
+            image_name(
+                previous_image1,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image2,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_environment_order() {
-        let previous_key = "corge";
+    fn image_name_environment_order() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let mut environment1: HashMap<String, Option<String>> = HashMap::new();
         environment1.insert("foo".to_owned(), None);
@@ -350,14 +379,27 @@ mod tests {
         full_environment.insert("bar".to_owned(), "fum".to_owned());
 
         assert_eq!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task1,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task2,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_environment_keys() {
-        let previous_key = "corge";
+    fn image_name_environment_keys() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let mut environment1: HashMap<String, Option<String>> = HashMap::new();
         environment1.insert("foo".to_owned(), None);
@@ -404,14 +446,27 @@ mod tests {
         full_environment.insert("bar".to_owned(), "fum".to_owned());
 
         assert_ne!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task1,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task2,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_environment_values() {
-        let previous_key = "corge";
+    fn image_name_environment_values() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let mut environment: HashMap<String, Option<String>> = HashMap::new();
         environment.insert("foo".to_owned(), None);
@@ -440,14 +495,27 @@ mod tests {
         full_environment2.insert("foo".to_owned(), "baz".to_owned());
 
         assert_ne!(
-            key(previous_key, &task, input_files_hash, &full_environment1),
-            key(previous_key, &task, input_files_hash, &full_environment2),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment1,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash,
+                &full_environment2,
+            ),
         );
     }
 
     #[test]
-    fn key_input_files_hash() {
-        let previous_key = "corge";
+    fn image_name_input_files_hash() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let task = Task {
             description: None,
@@ -471,14 +539,27 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_ne!(
-            key(previous_key, &task, input_files_hash1, &full_environment),
-            key(previous_key, &task, input_files_hash2, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash1,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task,
+                input_files_hash2,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_location() {
-        let previous_key = "corge";
+    fn image_name_location() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let task1 = Task {
             description: None,
@@ -517,14 +598,27 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_ne!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task1,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task2,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_user() {
-        let previous_key = "corge";
+    fn image_name_user() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let task1 = Task {
             description: None,
@@ -563,14 +657,27 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_ne!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task1,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task2,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 
     #[test]
-    fn key_command() {
-        let previous_key = "corge";
+    fn image_name_command() {
+        let previous_image = "corge";
+        let docker_repo = "toast";
 
         let task1 = Task {
             description: None,
@@ -609,8 +716,20 @@ mod tests {
         let full_environment = HashMap::new();
 
         assert_ne!(
-            key(previous_key, &task1, input_files_hash, &full_environment),
-            key(previous_key, &task2, input_files_hash, &full_environment),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task1,
+                input_files_hash,
+                &full_environment,
+            ),
+            image_name(
+                previous_image,
+                docker_repo,
+                &task2,
+                input_files_hash,
+                &full_environment,
+            ),
         );
     }
 }

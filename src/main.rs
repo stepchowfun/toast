@@ -19,6 +19,7 @@ use log::{Level, LevelFilter};
 use std::{
     collections::{HashMap, HashSet},
     convert::AsRef,
+    default::Default,
     env,
     env::current_dir,
     fs,
@@ -33,6 +34,7 @@ use std::{
         Arc, Mutex,
     },
 };
+use toastfile::{default_task_mount_readonly, DEFAULT_USER};
 
 #[macro_use]
 extern crate lazy_static;
@@ -449,33 +451,32 @@ fn fetch_environment(
     Ok(env)
 }
 
-// Run some tasks and return the final context and the last attempted task.
+// Run some tasks and return the final context and the last attempted task. The returned context
+// should not be `None` if `need_context` is `true`.
 #[allow(clippy::too_many_arguments)]
 fn run_tasks(
     schedule: &[&str],
     settings: &Settings,
     toastfile: &toastfile::Toastfile,
     environment: &HashMap<String, String>,
+    need_context: bool,
     interrupted: &Arc<AtomicBool>,
     active_containers: &Arc<Mutex<HashSet<String>>>,
-) -> (Result<(), Failure>, runner::Context, Option<String>) {
+) -> (Result<(), Failure>, Option<runner::Context>, Option<String>) {
     // This variable will be `true` as long as we're executing tasks that have `cache: true`. As
     // soon as we encounter a task with `cache: false`, this variable will be permanently set to
     // `false`.
     let mut caching_enabled = true;
 
-    // This is the cache key for the current task.
-    let mut cache_key = cache::initial_key(&toastfile.image);
-
     // We start with the base image.
-    let mut context = runner::Context {
+    let mut context = Some(runner::Context {
         image: toastfile.image.clone(),
         persist: true,
         interrupted: interrupted.clone(),
-    };
+    });
 
     // Run each task in the schedule.
-    for task in schedule {
+    for (i, task) in schedule.iter().enumerate() {
         // Fetch the data for the current task.
         let task_data = &toastfile.tasks[*task]; // [ref:tasks_valid]
 
@@ -496,19 +497,18 @@ fn run_tasks(
             &interrupted,
             &active_containers,
             task_data,
-            &cache_key,
             caching_enabled,
-            context,
+            context.unwrap(), // Safe due to [ref:context_needed_if_not_final_task].
+            need_context || i != schedule.len() - 1, // [tag:context_needed_if_not_final_task]
         );
 
-        // Remember the context for the next task.
+        // Remember the context for the next task, if there is one.
         context = new_context;
 
-        // Retrieve the cache key from the result.
-        cache_key = match result {
-            Ok(new_cache_key) => new_cache_key,
-            Err(e) => return (Err(e), context, Some((*task).to_owned())),
-        };
+        // Return an error if the task failed.
+        if let Err(e) = result {
+            return (Err(e), context, Some((*task).to_owned()));
+        }
     }
 
     // Everything succeeded.
@@ -603,6 +603,7 @@ fn entry() -> Result<(), Failure> {
         &settings,
         &toastfile,
         &environment,
+        settings.spawn_shell, // [tag:spawn_shell_requires_context]
         &interrupted,
         &active_containers,
     );
@@ -654,12 +655,12 @@ fn entry() -> Result<(), Failure> {
                 // There is no last task, so the context will be the base image. Use default
                 // settings.
                 (
-                    HashMap::<String, String>::new(),
-                    Path::new("/").to_owned(),
-                    vec![],
-                    false,
-                    vec![],
-                    "root".to_owned(),
+                    HashMap::default(),        // [ref:default_environment]
+                    Path::new("/").to_owned(), // `toastfile::DEFAULT_LOCATION` might not exist.
+                    Vec::default(),            // [ref:default_mount_paths]
+                    default_task_mount_readonly(),
+                    Vec::default(), // [ref:default_ports]
+                    DEFAULT_USER.to_owned(),
                 )
             };
 
@@ -669,7 +670,7 @@ fn entry() -> Result<(), Failure> {
 
         // Spawn the shell.
         docker::spawn_shell(
-            &context.image,
+            &context.unwrap().image, // Safe due to [ref:spawn_shell_requires_context].
             &toastfile_dir,
             &task_environment,
             &location,
