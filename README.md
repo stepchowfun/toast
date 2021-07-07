@@ -335,7 +335,7 @@ Here are all the supported command-line options:
 
 ```
 USAGE:
-    toast [OPTIONS] [TASKS]...
+    toast [OPTIONS] [--] [TASKS]...
 
 OPTIONS:
     -c, --config-file <PATH>
@@ -343,6 +343,9 @@ OPTIONS:
 
     -f, --file <PATH>
             Sets the path to the toastfile
+
+        --force <TASK>...
+            Runs a task unconditionally, even if it’s cached
 
     -h, --help
             Prints help information
@@ -370,6 +373,11 @@ OPTIONS:
 
         --write-remote-cache <BOOL>
             Sets whether remote cache writing is enabled
+
+
+ARGS:
+    <TASKS>...
+            Sets the tasks to run
 ```
 
 ## Installation instructions
