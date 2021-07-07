@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 2021-07-06
+
+### Added
+- Added support for `excluded_input_paths`.
+
+### Fixed
+- Fixed a bug that would cause Docker images to be deleted prematurely.
+
 ## [0.35.0] - 2021-07-06
 
 ### Changed

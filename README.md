@@ -40,29 +40,6 @@ Related tools:
 
 To prevent Docker images from accumulating on your machine when using Docker-related tools such as Toast or Docker Compose, we recommend using [Docuum](https://github.com/stepchowfun/docuum) to perform least recently used (LRU) image eviction.
 
-## Table of contents
-
-* [Tutorial](#tutorial)
-  * [Defining a simple task](#defining-a-simple-task)
-  * [Adding a dependency](#adding-a-dependency)
-  * [Importing files from the host](#importing-files-from-the-host)
-  * [Exporting files from the container](#exporting-files-from-the-container)
-  * [Passing arguments to a task](#passing-arguments-to-a-task)
-  * [Running a server and mounting paths into the container](#running-a-server-and-mounting-paths-into-the-container)
-  * [Dropping into a shell](#dropping-into-a-shell)
-* [How Toast works](#how-toast-works)
-* [Toastfiles](#toastfiles)
-* [Cache configuration](#cache-configuration)
-* [Command-line options](#command-line-options)
-* [Installation instructions](#installation-instructions)
-  * [Installation with Homebrew](#installation-with-homebrew)
-  * [Automated installation on macOS or Linux](#automated-installation-on-macos-or-linux)
-  * [Manual installation for macOS, Linux, or Windows](#manual-installation-for-macos--linux--or-windows)
-  * [Installation with Cargo](#installation-with-cargo)
-* [Running Toast in CI](#running-toast-in-ci)
-* [Requirements](#requirements)
-* [Acknowledgements](#acknowledgements)
-
 ## Tutorial
 
 ### Defining a simple task
@@ -307,6 +284,7 @@ dependencies: []            # Names of dependencies
 cache: true                 # Whether a task can be cached
 environment: {}             # Map from environment variable to optional default
 input_paths: []             # Paths to copy into the container
+excluded_input_paths: []    # A denylist for `input_paths`
 output_paths: []            # Paths to copy out of the container if the task succeeds
 output_paths_on_failure: [] # Paths to copy out of the container if the task fails
 mount_paths: []             # Paths to mount into the container

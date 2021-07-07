@@ -93,13 +93,13 @@ pub fn image_name(
         return previous_image.to_owned();
     }
 
-    // Start with a hash of the previous image.
-    let mut cache_key: String = previous_image.crypto_hash();
+    // Start with a hash of the cache version.
+    let mut cache_key: String = format!("{}", CACHE_VERSION).crypto_hash();
 
-    // Incorporate the cache version.
-    cache_key = combine(&cache_key, &format!("{}", CACHE_VERSION));
+    // Incorporate the previous image.
+    cache_key = combine(&cache_key, previous_image);
 
-    // Environment variables
+    // Incorporate the environment variables.
     let mut environment_hash = String::new();
     let mut variables = task.environment.keys().collect::<Vec<_>>();
     variables.sort();
@@ -112,16 +112,16 @@ pub fn image_name(
     }
     cache_key = combine(&cache_key, &environment_hash);
 
-    // Input paths and contents
+    // Incorporate the input paths and contents.
     cache_key = combine(&cache_key, input_files_hash);
 
-    // Location
+    // Incorporate the location.
     cache_key = combine(&cache_key, &task.location);
 
-    // User
+    // Incorporate the user.
     cache_key = combine(&cache_key, &task.user);
 
-    // Command
+    // Incorporate the command.
     cache_key = combine(&cache_key, &task.command);
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
@@ -210,6 +210,7 @@ mod tests {
             cache: true,
             environment,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -250,6 +251,7 @@ mod tests {
             cache: true,
             environment,
             input_paths: vec![Path::new("flob").to_owned()],
+            excluded_input_paths: vec![Path::new("thud").to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -295,6 +297,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -346,6 +349,7 @@ mod tests {
             cache: true,
             environment: environment1,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -362,6 +366,7 @@ mod tests {
             cache: true,
             environment: environment2,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -413,6 +418,7 @@ mod tests {
             cache: true,
             environment: environment1,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -429,6 +435,7 @@ mod tests {
             cache: true,
             environment: environment2,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -477,6 +484,7 @@ mod tests {
             cache: true,
             environment,
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -523,6 +531,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![Path::new("flob").to_owned()],
+            excluded_input_paths: vec![Path::new("thud").to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -567,6 +576,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -583,6 +593,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -626,6 +637,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -642,6 +654,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -685,6 +698,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -701,6 +715,7 @@ mod tests {
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
+            excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],

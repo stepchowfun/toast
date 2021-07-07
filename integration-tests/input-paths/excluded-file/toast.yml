@@ -1,0 +1,9 @@
+image: debian
+tasks:
+  list:
+    input_paths:
+      - foo.txt
+      - bar.txt
+    excluded_input_paths:
+      - bar.txt
+    command: ls -al
