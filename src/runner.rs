@@ -88,6 +88,12 @@ pub fn run(
         &environment,
     );
 
+    // If we need to return the same image as the one that was passed in, we should be careful to
+    // reuse the given context rather than constructing a new one. Otherwise, the given context will
+    // be dropped at the end of this function, which may delete the image that we need to return.
+    // This variable will be used to determine whether that situation applies.
+    let context_unchanged = image == context.image;
+
     // Construct the environment.
     let mut task_environment = HashMap::<String, String>::new();
     for variable in task.environment.keys() {
@@ -162,10 +168,14 @@ pub fn run(
         // The cached image becomes the new context.
         (
             Ok(()),
-            Some(Context {
-                image,
-                persist: true,
-                interrupted: interrupted.clone(),
+            Some(if context_unchanged {
+                context
+            } else {
+                Context {
+                    image,
+                    persist: true,
+                    interrupted: interrupted.clone(),
+                }
             }),
         )
     } else {
@@ -270,11 +280,15 @@ pub fn run(
                 return (Err(e), Some(context));
             }
 
-            // Construct the new context.
-            let new_context = Context {
-                image,
-                persist: persist_locally,
-                interrupted: interrupted.clone(),
+            // Construct a new context, if needed.
+            let new_context = if context_unchanged {
+                context
+            } else {
+                Context {
+                    image,
+                    persist: persist_locally,
+                    interrupted: interrupted.clone(),
+                }
             };
 
             // Write to remote cache, if applicable.
