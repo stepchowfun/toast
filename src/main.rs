@@ -64,6 +64,7 @@ const REPO_OPTION: &str = "repo";
 const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
+const FORCE_OPTION: &str = "force";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -156,6 +157,7 @@ pub struct Settings {
     list: bool,
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
+    forced_tasks: Vec<String>,
 }
 
 // Parse the command-line arguments.
@@ -225,6 +227,13 @@ fn settings() -> Result<Settings, Failure> {
                 .short("s")
                 .long(SHELL_OPTION)
                 .help("Drops you into a shell after the tasks are finished"),
+        )
+        .arg(
+            Arg::with_name(FORCE_OPTION)
+                .value_name("TASK")
+                .long(FORCE_OPTION)
+                .help("Runs a task unconditionally, even if it\u{2019}s cached")
+                .multiple(true),
         )
         .arg(
             Arg::with_name(TASKS_OPTION)
@@ -331,6 +340,15 @@ fn settings() -> Result<Settings, Failure> {
             .collect::<Vec<_>>()
     });
 
+    // Read the list of forced tasks.
+    let forced_tasks = matches
+        .values_of(FORCE_OPTION)
+        .map_or_else(Vec::new, |tasks| {
+            tasks
+                .map(std::borrow::ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        });
+
     Ok(Settings {
         toastfile_path,
         docker_repo,
@@ -341,6 +359,7 @@ fn settings() -> Result<Settings, Failure> {
         list,
         spawn_shell,
         tasks,
+        forced_tasks,
     })
 }
 
@@ -364,40 +383,54 @@ fn get_roots<'a>(
     settings: &'a Settings,
     toastfile: &'a toastfile::Toastfile,
 ) -> Result<Vec<&'a str>, Failure> {
-    settings.tasks.as_ref().map_or_else(
-        || {
-            // The user didn't provide any tasks. Check if there is a default task.
-            if let Some(default) = &toastfile.default {
-                // There is a default. Use it.
-                Ok(vec![default.as_ref()])
-            } else {
-                // There is no default. Run all the tasks.
-                Ok(toastfile
-                    .tasks
-                    .keys()
-                    .map(AsRef::as_ref)
-                    .collect::<Vec<_>>())
-            }
-        },
-        |tasks| {
-            // The user provided some tasks. Check that they exist, and run them.
-            for task in tasks {
-                if !toastfile.tasks.contains_key(task) {
-                    // [tag:tasks_valid]
-                    return Err(Failure::User(
-                        format!(
-                            "No task named {} in {}.",
-                            task.code_str(),
-                            settings.toastfile_path.to_string_lossy().code_str(),
-                        ),
-                        None,
-                    ));
-                }
-            }
+    // Start with the tasks provided via positional arguments.
+    let mut roots: Vec<&'a str> = settings
+        .tasks
+        .as_ref()
+        .map_or_else(Vec::new, |tasks| tasks.iter().map(AsRef::as_ref).collect());
 
-            Ok(tasks.iter().map(AsRef::as_ref).collect())
-        },
-    )
+    // Add the tasks that were provided via the `--force` flag.
+    roots.extend(
+        settings
+            .forced_tasks
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<&'a str>>(),
+    );
+
+    // For convenience, there is some special behavior for the empty case.
+    if roots.is_empty() {
+        // The user didn't provide any tasks. Check if there is a default task.
+        if let Some(default) = &toastfile.default {
+            // There is a default. Use it.
+            Ok(vec![default.as_ref()])
+        } else {
+            // There is no default. Run all the tasks.
+            Ok(toastfile
+                .tasks
+                .keys()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>())
+        }
+    } else {
+        // The user provided some tasks. Check that they exist.
+        for task in &roots {
+            if !toastfile.tasks.contains_key(*task) {
+                // [tag:tasks_valid]
+                return Err(Failure::User(
+                    format!(
+                        "No task named {} in {}.",
+                        task.code_str(),
+                        settings.toastfile_path.to_string_lossy().code_str(),
+                    ),
+                    None,
+                ));
+            }
+        }
+
+        // Run the tasks that the user provided.
+        Ok(roots)
+    }
 }
 
 // Fetch all the environment variables used by the tasks in the schedule.
@@ -482,7 +515,12 @@ fn run_tasks(
 
         // If the current task is not cacheable, don't read or write to any form of cache from now
         // on.
-        caching_enabled = caching_enabled && task_data.cache;
+        caching_enabled = caching_enabled
+            && task_data.cache
+            && !settings
+                .forced_tasks
+                .iter()
+                .any(|forced_task| task == forced_task);
 
         // If the user wants to stop the schedule, quit now.
         if interrupted.load(Ordering::SeqCst) {
