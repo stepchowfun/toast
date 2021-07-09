@@ -10,6 +10,9 @@ use std::{
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+
 // Bump this if we need to invalidate all existing caches for some reason.
 const CACHE_VERSION: usize = 0;
 
@@ -35,27 +38,27 @@ impl CryptoHash for String {
 }
 
 #[cfg(unix)]
-fn path_as_bytes(path: &Path) -> &[u8] {
-    path.as_os_str().as_bytes()
+fn path_as_bytes(path: &Path) -> Vec<u8> {
+    path.as_os_str().as_bytes().to_vec()
 }
 
 #[cfg(windows)]
-fn path_as_bytes(path: &Path) -> &[u8] {
+fn path_as_bytes(path: &Path) -> Vec<u8> {
     path.as_os_str()
-        .to_str()
-        .map(|s| s.as_bytes())
-        .expect("Invalid UTF8")
+        .encode_wide()
+        .flat_map(|c| c.to_le_bytes())
+        .collect()
 }
 
 impl CryptoHash for Path {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(path_as_bytes(&self)))
+        hex::encode(Sha256::digest(&path_as_bytes(&self)))
     }
 }
 
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(path_as_bytes(&self)))
+        hex::encode(Sha256::digest(&path_as_bytes(&self)))
     }
 }
 
