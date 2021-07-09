@@ -137,12 +137,13 @@ tasks:
     dependencies:
       - build
     input_paths:
-      - .github # Linted by `tagref`
-      - .gitignore # Used by `tagref`
-      - install.sh # Linted by `ShellCheck`
-      - integration-tests # Linted by `ShellCheck`
-      - integration-tests.sh # Linted by `ShellCheck`
-      - toast.yml # Linted by `tagref`
+      - .
+    excluded_input_paths:
+      - .git
+
+      # [tag:excluded_input_paths] Keep this in sync with [ref:gitignore].
+      - artifacts
+      - target
     user: user
     command: |
       # Make Bash not silently ignore errors.
