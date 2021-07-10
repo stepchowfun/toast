@@ -382,15 +382,7 @@ ARGS:
 
 ## Installation instructions
 
-### Installation with Homebrew
-
-On macOS with Homebrew installed, you can install Toast by running:
-
-```sh
-brew install toast
-```
-
-### Automated installation on macOS or Linux
+### Installation on macOS or Linux (x86-64)
 
 If you are running macOS or Linux on an x86-64 CPU, you can install Toast with this command:
 
@@ -398,9 +390,7 @@ If you are running macOS or Linux on an x86-64 CPU, you can install Toast with t
 curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | sh
 ```
 
-The same command can be used again to update Toast to the latest version.
-
-**NOTE:** Piping `curl` to `sh` is considered dangerous by some since the server might be compromised. If you're concerned about this, you can download and inspect the installation script or choose one of the other installation methods.
+The same command can be used again to update to the latest version.
 
 The installation script supports the following optional environment variables:
 
@@ -413,9 +403,24 @@ For example, the following will install Toast into the working directory:
 curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | PREFIX=. sh
 ```
 
-### Manual installation for macOS, Linux, or Windows
+If you are concerned about piping `curl` to `sh`, you can alternatively download the binary from the [releases page](https://github.com/stepchowfun/toast/releases), make it executable (e.g., with `chmod`), and place it in some directory in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)) (e.g., `/usr/local/bin`).
 
-The [releases page](https://github.com/stepchowfun/toast/releases) has precompiled binaries for macOS, Linux, and Windows systems running on an x86-64 CPU. You can download one of them and place it in a directory listed in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)).
+### Installation on Windows (x86-64)
+
+If you are running Windows on an x86-64 CPU, download the latest binary from the [releases page](https://github.com/stepchowfun/toast/releases) and rename it to `toast` (or `toast.exe` if you have file extensions visible). Create a directory called `Toast` in your `%PROGRAMFILES%` directory (e.g., `C:\Program Files\Toast`), and place the renamed binary in there. Then, in the "Advanced" tab of the "System Properties" section of "Control Panel", click on "Environment Variables..." and add the full path to the new `Toast` directory to the `PATH` variable under "System variables". Note that the `Program Files` directory might have a different name if Windows is configured for language other than English.
+
+To update to an existing installation, simply replace the existing binary.
+
+
+### Installation with Homebrew
+
+If you have [Homebrew](https://brew.sh/), you can install Toast by running:
+
+```sh
+brew install toast
+```
+
+You can update an existing installation with `brew upgrade toast`.
 
 ### Installation with Cargo
 
