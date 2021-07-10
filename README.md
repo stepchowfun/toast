@@ -475,7 +475,7 @@ jobs:
 ## Requirements
 
 - Toast requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.06.0 or later.
-- Only Linux-based Docker images are supported. Toast can run on any platform capable of running such images, e.g., macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop).
+- Toast only works with Linux containers; Windows containers are not currently supported. However, in addition to Linux, macOS and Windows hosts with the appropriate virtualization capabilities are also supported thanks to [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ## Acknowledgements
 
