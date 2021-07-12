@@ -311,7 +311,7 @@ tasks:
       # Fetch the program version.
       VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
 
-      # If the package
+      # If this version of the package already exists on crates.io, there's nothing more to do.
       if cargo search toast | grep "toast = \"$VERSION\""; then
         echo "Version $VERSION of crate already exists."
         exit
