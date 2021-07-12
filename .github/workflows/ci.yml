@@ -16,16 +16,12 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
     - uses: ./.github/actions/toast
       with:
-        tasks: build test lint release run
+        tasks: build test lint release validate_release run
         repo: stephanmisc/toast
         write_remote_cache: ${{ github.event_name == 'push' }}
-    - name: Run integration tests
-      run: |
+    - run: |
         # Make Bash not silently ignore errors.
         set -euo pipefail
-
-        # Run the integration test suite with the freshly built Toast.
-        TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu" ./integration-tests.sh
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-gnu artifacts/toast

@@ -11,10 +11,25 @@ tasks:
       #
       # - build-essential - Used for linking the binary
       # - curl            - Used for installing Tagref
+      # - lsb-release     - Used below to determine the Ubuntu release codename
       # - ripgrep         - Used for line length checking
       # - shellcheck      - Used for linting shell scripts
       apt-get update
-      apt-get install --yes build-essential curl ripgrep shellcheck
+      apt-get install --yes build-essential curl lsb-release ripgrep shellcheck
+
+      # Download Docker's official GPG key.
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+        gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+      # Set up the Docker repository.
+      echo \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] "\
+        "https://download.docker.com/linux/ubuntu "\
+        "$(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+
+      # Install the Docker CLI.
+      apt-get update
+      apt-get install --yes docker-ce-cli
 
   install_tagref:
     description: Install Tagref, a reference checking tool.
@@ -250,6 +265,31 @@ tasks:
       cp \
         target/x86_64-unknown-linux-musl/release/toast \
         artifacts/toast-x86_64-unknown-linux-musl
+
+  validate_release:
+    description: Validate the release.
+    dependencies:
+      - release
+    input_paths:
+      - integration-tests
+    cache: false
+    mount_paths:
+      - /var/run/docker.sock
+    command: |
+      # Make Bash not silently ignore errors.
+      set -euo pipefail
+
+      # Tell the integration tests where the Toast binary lives.
+      export TOAST="$(pwd)/artifacts/toast-x86_64-unknown-linux-gnu"
+
+      # Run the integration tests.
+      while IFS= read -d '' -r TEST; do
+        # Log which integration test we're about to run.
+        echo "Running integration test: $TEST"
+
+        # Go into the test directory and run the test.
+        (cd "$(dirname "$TEST")" > /dev/null && ./run.sh)
+      done < <(find integration-tests -name run.sh -print0)
 
   publish:
     description: Publish the crate to crates.io.
