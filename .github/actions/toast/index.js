@@ -55,8 +55,11 @@ try {
     },
   );
 } catch (_) {
-  // Toast should print a helpful error message. There's no need to log anything more.
-} finally {
-  // To be a good citizen, we now re-enable command workflow processing.
+  // Toast should print a helpful error message. There's no need to log anything more. Just
+  // re-enable command workflow processing and exit with a failure code.
   console.log(`::${token}::`);
+  process.exit(1);
 }
+
+// Re-enable command workflow processing to be a good citizen.
+console.log(`::${token}::`);
