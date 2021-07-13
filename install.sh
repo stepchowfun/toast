@@ -54,7 +54,7 @@
     -o "$SOURCE" -LSf || fail 'There was an error downloading the binary.'
 
   # Make it executable.
-  chmod a+rx "$SOURCE" || fail 'There was an error setting the permissions for the binary.'
+  chmod a+x "$SOURCE" || fail 'There was an error setting the permissions for the binary.'
 
   # Install it at the requested destination.
   # shellcheck disable=SC2024
@@ -65,8 +65,6 @@
   # Remove the temporary directory.
   rm -rf "$TEMPDIR"
 
-  # Let the user know it worked.
-  echo "$(
-    "$DESTINATION" --version || fail 'There was an error executing the binary.'
-  ) is now installed."
+  # Let the user know if the installation was successful.
+  "$DESTINATION" --version || fail 'There was an error installing the binary.'
 )
