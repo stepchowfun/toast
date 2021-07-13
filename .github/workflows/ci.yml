@@ -55,7 +55,10 @@ jobs:
         rustup default 1.53.0 # [ref:rust_1_53_0]
 
         # Build and test.
-        cargo build --locked --release --target x86_64-pc-windows-msvc
+        RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
+          --locked \
+          --release \
+          --target x86_64-pc-windows-msvc
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
     - uses: actions/upload-artifact@v2
       with:
