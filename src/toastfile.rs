@@ -44,7 +44,7 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
         formatter.write_str("cannot parse mapping path")
     }
 
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
