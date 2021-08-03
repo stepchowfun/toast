@@ -101,6 +101,7 @@ pub struct Task {
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
     // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
+    // Can be `host_path:container_path` or a single path if host_path is the same as container_path
     #[serde(default)] // [tag:default_mount_paths]
     pub mount_paths: Vec<MappingPath>,
 
