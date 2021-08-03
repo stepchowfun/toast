@@ -529,8 +529,8 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_dependencies, check_task, environment, parse, Task, Toastfile, DEFAULT_LOCATION,
-        DEFAULT_USER,
+        check_dependencies, check_task, environment, parse, MappingPath, Task, Toastfile,
+        DEFAULT_LOCATION, DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -691,9 +691,18 @@ tasks:
                     Path::new("xyzzy").to_owned(),
                 ],
                 mount_paths: vec![
-                    Path::new("wibble").to_owned(),
-                    Path::new("wobble").to_owned(),
-                    Path::new("wubble").to_owned(),
+                    MappingPath {
+                        host_path: Path::new("wibble").to_owned(),
+                        container_path: Path::new("wibble").to_owned(),
+                    },
+                    MappingPath {
+                        host_path: Path::new("wobble").to_owned(),
+                        container_path: Path::new("wobble").to_owned(),
+                    },
+                    MappingPath {
+                        host_path: Path::new("wubble").to_owned(),
+                        container_path: Path::new("wubble").to_owned(),
+                    },
                 ],
                 mount_readonly: true,
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
@@ -1268,7 +1277,10 @@ tasks:
             excluded_input_paths: vec![Path::new("baz").to_owned()],
             output_paths: vec![Path::new("qux").to_owned()],
             output_paths_on_failure: vec![Path::new("quux").to_owned()],
-            mount_paths: vec![Path::new("quuz").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("quuz").to_owned(),
+                container_path: Path::new("quuz").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1410,7 +1422,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("/bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("/bar").to_owned(),
+                container_path: Path::new("/bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1432,7 +1447,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar,baz").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar,baz").to_owned(),
+                container_path: Path::new("bar,baz").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1526,7 +1544,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar").to_owned(),
+                container_path: Path::new("bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1550,7 +1571,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar").to_owned(),
+                container_path: Path::new("bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
