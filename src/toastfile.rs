@@ -1,11 +1,11 @@
 use crate::{failure::Failure, format, format::CodeStr};
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::Formatter;
 use std::{
     collections::{HashMap, HashSet},
     env,
     path::{Path, PathBuf},
 };
-use std::fmt::Formatter;
 
 // The default location for commands and files copied into the container
 pub const DEFAULT_LOCATION: &str = "/scratch";
@@ -20,10 +20,18 @@ pub struct MappingPath {
 }
 
 impl Serialize for MappingPath {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         serializer.serialize_str(
-            format!("{}:{}", self.host_path.to_str().unwrap(),
-                    self.container_path.to_str().unwrap()).as_str())
+            format!(
+                "{}:{}",
+                self.host_path.to_str().unwrap(),
+                self.container_path.to_str().unwrap()
+            )
+            .as_str(),
+        )
     }
 }
 
@@ -36,11 +44,17 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
         formatter.write_str("cannot parse mapping path")
     }
 
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E> where E: serde::de::Error {
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
         if let Some((host_path, container_path)) = v.split_once(":") {
             Ok(MappingPath {
                 host_path: host_path.to_owned().parse().expect("illegal host path"),
-                container_path: container_path.to_owned().parse().expect("illegal container path")
+                container_path: container_path
+                    .to_owned()
+                    .parse()
+                    .expect("illegal container path"),
             })
         } else {
             Ok(MappingPath {
@@ -53,8 +67,8 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
 
 impl<'de> Deserialize<'de> for MappingPath {
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(MappingPathVisitor)
     }
@@ -453,7 +467,9 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     // Check `mount_paths`.
     for path in &task.mount_paths {
         // Check that the path doesn't contain any commas. [tag:mount_paths_no_commas]
-        if path.container_path.to_string_lossy().contains(',') || path.host_path.to_string_lossy().contains(',') {
+        if path.container_path.to_string_lossy().contains(',')
+            || path.host_path.to_string_lossy().contains(',')
+        {
             return Err(Failure::User(
                 format!(
                     "Mount path {:?} of task {} has a {}.",
@@ -524,7 +540,7 @@ mod tests {
 image: encom:os-12
 tasks: {}
     "#
-            .trim();
+        .trim();
 
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
@@ -542,7 +558,7 @@ image: encom:os-12
 tasks:
   foo: {}
     "#
-            .trim();
+        .trim();
 
         let mut tasks = HashMap::new();
         tasks.insert(
@@ -620,7 +636,7 @@ tasks:
     user: waldo
     command: flob
     "#
-            .trim();
+        .trim();
 
         let mut environment = HashMap::new();
         environment.insert("SPAM".to_owned(), Some("monty".to_owned()));
@@ -1266,10 +1282,10 @@ tasks:
     #[test]
     fn check_task_paths_absolute_input_paths() {
         #[cfg(unix)]
-            let absolute_path = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-            let absolute_path = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
@@ -1296,10 +1312,10 @@ tasks:
     #[test]
     fn check_task_paths_absolute_excluded_input_paths() {
         #[cfg(unix)]
-            let absolute_path = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-            let absolute_path = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
@@ -1326,10 +1342,10 @@ tasks:
     #[test]
     fn check_task_paths_absolute_output_paths() {
         #[cfg(unix)]
-            let absolute_path = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-            let absolute_path = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
@@ -1356,10 +1372,10 @@ tasks:
     #[test]
     fn check_task_paths_absolute_output_paths_on_failure() {
         #[cfg(unix)]
-            let absolute_path = "/bar";
+        let absolute_path = "/bar";
 
         #[cfg(windows)]
-            let absolute_path = "C:\\bar";
+        let absolute_path = "C:\\bar";
 
         let task = Task {
             description: None,
