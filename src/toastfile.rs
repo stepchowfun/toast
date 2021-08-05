@@ -58,8 +58,8 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
             })
         } else {
             Ok(MappingPath {
-                host_path: v.clone().parse().expect("illegal host path"),
-                container_path: v.parse().expect("illegal container path"),
+                host_path: v.to_owned().parse().expect("illegal host path"),
+                container_path: v.to_owned().parse().expect("illegal container path"),
             })
         }
     }
