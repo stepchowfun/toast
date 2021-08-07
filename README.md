@@ -414,7 +414,7 @@ To update to an existing installation, simply replace the existing binary.
 
 ### Installation with Homebrew
 
-If you have [Homebrew](https://brew.sh/), you can install Toast by running:
+If you have [Homebrew](https://brew.sh/), you can install Toast as follows:
 
 ```sh
 brew install toast
