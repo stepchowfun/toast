@@ -42,7 +42,7 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
     type Value = MappingPath;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-        formatter.write_str("cannot parse mapping path")
+        formatter.write_str("a path")
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -52,31 +52,24 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
         if let Some((host_path, container_path)) = v.split_once(":") {
             Ok(MappingPath {
                 host_path: host_path
-                    .to_owned()
                     .parse()
-                    .map_err(|_| E::custom("illegal host path"))?,
+                    .map_err(|_| E::custom("Illegal host path."))?,
                 container_path: container_path
-                    .to_owned()
                     .parse()
-                    .map_err(|_| E::custom("illegal container path"))?,
+                    .map_err(|_| E::custom("Illegal container path."))?,
             })
         } else {
+            let path: PathBuf = v.parse().map_err(|_| E::custom("Illegal host path."))?;
             Ok(MappingPath {
-                host_path: v
-                    .to_owned()
-                    .parse()
-                    .map_err(|_| E::custom("illegal host path"))?,
-                container_path: v
-                    .to_owned()
-                    .parse()
-                    .map_err(|_| E::custom("illegal container path"))?,
+                host_path: path.clone(),
+                container_path: path,
             })
         }
     }
 }
 
 impl<'de> Deserialize<'de> for MappingPath {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
