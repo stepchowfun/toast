@@ -28,7 +28,7 @@ impl Serialize for MappingPath {
             format!(
                 "{}:{}",
                 self.host_path.to_str().unwrap(),
-                self.container_path.to_str().unwrap()
+                self.container_path.to_str().unwrap(),
             )
             .as_str(),
         )
