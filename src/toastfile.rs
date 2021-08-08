@@ -54,22 +54,22 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
                 host_path: host_path
                     .to_owned()
                     .parse()
-                    .map_err(|e| E::custom("illegal host path"))?,
+                    .map_err(|_| E::custom("illegal host path"))?,
                 container_path: container_path
                     .to_owned()
                     .parse()
-                    .map_err(|e| E::custom("illegal container path"))?,
+                    .map_err(|_| E::custom("illegal container path"))?,
             })
         } else {
             Ok(MappingPath {
                 host_path: v
                     .to_owned()
                     .parse()
-                    .map_err(|e| E::custom("illegal host path"))?,
+                    .map_err(|_| E::custom("illegal host path"))?,
                 container_path: v
                     .to_owned()
                     .parse()
-                    .map_err(|e| E::custom("illegal container path"))?,
+                    .map_err(|_| E::custom("illegal container path"))?,
             })
         }
     }
