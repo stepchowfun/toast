@@ -13,6 +13,7 @@ pub const DEFAULT_LOCATION: &str = "/scratch";
 // The default user for commands and files copied into the container
 pub const DEFAULT_USER: &str = "root";
 
+// This struct represents a path on the host and a corresponding path in the container.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MappingPath {
     pub host_path: PathBuf,
@@ -27,8 +28,8 @@ impl Serialize for MappingPath {
         serializer.serialize_str(
             format!(
                 "{}:{}",
-                self.host_path.to_str().unwrap(),
-                self.container_path.to_str().unwrap(),
+                self.host_path.to_string_lossy(),
+                self.container_path.to_string_lossy(),
             )
             .as_str(),
         )
@@ -50,16 +51,25 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
     {
         if let Some((host_path, container_path)) = v.split_once(":") {
             Ok(MappingPath {
-                host_path: host_path.to_owned().parse().expect("illegal host path"),
+                host_path: host_path
+                    .to_owned()
+                    .parse()
+                    .map_err(|e| E::custom("illegal host path"))?,
                 container_path: container_path
                     .to_owned()
                     .parse()
-                    .expect("illegal container path"),
+                    .map_err(|e| E::custom("illegal container path"))?,
             })
         } else {
             Ok(MappingPath {
-                host_path: v.to_owned().parse().expect("illegal host path"),
-                container_path: v.to_owned().parse().expect("illegal container path"),
+                host_path: v
+                    .to_owned()
+                    .parse()
+                    .map_err(|e| E::custom("illegal host path"))?,
+                container_path: v
+                    .to_owned()
+                    .parse()
+                    .map_err(|e| E::custom("illegal container path"))?,
             })
         }
     }
@@ -115,7 +125,8 @@ pub struct Task {
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
     // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
-    // Can be `host_path:container_path` or a single path if host_path is the same as container_path
+    // Can be `host_path:container_path` or a single path if `host_path` is the same as
+    //   `container_path`
     #[serde(default)] // [tag:default_mount_paths]
     pub mount_paths: Vec<MappingPath>,
 
