@@ -30,9 +30,9 @@ use std::{
     },
 };
 
+use crate::toastfile::MappingPath;
 use tempfile::tempdir;
 use walkdir::WalkDir;
-use crate::toastfile::MappingPath;
 
 // Query whether an image exists locally.
 pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, Failure> {
