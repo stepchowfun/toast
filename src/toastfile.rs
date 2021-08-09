@@ -1,6 +1,6 @@
 use crate::{failure::Failure, format, format::CodeStr};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::Formatter;
+use std::fmt::{self, Display, Formatter};
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -20,19 +20,23 @@ pub struct MappingPath {
     pub container_path: PathBuf,
 }
 
+impl Display for MappingPath {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}:{}",
+            self.host_path.to_string_lossy(),
+            self.container_path.to_string_lossy(),
+        )
+    }
+}
+
 impl Serialize for MappingPath {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        serializer.serialize_str(
-            format!(
-                "{}:{}",
-                self.host_path.to_string_lossy(),
-                self.container_path.to_string_lossy(),
-            )
-            .as_str(),
-        )
+        serializer.serialize_str(format!("{}", self).as_str())
     }
 }
 
@@ -476,8 +480,8 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         {
             return Err(Failure::User(
                 format!(
-                    "Mount path {:?} of task {} has a {}.",
-                    path,
+                    "Mount path {} of task {} has a {}.",
+                    format!("{}", path).code_str(),
                     name.code_str(),
                     ",".code_str(),
                 ),
@@ -629,8 +633,8 @@ tasks:
       - xyzzy
     mount_paths:
       - wibble
-      - wobble
-      - wubble
+      - /wobble
+      - wubble:wabble
     mount_readonly: true
     ports:
       - 3000
@@ -700,12 +704,12 @@ tasks:
                         container_path: Path::new("wibble").to_owned(),
                     },
                     MappingPath {
-                        host_path: Path::new("wobble").to_owned(),
-                        container_path: Path::new("wobble").to_owned(),
+                        host_path: Path::new("/wobble").to_owned(),
+                        container_path: Path::new("/wobble").to_owned(),
                     },
                     MappingPath {
                         host_path: Path::new("wubble").to_owned(),
-                        container_path: Path::new("wubble").to_owned(),
+                        container_path: Path::new("wabble").to_owned(),
                     },
                 ],
                 mount_readonly: true,
@@ -1282,7 +1286,7 @@ tasks:
             output_paths: vec![Path::new("qux").to_owned()],
             output_paths_on_failure: vec![Path::new("quux").to_owned()],
             mount_paths: vec![MappingPath {
-                host_path: Path::new("quuz").to_owned(),
+                host_path: Path::new("quuy").to_owned(),
                 container_path: Path::new("quuz").to_owned(),
             }],
             mount_readonly: false,
