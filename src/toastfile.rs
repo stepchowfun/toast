@@ -1285,10 +1285,24 @@ tasks:
             excluded_input_paths: vec![Path::new("baz").to_owned()],
             output_paths: vec![Path::new("qux").to_owned()],
             output_paths_on_failure: vec![Path::new("quux").to_owned()],
-            mount_paths: vec![MappingPath {
-                host_path: Path::new("quuy").to_owned(),
-                container_path: Path::new("quuz").to_owned(),
-            }],
+            mount_paths: vec![
+                MappingPath {
+                    host_path: Path::new("quuy").to_owned(),
+                    container_path: Path::new("quuz").to_owned(),
+                },
+                MappingPath {
+                    host_path: Path::new("quuy").to_owned(),
+                    container_path: Path::new("/quuz").to_owned(),
+                },
+                MappingPath {
+                    host_path: Path::new("quuy").to_owned(),
+                    container_path: Path::new("/quuz").to_owned(),
+                },
+                MappingPath {
+                    host_path: Path::new("/quuy").to_owned(),
+                    container_path: Path::new("/quuz").to_owned(),
+                },
+            ],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1417,31 +1431,6 @@ tasks:
         let result = check_task("foo", &task);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains(absolute_path));
-    }
-
-    #[test]
-    fn check_task_paths_absolute_mount_paths() {
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: false,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![MappingPath {
-                host_path: Path::new("/bar").to_owned(),
-                container_path: Path::new("/bar").to_owned(),
-            }],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-        };
-
-        assert!(check_task("foo", &task).is_ok());
     }
 
     #[test]
