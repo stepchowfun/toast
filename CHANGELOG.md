@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.39.0] - 2021-08-08
 
 ### Added
-- The `mount_paths` field now supports mounting a path on the host to a different path on the container, thanks to Xiangru Lian.
+- The `mount_paths` field now supports mounting a path on the host to a different path in the container, thanks to Xiangru Lian.
 
 ## [0.38.0] - 2021-07-09
 
