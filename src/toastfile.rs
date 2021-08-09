@@ -1,5 +1,6 @@
 use crate::{failure::Failure, format, format::CodeStr};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::Formatter;
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -11,6 +12,70 @@ pub const DEFAULT_LOCATION: &str = "/scratch";
 
 // The default user for commands and files copied into the container
 pub const DEFAULT_USER: &str = "root";
+
+// This struct represents a path on the host and a corresponding path in the container.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MappingPath {
+    pub host_path: PathBuf,
+    pub container_path: PathBuf,
+}
+
+impl Serialize for MappingPath {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(
+            format!(
+                "{}:{}",
+                self.host_path.to_string_lossy(),
+                self.container_path.to_string_lossy(),
+            )
+            .as_str(),
+        )
+    }
+}
+
+struct MappingPathVisitor;
+
+impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
+    type Value = MappingPath;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("a path")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if let Some((host_path, container_path)) = v.split_once(":") {
+            Ok(MappingPath {
+                host_path: host_path
+                    .parse()
+                    .map_err(|_| E::custom("Illegal host path."))?,
+                container_path: container_path
+                    .parse()
+                    .map_err(|_| E::custom("Illegal container path."))?,
+            })
+        } else {
+            let path: PathBuf = v.parse().map_err(|_| E::custom("Illegal host path."))?;
+            Ok(MappingPath {
+                host_path: path.clone(),
+                container_path: path,
+            })
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MappingPath {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(MappingPathVisitor)
+    }
+}
 
 // This struct represents a task.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -53,8 +118,10 @@ pub struct Task {
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
     // Must not contain `,` [ref:mount_paths_no_commas]
     // Must be empty if `cache` is enabled [ref:mount_paths_nand_cache]
+    // Can be `host_path:container_path` or a single path if `host_path` is the same as
+    //   `container_path`
     #[serde(default)] // [tag:default_mount_paths]
-    pub mount_paths: Vec<PathBuf>,
+    pub mount_paths: Vec<MappingPath>,
 
     #[serde(default = "default_task_mount_readonly")]
     pub mount_readonly: bool,
@@ -404,11 +471,13 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     // Check `mount_paths`.
     for path in &task.mount_paths {
         // Check that the path doesn't contain any commas. [tag:mount_paths_no_commas]
-        if path.to_string_lossy().contains(',') {
+        if path.container_path.to_string_lossy().contains(',')
+            || path.host_path.to_string_lossy().contains(',')
+        {
             return Err(Failure::User(
                 format!(
-                    "Mount path {} of task {} has a {}.",
-                    path.to_string_lossy().code_str(),
+                    "Mount path {:?} of task {} has a {}.",
+                    path,
                     name.code_str(),
                     ",".code_str(),
                 ),
@@ -464,8 +533,8 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_dependencies, check_task, environment, parse, Task, Toastfile, DEFAULT_LOCATION,
-        DEFAULT_USER,
+        check_dependencies, check_task, environment, parse, MappingPath, Task, Toastfile,
+        DEFAULT_LOCATION, DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -626,9 +695,18 @@ tasks:
                     Path::new("xyzzy").to_owned(),
                 ],
                 mount_paths: vec![
-                    Path::new("wibble").to_owned(),
-                    Path::new("wobble").to_owned(),
-                    Path::new("wubble").to_owned(),
+                    MappingPath {
+                        host_path: Path::new("wibble").to_owned(),
+                        container_path: Path::new("wibble").to_owned(),
+                    },
+                    MappingPath {
+                        host_path: Path::new("wobble").to_owned(),
+                        container_path: Path::new("wobble").to_owned(),
+                    },
+                    MappingPath {
+                        host_path: Path::new("wubble").to_owned(),
+                        container_path: Path::new("wubble").to_owned(),
+                    },
                 ],
                 mount_readonly: true,
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
@@ -1203,7 +1281,10 @@ tasks:
             excluded_input_paths: vec![Path::new("baz").to_owned()],
             output_paths: vec![Path::new("qux").to_owned()],
             output_paths_on_failure: vec![Path::new("quux").to_owned()],
-            mount_paths: vec![Path::new("quuz").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("quuz").to_owned(),
+                container_path: Path::new("quuz").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1345,7 +1426,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("/bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("/bar").to_owned(),
+                container_path: Path::new("/bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1367,7 +1451,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar,baz").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar,baz").to_owned(),
+                container_path: Path::new("bar,baz").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1461,7 +1548,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar").to_owned(),
+                container_path: Path::new("bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec![],
             location: Path::new(DEFAULT_LOCATION).to_owned(),
@@ -1485,7 +1575,10 @@ tasks:
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
-            mount_paths: vec![Path::new("bar").to_owned()],
+            mount_paths: vec![MappingPath {
+                host_path: Path::new("bar").to_owned(),
+                container_path: Path::new("bar").to_owned(),
+            }],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
             location: Path::new(DEFAULT_LOCATION).to_owned(),

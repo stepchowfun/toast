@@ -30,6 +30,7 @@ use std::{
     },
 };
 
+use crate::toastfile::MappingPath;
 use tempfile::tempdir;
 use walkdir::WalkDir;
 
@@ -106,7 +107,7 @@ pub fn create_container(
     image: &str,
     source_dir: &Path,
     environment: &HashMap<String, String>,
-    mount_paths: &[PathBuf],
+    mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
     location: &Path,
@@ -420,7 +421,7 @@ pub fn spawn_shell(
     source_dir: &Path,
     environment: &HashMap<String, String>,
     location: &Path,
-    mount_paths: &[PathBuf],
+    mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
     user: &str,
@@ -460,7 +461,7 @@ fn container_args(
     source_dir: &Path,
     environment: &HashMap<String, String>,
     location: &Path,
-    mount_paths: &[PathBuf],
+    mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
 ) -> Vec<String> {
@@ -500,14 +501,14 @@ fn container_args(
                     if mount_readonly {
                         format!(
                             "type=bind,source={},target={},readonly",
-                            source_dir.join(mount_path).to_string_lossy(),
-                            location.join(mount_path).to_string_lossy(),
+                            source_dir.join(&mount_path.host_path).to_string_lossy(),
+                            location.join(&mount_path.container_path).to_string_lossy(),
                         )
                     } else {
                         format!(
                             "type=bind,source={},target={}",
-                            source_dir.join(mount_path).to_string_lossy(),
-                            location.join(mount_path).to_string_lossy(),
+                            source_dir.join(&mount_path.host_path).to_string_lossy(),
+                            location.join(&mount_path.container_path).to_string_lossy(),
                         )
                     },
                 ]
