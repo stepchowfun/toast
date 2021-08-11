@@ -143,6 +143,9 @@ pub struct Task {
 
     #[serde(default)]
     pub command: String,
+
+    #[serde(default)]
+    pub extra_docker_args: Vec<String>,
 }
 
 fn default_task_cache() -> bool {
@@ -586,6 +589,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -669,6 +673,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -717,6 +722,7 @@ tasks:
                 location: Path::new("/code").to_owned(),
                 user: "waldo".to_owned(),
                 command: "flob".to_owned(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -746,6 +752,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         assert_eq!(environment(&task), Ok(HashMap::new()));
@@ -773,6 +780,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let mut expected = HashMap::new();
@@ -805,6 +813,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let mut expected = HashMap::new();
@@ -837,6 +846,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         env::remove_var("foo3");
@@ -866,6 +876,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -898,6 +909,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -943,6 +955,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -975,6 +988,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -994,6 +1008,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -1026,6 +1041,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -1045,6 +1061,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -1079,6 +1096,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -1113,6 +1131,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -1132,6 +1151,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -1166,6 +1186,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -1185,6 +1206,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
         tasks.insert(
@@ -1204,6 +1226,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
+                extra_docker_args: vec![],
             },
         );
 
@@ -1240,6 +1263,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());
@@ -1267,6 +1291,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1308,6 +1333,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());
@@ -1336,6 +1362,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1366,6 +1393,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1396,6 +1424,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1426,6 +1455,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1453,6 +1483,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1477,6 +1508,7 @@ tasks:
             location: Path::new("code").to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1501,6 +1533,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1525,6 +1558,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());
@@ -1550,6 +1584,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1577,6 +1612,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_args: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());

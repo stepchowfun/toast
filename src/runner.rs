@@ -141,6 +141,7 @@ pub fn run(
                 &task.location,
                 &task.user,
                 &task.command,
+                &task.extra_docker_args,
                 interrupted,
             ) {
                 Ok(container) => container,
@@ -202,6 +203,7 @@ pub fn run(
             &task.location,
             &task.user,
             &task.command,
+            &task.extra_docker_args,
             interrupted,
         ) {
             Ok(container) => container,
