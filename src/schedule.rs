@@ -97,7 +97,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         }
     }
 

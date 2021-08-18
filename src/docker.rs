@@ -481,12 +481,9 @@ fn container_args(
 
     // Environment
     args.extend(
-        environment
-            .iter()
-            .flat_map(|(variable, value)| {
-                vec!["--env".to_owned(), format!("{}={}", variable, value)]
-            })
-            .collect::<Vec<_>>(),
+        environment.iter().flat_map(|(variable, value)| {
+            vec!["--env".to_owned(), format!("{}={}", variable, value)]
+        }),
     );
 
     // Location
@@ -496,30 +493,25 @@ fn container_args(
     ]);
 
     // Mount paths
-    args.extend(
-        mount_paths
-            .iter()
-            .flat_map(|mount_path| {
-                // [ref:mount_paths_no_commas]
-                vec![
-                    "--mount".to_owned(),
-                    if mount_readonly {
-                        format!(
-                            "type=bind,source={},target={},readonly",
-                            source_dir.join(&mount_path.host_path).to_string_lossy(),
-                            location.join(&mount_path.container_path).to_string_lossy(),
-                        )
-                    } else {
-                        format!(
-                            "type=bind,source={},target={}",
-                            source_dir.join(&mount_path.host_path).to_string_lossy(),
-                            location.join(&mount_path.container_path).to_string_lossy(),
-                        )
-                    },
-                ]
-            })
-            .collect::<Vec<_>>(),
-    );
+    args.extend(mount_paths.iter().flat_map(|mount_path| {
+        // [ref:mount_paths_no_commas]
+        vec![
+            "--mount".to_owned(),
+            if mount_readonly {
+                format!(
+                    "type=bind,source={},target={},readonly",
+                    source_dir.join(&mount_path.host_path).to_string_lossy(),
+                    location.join(&mount_path.container_path).to_string_lossy(),
+                )
+            } else {
+                format!(
+                    "type=bind,source={},target={}",
+                    source_dir.join(&mount_path.host_path).to_string_lossy(),
+                    location.join(&mount_path.container_path).to_string_lossy(),
+                )
+            },
+        ]
+    }));
 
     // Ports
     args.extend(
@@ -534,7 +526,8 @@ fn container_args(
             .collect::<Vec<_>>(),
     );
 
-    args.extend(extra_args.to_owned().into_iter());
+    // User-provided arguments
+    args.extend_from_slice(extra_args);
 
     args
 }

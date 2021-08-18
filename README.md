@@ -293,6 +293,7 @@ ports: []                   # Port mappings to publish
 location: /scratch          # Path in the container for running this task
 user: root                  # Name of the user in the container for running this task
 command: ''                 # Shell command to run in the container
+extra_docker_arguments: []  # Additional arguments for `docker container create`
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for Toast itself is a comprehensive real-world example.

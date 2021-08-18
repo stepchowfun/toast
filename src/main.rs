@@ -688,7 +688,7 @@ fn entry() -> Result<(), Failure> {
                     last_task.mount_readonly,
                     last_task.ports.clone(),
                     last_task.user.clone(),
-                    last_task.extra_docker_args.clone(),
+                    last_task.extra_docker_arguments.clone(),
                 )
             } else {
                 // There is no last task, so the context will be the base image. Use default

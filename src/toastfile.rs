@@ -95,6 +95,7 @@ pub struct Task {
     // Must be disabled if any of the following conditions hold:
     // - `mount_paths` is nonempty [ref:mount_paths_nand_cache]
     // - `ports` is nonempty [ref:ports_nand_cache]
+    // - `extra_docker_arguments` is nonempty [ref:extra_docker_arguments_nand_cache]
     #[serde(default = "default_task_cache")]
     pub cache: bool,
 
@@ -144,8 +145,9 @@ pub struct Task {
     #[serde(default)]
     pub command: String,
 
+    // Must be empty if `cache` is enabled [ref:extra_docker_arguments_nand_cache]
     #[serde(default)]
-    pub extra_docker_args: Vec<String>,
+    pub extra_docker_arguments: Vec<String>,
 }
 
 fn default_task_cache() -> bool {
@@ -506,6 +508,20 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         ));
     }
 
+    // If a task has any mount paths, then caching should be disabled. [tag:mount_paths_nand_cache]
+    if !task.mount_paths.is_empty() && task.cache {
+        return Err(Failure::User(
+            format!(
+                "Task {} has {} but does not disable caching. \
+                 To fix this, set {} for this task.",
+                name.code_str(),
+                "mount_paths".code_str(),
+                "cache: false".code_str(),
+            ),
+            None,
+        ));
+    }
+
     // If a task exposes ports, then caching should be disabled. [tag:ports_nand_cache]
     if !&task.ports.is_empty() && task.cache {
         return Err(Failure::User(
@@ -519,14 +535,14 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         ));
     }
 
-    // If a task has any mount paths, then caching should be disabled. [tag:mount_paths_nand_cache]
-    if !task.mount_paths.is_empty() && task.cache {
+    // If a task has any extra Docker arguments, then caching should be disabled.
+    // [tag:extra_docker_arguments_nand_cache]
+    if !&task.extra_docker_arguments.is_empty() && task.cache {
         return Err(Failure::User(
             format!(
-                "Task {} has {} but does not disable caching. \
+                "Task {} has extra Docker arguments but does not disable caching. \
                  To fix this, set {} for this task.",
                 name.code_str(),
-                "mount_paths".code_str(),
                 "cache: false".code_str(),
             ),
             None,
@@ -589,7 +605,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -647,6 +663,9 @@ tasks:
     location: /code
     user: waldo
     command: flob
+    extra_docker_arguments:
+      - --cpus
+      - '4'
     "#
         .trim();
 
@@ -673,7 +692,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -722,7 +741,7 @@ tasks:
                 location: Path::new("/code").to_owned(),
                 user: "waldo".to_owned(),
                 command: "flob".to_owned(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
             },
         );
 
@@ -752,7 +771,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         assert_eq!(environment(&task), Ok(HashMap::new()));
@@ -780,7 +799,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let mut expected = HashMap::new();
@@ -813,7 +832,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let mut expected = HashMap::new();
@@ -846,7 +865,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         env::remove_var("foo3");
@@ -876,7 +895,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -909,7 +928,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -955,7 +974,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -988,7 +1007,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -1008,7 +1027,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -1041,7 +1060,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -1061,7 +1080,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -1096,7 +1115,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -1131,7 +1150,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -1151,7 +1170,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -1186,7 +1205,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -1206,7 +1225,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
         tasks.insert(
@@ -1226,7 +1245,7 @@ tasks:
                 location: Path::new(DEFAULT_LOCATION).to_owned(),
                 user: DEFAULT_USER.to_owned(),
                 command: String::new(),
-                extra_docker_args: vec![],
+                extra_docker_arguments: vec![],
             },
         );
 
@@ -1263,7 +1282,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());
@@ -1291,7 +1310,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1333,7 +1352,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         assert!(check_task("foo", &task).is_ok());
@@ -1362,7 +1381,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1393,7 +1412,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1424,7 +1443,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1455,7 +1474,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1483,7 +1502,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1508,60 +1527,12 @@ tasks:
             location: Path::new("code").to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("code"));
-    }
-
-    #[test]
-    fn check_task_caching_enabled_with_ports() {
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec!["3000:80".to_owned()],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_args: vec![],
-        };
-
-        let result = check_task("foo", &task);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("caching"));
-    }
-
-    #[test]
-    fn check_task_caching_disabled_with_ports() {
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: false,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec!["3000:80".to_owned()],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_args: vec![],
-        };
-
-        assert!(check_task("foo", &task).is_ok());
     }
 
     #[test]
@@ -1584,7 +1555,7 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
         };
 
         let result = check_task("foo", &task);
@@ -1612,7 +1583,103 @@ tasks:
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
-            extra_docker_args: vec![],
+            extra_docker_arguments: vec![],
+        };
+
+        assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn check_task_caching_enabled_with_ports() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec!["3000:80".to_owned()],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+            extra_docker_arguments: vec![],
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("caching"));
+    }
+
+    #[test]
+    fn check_task_caching_disabled_with_ports() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec!["3000:80".to_owned()],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+            extra_docker_arguments: vec![],
+        };
+
+        assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn check_task_caching_enabled_with_extra_docker_arguments() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+            extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
+        };
+
+        let result = check_task("foo", &task);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("caching"));
+    }
+
+    #[test]
+    fn check_task_caching_disabled_with_extra_docker_arguments() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: false,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command: String::new(),
+            extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
         };
 
         assert!(check_task("foo", &task).is_ok());
