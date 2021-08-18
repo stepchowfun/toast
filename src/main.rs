@@ -668,7 +668,7 @@ fn entry() -> Result<(), Failure> {
         info!("Preparing a shell\u{2026}");
 
         // Determine the environment, location, mount settings, ports, and user for the shell.
-        let (task_environment, location, mount_paths, mount_readonly, ports, user) =
+        let (task_environment, location, mount_paths, mount_readonly, ports, user, extra_args) =
             if let Some(last_task) = last_task {
                 // Get the data for the last task.
                 let last_task = &toastfile.tasks[&last_task]; // [ref:tasks_valid]
@@ -688,6 +688,7 @@ fn entry() -> Result<(), Failure> {
                     last_task.mount_readonly,
                     last_task.ports.clone(),
                     last_task.user.clone(),
+                    last_task.extra_docker_arguments.clone(),
                 )
             } else {
                 // There is no last task, so the context will be the base image. Use default
@@ -699,6 +700,7 @@ fn entry() -> Result<(), Failure> {
                     default_task_mount_readonly(),
                     Vec::default(), // [ref:default_ports]
                     DEFAULT_USER.to_owned(),
+                    Vec::default(),
                 )
             };
 
@@ -716,6 +718,7 @@ fn entry() -> Result<(), Failure> {
             mount_readonly,
             &ports,
             &user,
+            &extra_args,
             &interrupted,
         )?;
     }

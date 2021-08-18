@@ -222,6 +222,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: String::new(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -263,6 +264,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -309,6 +311,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -361,6 +364,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let task2 = Task {
@@ -378,6 +382,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -430,6 +435,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let task2 = Task {
@@ -447,6 +453,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -496,6 +503,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -543,6 +551,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash1 = "foo";
@@ -588,6 +597,7 @@ mod tests {
             location: Path::new("/foo").to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let task2 = Task {
@@ -605,6 +615,7 @@ mod tests {
             location: Path::new("/bar").to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -649,6 +660,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: "foo".to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let task2 = Task {
@@ -666,6 +678,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: "bar".to_owned(),
             command: "echo wibble".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
@@ -710,6 +723,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo foo".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let task2 = Task {
@@ -727,6 +741,7 @@ mod tests {
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command: "echo bar".to_owned(),
+            extra_docker_arguments: vec![],
         };
 
         let input_files_hash = "grault";
