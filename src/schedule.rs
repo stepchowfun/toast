@@ -94,9 +94,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         }
     }
@@ -110,6 +111,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: HashMap::new(),
         };
 
@@ -127,6 +131,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -152,6 +159,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -181,6 +191,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -200,6 +213,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -230,12 +246,18 @@ mod tests {
         let toastfile1 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: tasks1,
         };
 
         let toastfile2 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: tasks2,
         };
 
@@ -255,6 +277,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -287,12 +312,18 @@ mod tests {
         let toastfile1 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: tasks1,
         };
 
         let toastfile2 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: tasks2,
         };
 
@@ -312,6 +343,9 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 

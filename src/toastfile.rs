@@ -135,15 +135,20 @@ pub struct Task {
     #[serde(default)] // [tag:default_ports]
     pub ports: Vec<String>,
 
-    // Must be absolute [ref:location_absolute]
-    #[serde(default = "default_task_location")]
-    pub location: PathBuf,
+    // If `None`, the corresponding top-level value in the toastfile should be used.
+    // Must be absolute [ref:task_location_absolute]
+    #[serde(default)]
+    pub location: Option<PathBuf>,
 
-    #[serde(default = "default_task_user")]
-    pub user: String,
+    // If `None`, the corresponding top-level value in the toastfile should be used.
+    pub user: Option<String>,
 
     #[serde(default)]
     pub command: String,
+
+    // If `None`, the corresponding top-level value in the toastfile should be used.
+    #[serde(default)]
+    pub command_prefix: Option<String>,
 
     // Must be empty if `cache` is enabled [ref:extra_docker_arguments_nand_cache]
     #[serde(default)]
@@ -158,14 +163,6 @@ pub fn default_task_mount_readonly() -> bool {
     false
 }
 
-fn default_task_location() -> PathBuf {
-    Path::new(DEFAULT_LOCATION).to_owned()
-}
-
-fn default_task_user() -> String {
-    DEFAULT_USER.to_owned()
-}
-
 // This struct represents a toastfile.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -175,7 +172,26 @@ pub struct Toastfile {
     // If present, must point to a task [ref:valid_default]
     pub default: Option<String>,
 
+    // Must be absolute [ref:toastfile_location_absolute]
+    #[serde(default = "default_location")]
+    pub location: PathBuf,
+
+    #[serde(default = "default_user")]
+    pub user: String,
+
+    #[serde(default)]
+    pub command_prefix: String,
+
+    #[serde(default)]
     pub tasks: HashMap<String, Task>,
+}
+
+fn default_location() -> PathBuf {
+    Path::new(DEFAULT_LOCATION).to_owned()
+}
+
+fn default_user() -> String {
+    DEFAULT_USER.to_owned()
 }
 
 // Parse config data.
@@ -186,6 +202,18 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
 
     // Make sure the dependencies are valid.
     check_dependencies(&toastfile)?;
+
+    // Check that `location` is absolute. [tag:toastfile_location_absolute]
+    if !is_absolute_linux_path(&toastfile.location) {
+        return Err(Failure::User(
+            format!(
+                "Toastfile has a relative {}: {}.",
+                "location".code_str(),
+                toastfile.location.to_string_lossy().code_str(),
+            ),
+            None,
+        ));
+    }
 
     // Make sure each task is valid.
     for (name, task) in &toastfile.tasks {
@@ -227,6 +255,35 @@ pub fn environment(task: &Task) -> Result<HashMap<String, String>, Vec<&str>> {
     } else {
         Err(violations)
     }
+}
+
+// Fetch the location for a task, defaulting to the top-level location if needed.
+pub fn location(toastfile: &Toastfile, task: &Task) -> PathBuf {
+    task.location
+        .clone()
+        .unwrap_or_else(|| toastfile.location.clone())
+}
+
+// Fetch the user for a task, defaulting to the top-level location if needed.
+pub fn user(toastfile: &Toastfile, task: &Task) -> String {
+    task.user.clone().unwrap_or_else(|| toastfile.user.clone())
+}
+
+// Fetch the command for a task, including the prefix, using the top-level prefix if needed.
+pub fn command(toastfile: &Toastfile, task: &Task) -> String {
+    let mut command = String::new();
+
+    if let Some(command_prefix) = &task.command_prefix {
+        command.push_str(command_prefix);
+    } else {
+        command.push_str(&toastfile.command_prefix);
+    }
+
+    command.push('\n');
+
+    command.push_str(&task.command);
+
+    command
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).
@@ -495,17 +552,19 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `location` is absolute. [tag:location_absolute]
-    if !is_absolute_linux_path(&task.location) {
-        return Err(Failure::User(
-            format!(
-                "Task {} has a relative {}: {}.",
-                name.code_str(),
-                "location".code_str(),
-                task.location.to_string_lossy().code_str(),
-            ),
-            None,
-        ));
+    // Check that `location` is absolute. [tag:task_location_absolute]
+    if let Some(location) = &task.location {
+        if !is_absolute_linux_path(location) {
+            return Err(Failure::User(
+                format!(
+                    "Task {} has a relative {}: {}.",
+                    name.code_str(),
+                    "location".code_str(),
+                    location.to_string_lossy().code_str(),
+                ),
+                None,
+            ));
+        }
     }
 
     // If a task has any mount paths, then caching should be disabled. [tag:mount_paths_nand_cache]
@@ -556,8 +615,8 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use crate::toastfile::{
-        check_dependencies, check_task, environment, parse, MappingPath, Task, Toastfile,
-        DEFAULT_LOCATION, DEFAULT_USER,
+        check_dependencies, check_task, command, environment, location, parse, user, MappingPath,
+        Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
     };
     use std::{collections::HashMap, env, path::Path};
 
@@ -565,13 +624,15 @@ mod tests {
     fn parse_empty() {
         let input = r#"
 image: encom:os-12
-tasks: {}
     "#
         .trim();
 
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: HashMap::new(),
         };
 
@@ -602,9 +663,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -612,6 +674,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -624,6 +689,9 @@ tasks:
         let input = r#"
 image: encom:os-12
 default: bar
+location: /default_location
+user: default_user
+command_prefix: prefix
 tasks:
   foo: {}
   bar:
@@ -663,6 +731,7 @@ tasks:
     location: /code
     user: waldo
     command: flob
+    command_prefix: flob_prefix
     extra_docker_arguments:
       - --cpus
       - '4'
@@ -689,9 +758,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -738,9 +808,10 @@ tasks:
                 ],
                 mount_readonly: true,
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
-                location: Path::new("/code").to_owned(),
-                user: "waldo".to_owned(),
+                location: Some(Path::new("/code").to_owned()),
+                user: Some("waldo".to_owned()),
                 command: "flob".to_owned(),
+                command_prefix: Some("flob_prefix".to_owned()),
                 extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
             },
         );
@@ -748,131 +819,13 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("bar".to_owned()),
+            location: Path::new("/default_location").to_owned(),
+            user: "default_user".to_owned(),
+            command_prefix: "prefix".to_owned(),
             tasks,
         };
 
         assert_eq!(parse(input).unwrap(), toastfile);
-    }
-
-    #[test]
-    fn environment_empty() {
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: HashMap::new(),
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_arguments: vec![],
-        };
-
-        assert_eq!(environment(&task), Ok(HashMap::new()));
-    }
-
-    #[test]
-    fn environment_default_overridden() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
-        // tests clobbering environment variables used by other threads.
-        let mut env_map = HashMap::new();
-        env_map.insert("foo1".to_owned(), Some("bar".to_owned()));
-
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: env_map,
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_arguments: vec![],
-        };
-
-        let mut expected = HashMap::new();
-        expected.insert("foo1".to_owned(), "baz".to_owned());
-
-        env::set_var("foo1", "baz");
-        assert_eq!(env::var("foo1"), Ok("baz".to_owned()));
-        assert_eq!(environment(&task), Ok(expected));
-    }
-
-    #[test]
-    fn environment_default_not_overridden() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
-        // tests clobbering environment variables used by other threads.
-        let mut env_map = HashMap::new();
-        env_map.insert("foo2".to_owned(), Some("bar".to_owned()));
-
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: env_map,
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_arguments: vec![],
-        };
-
-        let mut expected = HashMap::new();
-        expected.insert("foo2".to_owned(), "bar".to_owned());
-
-        env::remove_var("foo2");
-        assert!(env::var("foo2").is_err());
-        assert_eq!(environment(&task), Ok(expected));
-    }
-
-    #[test]
-    fn environment_missing() {
-        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
-        // tests clobbering environment variables used by other threads.
-        let mut env_map = HashMap::new();
-        env_map.insert("foo3".to_owned(), None);
-
-        let task = Task {
-            description: None,
-            dependencies: vec![],
-            cache: true,
-            environment: env_map,
-            input_paths: vec![],
-            excluded_input_paths: vec![],
-            output_paths: vec![],
-            output_paths_on_failure: vec![],
-            mount_paths: vec![],
-            mount_readonly: false,
-            ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
-            command: String::new(),
-            extra_docker_arguments: vec![],
-        };
-
-        env::remove_var("foo3");
-        assert!(env::var("foo3").is_err());
-        let result = environment(&task);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err()[0].to_owned(), "foo3");
     }
 
     #[test]
@@ -892,9 +845,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -902,6 +856,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("foo".to_owned()),
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -925,9 +882,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -935,6 +893,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("bar".to_owned()),
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -948,6 +909,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks: HashMap::new(),
         };
 
@@ -971,9 +935,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -981,6 +946,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1004,9 +972,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1024,9 +993,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1034,6 +1004,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1057,9 +1030,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1077,9 +1051,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1087,6 +1062,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1112,9 +1090,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1122,6 +1101,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1147,9 +1129,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1167,9 +1150,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1177,6 +1161,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1202,9 +1189,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1222,9 +1210,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1242,9 +1231,10 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Path::new(DEFAULT_LOCATION).to_owned(),
-                user: DEFAULT_USER.to_owned(),
+                location: None,
+                user: None,
                 command: String::new(),
+                command_prefix: None,
                 extra_docker_arguments: vec![],
             },
         );
@@ -1252,6 +1242,9 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
             tasks,
         };
 
@@ -1279,9 +1272,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1307,9 +1301,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1349,9 +1344,10 @@ tasks:
             ],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: Some(Path::new("/corge").to_owned()),
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1378,9 +1374,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1409,9 +1406,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1440,9 +1438,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1471,9 +1470,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1499,9 +1499,10 @@ tasks:
             }],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1524,9 +1525,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new("code").to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: Some(Path::new("code").to_owned()),
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1552,9 +1554,10 @@ tasks:
             }],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1580,9 +1583,10 @@ tasks:
             }],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1603,9 +1607,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1628,9 +1633,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -1651,9 +1657,10 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
         };
 
@@ -1676,12 +1683,455 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec!["--cpus".to_owned(), "4".to_owned()],
         };
 
         assert!(check_task("foo", &task).is_ok());
+    }
+
+    #[test]
+    fn environment_empty() {
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: HashMap::new(),
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: None,
+            user: None,
+            command: String::new(),
+            command_prefix: None,
+            extra_docker_arguments: vec![],
+        };
+
+        assert_eq!(environment(&task), Ok(HashMap::new()));
+    }
+
+    #[test]
+    fn environment_default_overridden() {
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
+        let mut env_map = HashMap::new();
+        env_map.insert("foo1".to_owned(), Some("bar".to_owned()));
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: env_map,
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: None,
+            user: None,
+            command: String::new(),
+            command_prefix: None,
+            extra_docker_arguments: vec![],
+        };
+
+        let mut expected = HashMap::new();
+        expected.insert("foo1".to_owned(), "baz".to_owned());
+
+        env::set_var("foo1", "baz");
+        assert_eq!(env::var("foo1"), Ok("baz".to_owned()));
+        assert_eq!(environment(&task), Ok(expected));
+    }
+
+    #[test]
+    fn environment_default_not_overridden() {
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
+        let mut env_map = HashMap::new();
+        env_map.insert("foo2".to_owned(), Some("bar".to_owned()));
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: env_map,
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: None,
+            user: None,
+            command: String::new(),
+            command_prefix: None,
+            extra_docker_arguments: vec![],
+        };
+
+        let mut expected = HashMap::new();
+        expected.insert("foo2".to_owned(), "bar".to_owned());
+
+        env::remove_var("foo2");
+        assert!(env::var("foo2").is_err());
+        assert_eq!(environment(&task), Ok(expected));
+    }
+
+    #[test]
+    fn environment_missing() {
+        // NOTE: We add an index to the test arg ("foo1", "foo2", ...) to avoid having parallel
+        // tests clobbering environment variables used by other threads.
+        let mut env_map = HashMap::new();
+        env_map.insert("foo3".to_owned(), None);
+
+        let task = Task {
+            description: None,
+            dependencies: vec![],
+            cache: true,
+            environment: env_map,
+            input_paths: vec![],
+            excluded_input_paths: vec![],
+            output_paths: vec![],
+            output_paths_on_failure: vec![],
+            mount_paths: vec![],
+            mount_readonly: false,
+            ports: vec![],
+            location: None,
+            user: None,
+            command: String::new(),
+            command_prefix: None,
+            extra_docker_arguments: vec![],
+        };
+
+        env::remove_var("foo3");
+        assert!(env::var("foo3").is_err());
+        let result = environment(&task);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err()[0].to_owned(), "foo3");
+    }
+
+    #[test]
+    fn location_default() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: String::new(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            location(&toastfile, &toastfile.tasks["foo"]),
+            Path::new(DEFAULT_LOCATION),
+        );
+    }
+
+    #[test]
+    fn location_override() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: Some(Path::new("/bar").to_owned()),
+                user: None,
+                command: String::new(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            location(&toastfile, &toastfile.tasks["foo"]),
+            Path::new("/bar"),
+        );
+    }
+
+    #[test]
+    fn user_default() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: String::new(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            user(&toastfile, &toastfile.tasks["foo"]),
+            DEFAULT_USER.to_owned(),
+        );
+    }
+
+    #[test]
+    fn user_override() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: Some("bar".to_owned()),
+                command: String::new(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(user(&toastfile, &toastfile.tasks["foo"]), "bar");
+    }
+
+    #[test]
+    fn command_default_prefix_default() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: String::new(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "set -euo pipefail".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            command(&toastfile, &toastfile.tasks["foo"]),
+            "set -euo pipefail\n".to_owned(),
+        );
+    }
+
+    #[test]
+    fn command_override_prefix_default() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: "echo hello".to_owned(),
+                command_prefix: None,
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            command(&toastfile, &toastfile.tasks["foo"]),
+            "\necho hello".to_owned(),
+        );
+    }
+
+    #[test]
+    fn command_default_prefix_override() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: String::new(),
+                command_prefix: Some("set -euo pipefail".to_owned()),
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            command(&toastfile, &toastfile.tasks["foo"]),
+            "set -euo pipefail\n".to_owned(),
+        );
+    }
+
+    #[test]
+    fn command_override_prefix_override() {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "foo".to_owned(),
+            Task {
+                description: None,
+                dependencies: vec![],
+                cache: true,
+                environment: HashMap::new(),
+                input_paths: vec![],
+                excluded_input_paths: vec![],
+                output_paths: vec![],
+                output_paths_on_failure: vec![],
+                mount_paths: vec![],
+                mount_readonly: false,
+                ports: vec![],
+                location: None,
+                user: None,
+                command: "echo hello".to_owned(),
+                command_prefix: Some("set -euo pipefail".to_owned()),
+                extra_docker_arguments: vec![],
+            },
+        );
+
+        let toastfile = Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        };
+
+        assert_eq!(
+            command(&toastfile, &toastfile.tasks["foo"]),
+            "set -euo pipefail\necho hello".to_owned(),
+        );
     }
 }

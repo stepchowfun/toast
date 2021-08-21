@@ -237,7 +237,48 @@ Now you can use Toast to run the server:
 
 ![Running a server.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/server-1.svg?sanitize=true)
 
-### Dropping into a shell
+### Configuring the shell
+
+Toast runs commands using the appropriate user's preferred login shell, but in non-login mode in order to preserve environment variables. For many shells, it's often desirable to configure them in some way before running any further commands. Shells can often be configured with "startup files", however non-login shells typically do not load such files. Toast provides an alternative mechanism to configure the shell: `command_prefix`.
+
+Consider the following Toastfile which uses Bash as the shell, since that's the default preferred login shell in Ubuntu:
+
+```yaml
+image: ubuntu
+tasks:
+  install_figlet:
+    command: |
+      apt-get update
+      apt-get install --yes figlet
+```
+
+What happens if `apt-get update` fails? Due to the way Bash works, the failure would be ignored and execution would continue to the subsequent line. You can fix this with `set -e` as follows:
+
+```yaml
+image: ubuntu
+tasks:
+  install_figlet:
+    command: |
+      set -e # Make Bash fail fast if any command below fails.
+      apt-get update
+      apt-get install --yes figlet
+```
+
+However, you'll find that it's inconvenient to add this to every command. Instead, you can add this to all commands by setting `command_prefix` as follows:
+
+```yaml
+image: ubuntu
+command_prefix: set -e # Make Bash fail fast by default.
+tasks:
+  install_figlet:
+    command: |
+      apt-get update
+      apt-get install --yes figlet
+```
+
+For Bash, there are other options which you may want to set as well. In particular, we recommend `set -euo pipefail`, which causes Bash to fail fast, treat unset variables as an error when substituting, and consider pipelines to have failed if any intermediate command failed.
+
+### Dropping into an interactive shell
 
 If you run Toast with `--shell`, Toast will drop you into an interactive shell inside the container when the requested tasks are finished, or if any of them fails. This feature is useful for debugging tasks or exploring what's in the container. Suppose you have the following toastfile:
 
@@ -268,32 +309,36 @@ Toast aims to make as few assumptions about the container environment as possibl
 
 ## Toastfiles
 
-A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains three top-level keys:
+A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains the following top-level keys and defaults:
 
 ```yaml
-image:   <Docker image name with optional tag or digest>
-default: <name of default task to run or `null` to run all tasks by default>
-tasks:   <map from task name to task>
+image: <required>   # Docker image name with optional tag or digest
+default: null       # Name of default task to run or `null` to run all tasks by default
+location: /scratch  # Path in the container for running tasks
+user: root          # Name of the user in the container for running tasks
+command_prefix: ''  # A string to be prepended to all commands by default
+tasks: {}           # Map from task name to task
 ```
 
 Tasks have the following schema and defaults:
 
 ```yaml
-description: null           # A description of the task for the `--list` option
-dependencies: []            # Names of dependencies
-cache: true                 # Whether a task can be cached
-environment: {}             # Map from environment variable to optional default
-input_paths: []             # Paths to copy into the container
-excluded_input_paths: []    # A denylist for `input_paths`
-output_paths: []            # Paths to copy out of the container if the task succeeds
-output_paths_on_failure: [] # Paths to copy out of the container if the task fails
-mount_paths: []             # Paths to mount into the container
-mount_readonly: false       # Whether to mount the `mount_paths` as readonly
-ports: []                   # Port mappings to publish
-location: /scratch          # Path in the container for running this task
-user: root                  # Name of the user in the container for running this task
-command: ''                 # Shell command to run in the container
-extra_docker_arguments: []  # Additional arguments for `docker container create`
+description: null                             # A description of the task for the `--list` option
+dependencies: []                              # Names of dependencies
+cache: true                                   # Whether a task can be cached
+environment: {}                               # Map from environment variable to optional default
+input_paths: []                               # Paths to copy into the container
+excluded_input_paths: []                      # A denylist for `input_paths`
+output_paths: []                              # Paths to copy out of the container if the task succeeds
+output_paths_on_failure: []                   # Paths to copy out of the container if the task fails
+mount_paths: []                               # Paths to mount into the container
+mount_readonly: false                         # Whether to mount the `mount_paths` as readonly
+ports: []                                     # Port mappings to publish
+location: <defaults to top-level value>       # Overrides the corresponding top-level value
+user: <defaults to top-level value>           # Overrides the corresponding top-level value
+command: ''                                   # Shell command to run in the container
+command_prefix: <defaults to top-level value> # Overrides the corresponding top-level value
+extra_docker_arguments: []                    # Additional arguments for `docker container create`
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for Toast itself is a comprehensive real-world example.

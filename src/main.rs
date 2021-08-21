@@ -34,7 +34,7 @@ use std::{
         Arc, Mutex,
     },
 };
-use toastfile::{default_task_mount_readonly, DEFAULT_USER};
+use toastfile::{default_task_mount_readonly, location, user, DEFAULT_USER};
 
 #[macro_use]
 extern crate lazy_static;
@@ -461,10 +461,10 @@ fn fetch_environment(
                 format::series(
                     violations
                         .iter()
-                        .map(|(task, vars)| {
+                        .map(|(task_name, vars)| {
                             format!(
                                 "{} ({})",
-                                task.code_str(),
+                                task_name.code_str(),
                                 format::series(
                                     vars.iter()
                                         .map(|var| format!("{}", var.code_str()))
@@ -509,9 +509,9 @@ fn run_tasks(
     });
 
     // Run each task in the schedule.
-    for (i, task) in schedule.iter().enumerate() {
+    for (i, task_name) in schedule.iter().enumerate() {
         // Fetch the data for the current task.
-        let task_data = &toastfile.tasks[*task]; // [ref:tasks_valid]
+        let task_data = &toastfile.tasks[*task_name]; // [ref:tasks_valid]
 
         // If the current task is not cacheable, don't read or write to any form of cache from now
         // on.
@@ -520,20 +520,25 @@ fn run_tasks(
             && !settings
                 .forced_tasks
                 .iter()
-                .any(|forced_task| task == forced_task);
+                .any(|forced_task| task_name == forced_task);
 
         // If the user wants to stop the schedule, quit now.
         if interrupted.load(Ordering::SeqCst) {
-            return (Err(Failure::Interrupted), context, Some((*task).to_owned()));
+            return (
+                Err(Failure::Interrupted),
+                context,
+                Some((*task_name).to_owned()),
+            );
         }
 
         // Run the task.
-        info!("Running task {}\u{2026}", task.code_str());
+        info!("Running task {}\u{2026}", task_name.code_str());
         let (result, new_context) = runner::run(
             settings,
             &environment,
             &interrupted,
             &active_containers,
+            &toastfile,
             task_data,
             caching_enabled,
             context.unwrap(), // Safe due to [ref:context_needed_if_not_final_task].
@@ -545,7 +550,7 @@ fn run_tasks(
 
         // Return an error if the task failed.
         if let Err(e) = result {
-            return (Err(e), context, Some((*task).to_owned()));
+            return (Err(e), context, Some((*task_name).to_owned()));
         }
     }
 
@@ -553,7 +558,7 @@ fn run_tasks(
     (
         Ok(()),
         context,
-        schedule.last().map(|task| (*task).to_owned()),
+        schedule.last().map(|task_name| (*task_name).to_owned()),
     )
 }
 
@@ -683,11 +688,11 @@ fn entry() -> Result<(), Failure> {
                 // Use the settings from the last task.
                 (
                     task_environment,
-                    last_task.location.clone(),
+                    location(&toastfile, last_task),
                     last_task.mount_paths.clone(),
                     last_task.mount_readonly,
                     last_task.ports.clone(),
-                    last_task.user.clone(),
+                    user(&toastfile, last_task),
                     last_task.extra_docker_arguments.clone(),
                 )
             } else {

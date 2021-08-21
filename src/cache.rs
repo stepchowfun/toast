@@ -1,4 +1,8 @@
-use crate::{failure, failure::Failure, toastfile::Task};
+use crate::{
+    failure,
+    failure::Failure,
+    toastfile::{command, location, user, Task, Toastfile},
+};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -86,6 +90,7 @@ pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
 pub fn image_name(
     previous_image: &str,
     docker_repo: &str,
+    toastfile: &Toastfile,
     task: &Task,
     input_files_hash: &str,
     environment: &HashMap<String, String>,
@@ -119,13 +124,13 @@ pub fn image_name(
     cache_key = combine(&cache_key, input_files_hash);
 
     // Incorporate the location.
-    cache_key = combine(&cache_key, &task.location);
+    cache_key = combine(&cache_key, &location(toastfile, task));
 
     // Incorporate the user.
-    cache_key = combine(&cache_key, &task.user);
+    cache_key = combine(&cache_key, &user(toastfile, task));
 
     // Incorporate the command.
-    cache_key = combine(&cache_key, &task.command);
+    cache_key = combine(&cache_key, &command(toastfile, task));
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
@@ -136,9 +141,38 @@ pub fn image_name(
 mod tests {
     use crate::{
         cache::{combine, hash_read, image_name, CryptoHash},
-        toastfile::{Task, DEFAULT_LOCATION, DEFAULT_USER},
+        toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
     };
     use std::{collections::HashMap, path::Path};
+
+    fn toastfile_with_task(foo_task: Task) -> Toastfile {
+        let mut tasks = HashMap::new();
+        tasks.insert("foo".to_owned(), foo_task);
+
+        Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        }
+    }
+
+    fn toastfile_with_tasks(foo_task: Task, bar_task: Task) -> Toastfile {
+        let mut tasks = HashMap::new();
+        tasks.insert("foo".to_owned(), foo_task);
+        tasks.insert("bar".to_owned(), bar_task);
+
+        Toastfile {
+            image: "encom:os-12".to_owned(),
+            default: None,
+            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            user: DEFAULT_USER.to_owned(),
+            command_prefix: "".to_owned(),
+            tasks,
+        }
+    }
 
     #[test]
     fn hash_str_pure() {
@@ -219,11 +253,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: String::new(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_task(task);
 
         let input_files_hash = "grault";
 
@@ -234,7 +271,8 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -261,11 +299,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_task(task);
 
         let input_files_hash = "grault";
 
@@ -276,14 +317,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -308,11 +351,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_task(task);
 
         let input_files_hash = "grault";
 
@@ -322,14 +368,16 @@ mod tests {
             image_name(
                 previous_image1,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image2,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -361,9 +409,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -379,11 +428,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_tasks(task1, task2);
 
         let input_files_hash = "grault";
 
@@ -395,14 +447,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task1,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task2,
+                &toastfile,
+                &toastfile.tasks["bar"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -432,9 +486,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -450,11 +505,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_tasks(task1, task2);
 
         let input_files_hash = "grault";
 
@@ -466,14 +524,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task1,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task2,
+                &toastfile,
+                &toastfile.tasks["bar"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -500,11 +560,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_task(task);
 
         let input_files_hash = "grault";
 
@@ -517,14 +580,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment1,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment2,
             ),
@@ -548,11 +613,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_task(task);
 
         let input_files_hash1 = "foo";
         let input_files_hash2 = "bar";
@@ -563,14 +631,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash1,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash2,
                 &full_environment,
             ),
@@ -594,9 +664,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new("/foo").to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: Some(Path::new("/foo").to_owned()),
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -612,11 +683,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new("/bar").to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: Some(Path::new("/bar").to_owned()),
+            user: None,
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_tasks(task1, task2);
 
         let input_files_hash = "grault";
 
@@ -626,14 +700,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task1,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task2,
+                &toastfile,
+                &toastfile.tasks["bar"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -657,9 +733,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: "foo".to_owned(),
+            location: None,
+            user: Some("foo".to_owned()),
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -675,11 +752,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: "bar".to_owned(),
+            location: None,
+            user: Some("bar".to_owned()),
             command: "echo wibble".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_tasks(task1, task2);
 
         let input_files_hash = "grault";
 
@@ -689,14 +769,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task1,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task2,
+                &toastfile,
+                &toastfile.tasks["bar"],
                 input_files_hash,
                 &full_environment,
             ),
@@ -720,9 +802,10 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo foo".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
 
@@ -738,11 +821,14 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
-            user: DEFAULT_USER.to_owned(),
+            location: None,
+            user: None,
             command: "echo bar".to_owned(),
+            command_prefix: None,
             extra_docker_arguments: vec![],
         };
+
+        let toastfile = toastfile_with_tasks(task1, task2);
 
         let input_files_hash = "grault";
 
@@ -752,14 +838,16 @@ mod tests {
             image_name(
                 previous_image,
                 docker_repo,
-                &task1,
+                &toastfile,
+                &toastfile.tasks["foo"],
                 input_files_hash,
                 &full_environment,
             ),
             image_name(
                 previous_image,
                 docker_repo,
-                &task2,
+                &toastfile,
+                &toastfile.tasks["bar"],
                 input_files_hash,
                 &full_environment,
             ),
