@@ -1,4 +1,9 @@
-use crate::{cache, docker, failure, failure::Failure, tar, toastfile::Task};
+use crate::{
+    cache, docker, failure,
+    failure::Failure,
+    tar,
+    toastfile::{command, location, user, Task, Toastfile},
+};
 use std::{
     collections::{HashMap, HashSet},
     io::{Seek, SeekFrom},
@@ -38,6 +43,7 @@ pub fn run(
     environment: &HashMap<String, String>,
     interrupted: &Arc<AtomicBool>,
     active_containers: &Arc<Mutex<HashSet<String>>>,
+    toastfile: &Toastfile,
     task: &Task,
     caching_enabled: bool,
     context: Context,
@@ -46,6 +52,11 @@ pub fn run(
     // All relative paths are relative to where the toastfile lives.
     let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
     toastfile_dir.pop();
+
+    // Apply defaults.
+    let location = location(toastfile, task);
+    let user = user(toastfile, task);
+    let command = command(toastfile, task);
 
     // Create a temporary archive for the input file contents.
     let tar_file = match tempfile() {
@@ -65,7 +76,7 @@ pub fn run(
         &task.input_paths,
         &task.excluded_input_paths,
         &toastfile_dir,
-        &task.location,
+        &location,
         &interrupted,
     ) {
         Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
@@ -84,6 +95,7 @@ pub fn run(
     let image = cache::image_name(
         &context.image,
         &settings.docker_repo,
+        &toastfile,
         &task,
         &input_files_hash,
         &environment,
@@ -138,9 +150,9 @@ pub fn run(
                 &task.mount_paths,
                 task.mount_readonly,
                 &task.ports,
-                &task.location,
-                &task.user,
-                &task.command,
+                &location,
+                &user,
+                &command,
                 &task.extra_docker_arguments,
                 interrupted,
             ) {
@@ -159,7 +171,7 @@ pub fn run(
             if let Err(e) = docker::copy_from_container(
                 &container,
                 &task.output_paths,
-                &task.location,
+                &location,
                 &toastfile_dir,
                 interrupted,
             ) {
@@ -200,9 +212,9 @@ pub fn run(
             &task.mount_paths,
             task.mount_readonly,
             &task.ports,
-            &task.location,
-            &task.user,
-            &task.command,
+            &location,
+            &user,
+            &command,
             &task.extra_docker_arguments,
             interrupted,
         ) {
@@ -231,7 +243,7 @@ pub fn run(
         }}
 
         // Copy files into the container. If `task.input_paths` is empty, then this will just create
-        // a directory for `task.location`.
+        // a directory for `location`.
         if let Err(e) = docker::copy_into_container(&container, &mut tar_file, interrupted) {
             return (Err(e), Some(context));
         }
@@ -250,7 +262,7 @@ pub fn run(
                 if let Err(e) = docker::copy_from_container(
                     &container,
                     &task.output_paths,
-                    &task.location,
+                    &location,
                     &toastfile_dir,
                     interrupted,
                 ) {
@@ -261,7 +273,7 @@ pub fn run(
                 if let Err(e) = docker::copy_from_container(
                     &container,
                     &task.output_paths_on_failure,
-                    &task.location,
+                    &location,
                     &toastfile_dir,
                     interrupted,
                 ) {

@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.1] - 2021-08-21
+
+### Added
+- Added support for `command_prefix`.
+- Added 4 top-level fields to the toastfile format, which serve as defaults for the corresponding task-level fields: `location`, `user`, and `command_prefix`.
+
 ## [0.40.0] - 2021-08-17
 
 ### Added
-- Added support for `extra_docker_arguments` in toastfiles, thanks to Xiangru Lian.
+- Added support for `extra_docker_arguments`, thanks to Xiangru Lian.
 
 ## [0.39.0] - 2021-08-08
 
