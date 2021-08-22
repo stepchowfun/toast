@@ -264,7 +264,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-However, you'll find that it's inconvenient to add this to every command. Instead, you can add this to all commands by setting `command_prefix` as follows:
+However, it's tedious and error-prone to add that to each command separately. Instead, you can add this to all commands at once by setting `command_prefix` as follows:
 
 ```yaml
 image: ubuntu
@@ -276,7 +276,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-For Bash, there are other options which you may want to set as well. In particular, we recommend `set -euo pipefail`, which causes Bash to fail fast, treat unset variables as an error when substituting, and consider pipelines to have failed if any intermediate command failed.
+There may be other options you want to configure as well. For Bash, we recommend `set -euo pipefail`, which causes Bash to fail fast, treat unset variables as an error when substituting, and consider pipelines to have failed if any intermediate command failed.
 
 ### Dropping into an interactive shell
 
