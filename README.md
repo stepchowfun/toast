@@ -264,7 +264,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-However, it's tedious and error-prone to add that to each command separately. Instead, you can add this to all commands at once by setting `command_prefix` as follows:
+However, it's tedious and error-prone to add that to each command separately. Instead, you can add it to all commands at once by setting `command_prefix` as follows:
 
 ```yaml
 image: ubuntu
