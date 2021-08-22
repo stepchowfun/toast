@@ -1,7 +1,14 @@
 image: ubuntu:20.04
 default: build
 user: user
-command_prefix: set -euo pipefail
+command_prefix: |
+  # Make Bash not silently ignore errors.
+  set -euo pipefail
+
+  # Load the Rust startup file, if it exists.
+  if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+  fi
 tasks:
   install_packages:
     description: Install system packages.
@@ -61,7 +68,7 @@ tasks:
         --component clippy
 
       # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
+      . "$HOME/.cargo/env"
 
       # Install nightly Rust for the `trailing_comma` Rustfmt option.
       rustup toolchain install nightly-2021-06-09 --profile minimal --component rustfmt
@@ -80,9 +87,6 @@ tasks:
       - Cargo.lock
       - Cargo.toml
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Create a "hello world" project with the dependencies we want to fetch.
       mv Cargo.lock Cargo.lock.og
       mv Cargo.toml Cargo.toml.og
@@ -109,9 +113,6 @@ tasks:
     input_paths:
       - src
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Build the project with Cargo.
       cargo build --frozen
 
@@ -120,9 +121,6 @@ tasks:
     dependencies:
       - build
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Run the tests with Cargo. The `NO_COLOR` variable is used to disable colored output for
       # tests that make assertions regarding the output. [tag:colorless_tests]
       NO_COLOR=true cargo test --frozen
@@ -140,9 +138,6 @@ tasks:
       - artifacts
       - target
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Lint the code with Clippy.
       cargo clippy \
         --all-features \
@@ -177,9 +172,6 @@ tasks:
     dependencies:
       - build
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Run the program with Cargo.
       cargo run --frozen -- --help
 
@@ -192,9 +184,6 @@ tasks:
     output_paths:
       - src
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Format the code with Rustfmt. We temporarily convert macro invocations into function calls
       # so that Rustfmt's `trailing_comma` feature applies to macro arguments. [tag:format]
       rg '!\(' --type rust --files-with-matches src | xargs sed -i 's/!(/_(/g'
@@ -210,9 +199,6 @@ tasks:
     output_paths:
       - artifacts
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Add the targets. It's likely that this script is currently running in one of them.
       rustup target add x86_64-unknown-linux-gnu
       rustup target add x86_64-unknown-linux-musl
@@ -263,9 +249,6 @@ tasks:
       - README.md
       - src
     command: |
-      # Add Rust tools to `$PATH`.
-      . $HOME/.cargo/env
-
       # Fetch the program version.
       VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
 
