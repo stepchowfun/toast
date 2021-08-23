@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added support for `command_prefix`.
-- Added 4 top-level fields to the toastfile format, which serve as defaults for the corresponding task-level fields: `location`, `user`, and `command_prefix`.
+- Added 3 top-level fields to the toastfile format, which serve as defaults for the corresponding task-level fields: `location`, `user`, and `command_prefix`.
 
 ## [0.40.0] - 2021-08-17
 
