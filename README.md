@@ -239,9 +239,9 @@ Now you can use Toast to run the server:
 
 ### Configuring the shell
 
-Toast runs commands using the appropriate user's preferred login shell, but in non-login mode in order to preserve environment variables. For many shells, it's often desirable to configure them in some way before running any further commands. Shells can often be configured with "startup files", however non-login shells typically do not load such files. Toast provides an alternative mechanism to configure the shell: `command_prefix`.
+It's often desirable to configure the shell in some way before running any commands. Shells are typically configured with so-called "startup files" (e.g., `~/.bashrc`). However, many shells skip loading such configuration files when running in non-interactive, non-login mode, which is how the shell is invoked by Toast. Toast provides an alternative mechanism to configure the shell that doesn't require creating any special files or invoking the shell in a particular way.
 
-Consider the following Toastfile which uses Bash as the shell, since that's the default preferred login shell in Ubuntu:
+Consider the following toastfile which uses Bash as the shell, since that's the default preferred login shell in Ubuntu:
 
 ```yaml
 image: ubuntu
@@ -259,16 +259,16 @@ image: ubuntu
 tasks:
   install_figlet:
     command: |
-      set -e # Make Bash fail fast if any command below fails.
+      set -e # Make Bash fail fast.
       apt-get update
       apt-get install --yes figlet
 ```
 
-However, it's tedious and error-prone to add that to each command separately. Instead, you can add it to all commands at once by setting `command_prefix` as follows:
+However, it's tedious and error-prone to add that to each task separately. Instead, you can add it to every task at once by setting `command_prefix` as follows:
 
 ```yaml
 image: ubuntu
-command_prefix: set -e # Make Bash fail fast by default.
+command_prefix: set -e # Make Bash fail fast.
 tasks:
   install_figlet:
     command: |
@@ -276,7 +276,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-There may be other options you want to configure as well. For Bash, we recommend `set -euo pipefail`, which causes Bash to fail fast, treat unset variables as an error when substituting, and consider pipelines to have failed if any intermediate command failed.
+For Bash in particular, we recommend going even further and setting `set -euo pipefail` instead of just `set -e`.
 
 ### Dropping into an interactive shell
 
