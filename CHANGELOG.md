@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.42.0] - 2021-08-21
+## [0.42.1] - 2021-08-26
+
+### Fixed
+- Removed some debugging output that was mistakenly included in a previous release.
+
+## [0.42.0] - 2021-08-26
 
 ### Changed
 - Toast no longer wastes time committing the container when a task is interrupted (e.g., by hitting CTRL+C).
