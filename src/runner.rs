@@ -35,7 +35,8 @@ impl Drop for Context {
 }
 
 // Run a task in a given context and return a new context. The returned context should not be `None`
-// if `need_context` is `true`.
+// if `need_context` is `true` and `Err(Failure::Interrupted | Failure::System(_, _))` was not
+// returned.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_lines)]
 pub fn run(
@@ -287,9 +288,10 @@ pub fn run(
         let cacheable = result.is_ok() && caching_enabled;
         let persist_locally = cacheable && settings.write_local_cache;
         let persist_remotely = cacheable && settings.write_remote_cache;
+        let failed_fatally = matches!(result, Err(Failure::Interrupted | Failure::System(_, _)));
 
         // Only commit the container if we actually need to return a context.
-        if need_context || persist_locally || persist_remotely {
+        if (need_context || persist_locally || persist_remotely) && !failed_fatally {
             // Commit the container.
             if let Err(e) = docker::commit_container(&container, &image, interrupted) {
                 return (Err(e), Some(context));
