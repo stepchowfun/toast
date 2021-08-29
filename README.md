@@ -323,22 +323,22 @@ tasks: {}           # Map from task name to task
 Tasks have the following schema and defaults:
 
 ```yaml
-description: null                             # A description of the task for the `--list` option
-dependencies: []                              # Names of dependencies
-cache: true                                   # Whether a task can be cached
-environment: {}                               # Map from environment variable to optional default
-input_paths: []                               # Paths to copy into the container
-excluded_input_paths: []                      # A denylist for `input_paths`
-output_paths: []                              # Paths to copy out of the container if the task succeeds
-output_paths_on_failure: []                   # Paths to copy out of the container if the task fails
-mount_paths: []                               # Paths to mount into the container
-mount_readonly: false                         # Whether to mount the `mount_paths` as readonly
-ports: []                                     # Port mappings to publish
-location: <defaults to top-level value>       # Overrides the corresponding top-level value
-user: <defaults to top-level value>           # Overrides the corresponding top-level value
-command: ''                                   # Shell command to run in the container
-command_prefix: <defaults to top-level value> # Overrides the corresponding top-level value
-extra_docker_arguments: []                    # Additional arguments for `docker container create`
+description: null           # A description of the task for the `--list` option
+dependencies: []            # Names of dependencies
+cache: true                 # Whether a task can be cached
+environment: {}             # Map from environment variable to optional default
+input_paths: []             # Paths to copy into the container
+excluded_input_paths: []    # A denylist for `input_paths`
+output_paths: []            # Paths to copy out of the container if the task succeeds
+output_paths_on_failure: [] # Paths to copy out of the container if the task fails
+mount_paths: []             # Paths to mount into the container
+mount_readonly: false       # Whether to mount the `mount_paths` as readonly
+ports: []                   # Port mappings to publish
+location: null              # Overrides the corresponding top-level value
+user: null                  # Overrides the corresponding top-level value
+command: ''                 # Shell command to run in the container
+command_prefix: null        # Overrides the corresponding top-level value
+extra_docker_arguments: []  # Additional arguments for `docker container create`
 ```
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for Toast itself is a comprehensive real-world example.
