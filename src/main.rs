@@ -1,4 +1,4 @@
-#![deny(warnings)]
+#![deny(clippy::all, clippy::pedantic, warnings)]
 
 mod cache;
 mod config;

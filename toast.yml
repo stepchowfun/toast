@@ -9,6 +9,16 @@ command_prefix: |
   if [ -f "$HOME/.cargo/env" ]; then
     . "$HOME/.cargo/env"
   fi
+
+  # Use this wrapper for `cargo` if network access is needed.
+  cargo-online () { cargo --locked "$@"; }
+
+  # Use this wrapper for `cargo` unless network access is needed.
+  cargo-offline () { cargo --frozen --offline "$@"; }
+
+  # Use this wrapper for formatting code or checking that code is formatted. We use a nightly Rust
+  # version for the `trailing_comma` formatting option [tag:rust_fmt_nightly_2021_06_09].
+  cargo-fmt () { cargo +nightly-2021-06-09 --frozen --offline fmt --all -- "$@"; }
 tasks:
   install_packages:
     description: Install system packages.
@@ -70,7 +80,7 @@ tasks:
       # Add Rust tools to `$PATH`.
       . "$HOME/.cargo/env"
 
-      # Install nightly Rust for the `trailing_comma` Rustfmt option.
+      # Install nightly Rust [ref:rust_fmt_nightly_2021_06_09].
       rustup toolchain install nightly-2021-06-09 --profile minimal --component rustfmt
 
   install_tools:
@@ -90,18 +100,18 @@ tasks:
       # Create a "hello world" project with the dependencies we want to fetch.
       mv Cargo.lock Cargo.lock.og
       mv Cargo.toml Cargo.toml.og
-      cargo init --vcs none
+      cargo-offline init --vcs none
       mv Cargo.lock.og Cargo.lock
       mv Cargo.toml.og Cargo.toml
 
       # Ask Cargo to build the project in order to fetch the dependencies.
-      cargo build --locked
-      cargo build --locked --release
-      cargo clippy
+      cargo-online build
+      cargo-online build --release
+      cargo-online clippy --all-features --all-targets --workspace
 
       # Delete the build artifacts.
-      cargo clean --package toast
-      cargo clean --release --package toast
+      cargo-offline clean --package toast
+      cargo-offline clean --release --package toast
 
       # Delete the "hello world" code.
       rm -rf src
@@ -114,7 +124,7 @@ tasks:
       - src
     command: |
       # Build the project with Cargo.
-      cargo build --frozen
+      cargo-offline build
 
   test:
     description: Run the test suite.
@@ -123,7 +133,7 @@ tasks:
     command: |
       # Run the tests with Cargo. The `NO_COLOR` variable is used to disable colored output for
       # tests that make assertions regarding the output. [tag:colorless_tests]
-      NO_COLOR=true cargo test --frozen
+      NO_COLOR=true cargo-offline test
 
   lint:
     description: Run the linters.
@@ -139,12 +149,7 @@ tasks:
       - target
     command: |
       # Lint the code with Clippy.
-      cargo clippy \
-        --all-features \
-        --all-targets -- \
-        --deny clippy::all \
-        --deny clippy::pedantic \
-        --deny warnings
+      cargo-offline clippy --all-features --all-targets --workspace
 
       # Check references with Tagref.
       tagref
@@ -152,10 +157,10 @@ tasks:
       # Lint shell files with ShellCheck.
       find . -type f -name '*.sh' | xargs shellcheck
 
-      # Check code formatting with Rustfmt. We temporarily convert macro invocations into function
-      # calls so that Rustfmt's `trailing_comma` feature applies to macro arguments. [ref:format]
+      # Check code formatting with Rustfmt. See [ref:format_macros] for an explanation of the `rg`
+      # commands.
       rg '!\(' --type rust --files-with-matches src | xargs sed -i 's/!(/_(/g'
-      if ! cargo +nightly-2021-06-09 fmt --all -- --check; then
+      if ! cargo-fmt --check; then
         echo 'ERROR: Please correct the formatting errors above.' 1>&2
         exit 1
       fi
@@ -173,7 +178,7 @@ tasks:
       - build
     command: |
       # Run the program with Cargo.
-      cargo run --frozen -- --help
+      cargo-offline run -- --help
 
   format:
     description: Format the source code.
@@ -185,9 +190,9 @@ tasks:
       - src
     command: |
       # Format the code with Rustfmt. We temporarily convert macro invocations into function calls
-      # so that Rustfmt's `trailing_comma` feature applies to macro arguments. [tag:format]
+      # so Rustfmt's `trailing_comma` feature applies to macro arguments. [tag:format_macros]
       rg '!\(' --type rust --files-with-matches src | xargs sed -i 's/!(/_(/g'
-      cargo +nightly-2021-06-09 fmt --all
+      cargo-fmt
       rg '_\(' --type rust --files-with-matches src | xargs sed -i 's/_(/!(/g'
 
   release:
@@ -204,8 +209,8 @@ tasks:
       rustup target add x86_64-unknown-linux-musl
 
       # Build the project for both Linux targets with Cargo.
-      cargo build --locked --release --target x86_64-unknown-linux-gnu
-      cargo build --locked --release --target x86_64-unknown-linux-musl
+      cargo-online build --release --target x86_64-unknown-linux-gnu
+      cargo-online build --release --target x86_64-unknown-linux-musl
 
       # Move the binaries to a more conveniennt location for exporting.
       mkdir artifacts
@@ -250,13 +255,13 @@ tasks:
       - src
     command: |
       # Fetch the program version.
-      VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
+      VERSION="$(cargo-offline pkgid | cut -d# -f2 | cut -d: -f2)"
 
       # If this version of the package already exists on crates.io, there's nothing more to do.
-      if cargo search toast | grep "toast = \"$VERSION\""; then
+      if cargo-online search toast | grep "toast = \"$VERSION\""; then
         echo "Version $VERSION of crate already exists."
         exit
       fi
 
       # Publish to crates.io.
-      cargo publish --locked --token "$CRATES_IO_TOKEN"
+      cargo-online publish --token "$CRATES_IO_TOKEN"
