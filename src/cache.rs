@@ -56,13 +56,13 @@ fn path_as_bytes(path: &Path) -> Vec<u8> {
 
 impl CryptoHash for Path {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(&self)))
+        hex::encode(Sha256::digest(&path_as_bytes(self)))
     }
 }
 
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(&self)))
+        hex::encode(Sha256::digest(&path_as_bytes(self)))
     }
 }
 

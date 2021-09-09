@@ -299,7 +299,7 @@ pub fn create<W: Write>(
         &mut builder,
         &mut visited_paths,
         &[], // Always create `destination_dir_acr`, even if it's denied by `excluded_input_paths`.
-        strip_root_rcr(&destination_dir_acr),
+        strip_root_rcr(destination_dir_acr),
     )?;
 
     // Convert the `excluded_input_paths` to be relative to the container filesystem root.
