@@ -78,7 +78,7 @@ pub fn run(
         &task.excluded_input_paths,
         &toastfile_dir,
         &location,
-        &interrupted,
+        interrupted,
     ) {
         Ok((tar_file, input_files_hash)) => (tar_file, input_files_hash),
         Err(e) => return (Err(e), Some(context)),
@@ -96,10 +96,10 @@ pub fn run(
     let image = cache::image_name(
         &context.image,
         &settings.docker_repo,
-        &toastfile,
-        &task,
+        toastfile,
+        task,
         &input_files_hash,
-        &environment,
+        environment,
     );
 
     // If we need to return the same image as the one that was passed in, we should be careful to

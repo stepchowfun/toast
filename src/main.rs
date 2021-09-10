@@ -119,7 +119,7 @@ fn set_up_signal_handlers(
         if interrupted.swap(true, Ordering::SeqCst) {
             // Stop any active containers. The `unwrap` will only fail if a panic already occurred.
             for container in &*active_containers.lock().unwrap() {
-                if let Err(e) = docker::stop_container(&container, &interrupted) {
+                if let Err(e) = docker::stop_container(container, &interrupted) {
                     error!("{}", e);
                 }
             }
@@ -535,10 +535,10 @@ fn run_tasks(
         info!("Running task {}\u{2026}", task_name.code_str());
         let (result, new_context) = runner::run(
             settings,
-            &environment,
-            &interrupted,
-            &active_containers,
-            &toastfile,
+            environment,
+            interrupted,
+            active_containers,
+            toastfile,
             task_data,
             caching_enabled,
             context.unwrap(), // Safe due to [ref:context_needed_if_not_final_task].
