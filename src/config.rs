@@ -3,12 +3,16 @@ use serde::{Deserialize, Serialize};
 
 pub const REPO_DEFAULT: &str = "toast";
 pub const EMPTY_CONFIG: &str = "{}";
+const DOCKER_CLI_DEFAULT: &str = "docker";
 
 // A program configuration
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {
+    #[serde(default = "default_docker_cli")]
+    pub docker_cli: String,
+
     #[serde(default = "default_docker_repo")]
     pub docker_repo: String,
 
@@ -23,6 +27,10 @@ pub struct Config {
 
     #[serde(default = "default_write_remote_cache")]
     pub write_remote_cache: bool,
+}
+
+fn default_docker_cli() -> String {
+    DOCKER_CLI_DEFAULT.to_owned()
 }
 
 fn default_docker_repo() -> String {
@@ -52,11 +60,12 @@ pub fn parse(config: &str) -> Result<Config, Failure> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{parse, Config, EMPTY_CONFIG};
+    use crate::config::{parse, Config, DOCKER_CLI_DEFAULT, EMPTY_CONFIG};
 
     #[test]
     fn parse_empty() {
         let result = Config {
+            docker_cli: DOCKER_CLI_DEFAULT.to_owned(),
             docker_repo: "toast".to_owned(),
             read_local_cache: true,
             write_local_cache: true,
@@ -70,6 +79,7 @@ mod tests {
     #[test]
     fn parse_nonempty() {
         let config = r#"
+docker_cli: podman
 docker_repo: foo
 read_local_cache: false
 write_local_cache: false
@@ -79,6 +89,7 @@ write_remote_cache: true
         .trim();
 
         let result = Config {
+            docker_cli: "podman".to_owned(),
             docker_repo: "foo".to_owned(),
             read_local_cache: false,
             write_local_cache: false,
