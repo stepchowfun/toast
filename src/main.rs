@@ -229,7 +229,7 @@ fn settings() -> Result<Settings, Failure> {
             Arg::with_name(LIST_OPTION)
                 .short("l")
                 .long(LIST_OPTION)
-                .help("Lists the tasks in the toastfile"),
+                .help("Lists the tasks in the toastfile (only tasks with a description are shown)"),
         )
         .arg(
             Arg::with_name(SHELL_OPTION)
@@ -607,10 +607,15 @@ fn entry() -> Result<(), Failure> {
 
     // If the user just wants to list all the tasks, do that and quit.
     if settings.list {
-        info!("Here are all the tasks and the environment variables they can use:");
+        info!("Here are the tasks and the environment variables they can use:");
 
         // Sort the tasks.
-        let mut task_names = toastfile.tasks.keys().collect::<Vec<_>>().clone();
+        let mut task_names: Vec<_> = toastfile
+            .tasks
+            .iter()
+            .filter(|(_, t)| t.description.is_some())
+            .map(|(k, _)| k)
+            .collect();
         task_names.sort();
 
         // Print a summary of each task.
