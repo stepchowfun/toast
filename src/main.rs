@@ -229,7 +229,7 @@ fn settings() -> Result<Settings, Failure> {
             Arg::with_name(LIST_OPTION)
                 .short("l")
                 .long(LIST_OPTION)
-                .help("Lists the tasks in the toastfile (only tasks with a description are shown)"),
+                .help("Lists the tasks that have a description"),
         )
         .arg(
             Arg::with_name(SHELL_OPTION)
@@ -607,15 +607,20 @@ fn entry() -> Result<(), Failure> {
 
     // If the user just wants to list all the tasks, do that and quit.
     if settings.list {
-        info!("Here are the tasks and the environment variables they can use:");
+        info!(
+            "Here are the tasks that have a description and any environment variables they \
+            support:",
+        );
 
-        // Sort the tasks.
-        let mut task_names: Vec<_> = toastfile
+        // Select the names of the tasks that have a description [tag:tasks_have_descriptions].
+        let mut task_names = toastfile
             .tasks
             .iter()
             .filter(|(_, t)| t.description.is_some())
             .map(|(k, _)| k)
-            .collect();
+            .collect::<Vec<_>>();
+
+        // Sort the names to avoid relying on the unpredictable order of the tasks in the map.
         task_names.sort();
 
         // Print a summary of each task.
@@ -623,12 +628,13 @@ fn entry() -> Result<(), Failure> {
             // Fetch the task data.
             let task_data = &toastfile.tasks[task_name];
 
-            // Print the task name and the description if it exists.
-            if let Some(description) = &task_data.description {
-                println!("* {} \u{2014} {}", task_name.code_str(), description);
-            } else {
-                println!("* {}", task_name.code_str());
-            }
+            // Print the task name and the description. The `unwrap` is safe due to
+            // [ref:tasks_have_descriptions].
+            println!(
+                "* {} \u{2014} {}",
+                task_name.code_str(),
+                task_data.description.as_ref().unwrap(),
+            );
 
             // Print the environment variables that can be passed to the task.
             for (variable, optional_default) in &task_data.environment {

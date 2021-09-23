@@ -417,7 +417,7 @@ OPTIONS:
             Prints help information
 
     -l, --list
-            Lists the tasks in the toastfile
+            Lists the tasks that have a description
 
         --read-local-cache <BOOL>
             Sets whether local cache reading is enabled
