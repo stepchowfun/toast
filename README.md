@@ -401,6 +401,12 @@ OPTIONS:
     -c, --config-file <PATH>
             Sets the path of the config file
 
+        --docker-cli <CLI>
+            Sets the Docker CLI binary
+
+    -r, --docker-repo <REPO>
+            Sets the Docker repository
+
     -f, --file <PATH>
             Sets the path to the toastfile
 
@@ -418,9 +424,6 @@ OPTIONS:
 
         --read-remote-cache <BOOL>
             Sets whether remote cache reading is enabled
-
-    -r, --repo <REPO>
-            Sets the Docker repository
 
     -s, --shell
             Drops you into a shell after the tasks are finished
@@ -528,7 +531,7 @@ jobs:
       with:
         file: toastfiles/toast.yml
         tasks: build lint test
-        repo: DOCKER_USERNAME/DOCKER_REPO
+        docker_repo: DOCKER_USERNAME/DOCKER_REPO
         write_remote_cache: ${{ github.event_name == 'push' }}
 ```
 

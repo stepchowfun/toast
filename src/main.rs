@@ -60,12 +60,13 @@ const READ_LOCAL_CACHE_OPTION: &str = "read-local-cache";
 const WRITE_LOCAL_CACHE_OPTION: &str = "write-local-cache";
 const READ_REMOTE_CACHE_OPTION: &str = "read-remote-cache";
 const WRITE_REMOTE_CACHE_OPTION: &str = "write-remote-cache";
-const REPO_OPTION: &str = "repo";
+const DOCKER_CLI_OPTION: &str = "docker-cli";
+const DOCKER_REPO_OPTION: &str = "docker-repo";
+const DEPRECATED_REPO_OPTION: &str = "repo";
 const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
-const DOCKER_CLI_OPTION: &str = "docker-cli";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -213,11 +214,17 @@ fn settings() -> Result<Settings, Failure> {
                 .help("Sets whether remote cache writing is enabled"),
         )
         .arg(
-            Arg::with_name(REPO_OPTION)
+            Arg::with_name(DOCKER_REPO_OPTION)
                 .value_name("REPO")
                 .short("r")
-                .long(REPO_OPTION)
+                .long(DOCKER_REPO_OPTION)
                 .help("Sets the Docker repository"),
+        )
+        .arg(
+            Arg::with_name(DEPRECATED_REPO_OPTION)
+                .value_name("REPO")
+                .long(DEPRECATED_REPO_OPTION)
+                .help("Deprecated, use --docker-repo instead"),
         )
         .arg(
             Arg::with_name(DOCKER_CLI_OPTION)
@@ -332,7 +339,8 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the Docker repo.
     let docker_repo = matches
-        .value_of(REPO_OPTION)
+        .value_of(DOCKER_REPO_OPTION)
+        .or_else(|| matches.value_of(DEPRECATED_REPO_OPTION))
         .unwrap_or(&config.docker_repo)
         .to_owned();
 

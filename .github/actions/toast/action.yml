@@ -9,7 +9,7 @@ inputs:
     description: 'The location of the toastfile relative to the repository root'
     required: true
     default: ''
-  repo:
+  docker_repo:
     description: 'The Docker repository for remote caching'
     required: true
     default: ''
@@ -17,6 +17,9 @@ inputs:
     description: 'Whether to write to the Docker repository for remote caching'
     required: true
     default: 'false'
+  repo:
+    description: 'Deprecated. Use `docker_repo` instead.'
+    required: false
 runs:
   using: node12
   main: index.js

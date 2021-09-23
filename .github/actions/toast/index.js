@@ -6,13 +6,13 @@ const { v4: uuidv4 } = require('uuid');
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
 const fileInput = core.getInput('file').trim();
-const repoInput = core.getInput('repo').trim();
+const dockerRepoInput = (core.getInput('repo') || core.getInput('docker_repo')).trim();
 const writeRemoteCacheInput = core.getInput('write_remote_cache').trim();
 
 // Parse the action inputs.
 const tasks = tasksInput === '' ? null : tasksInput.split(/\s+/);
 const file = fileInput === '' ? null : fileInput;
-const repo = repoInput === '' ? null : repoInput;
+const dockerRepo = dockerRepoInput === '' ? null : dockerRepoInput;
 const writeRemoteCache = writeRemoteCacheInput == 'true';
 
 // Where to install Toast.
@@ -36,8 +36,8 @@ childProcess.execSync(
 // Construct the command-line arguments for Toast.
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
-const repositoryArgs = repo === null ? [] : ['--repo', repo];
-const readRemoteCacheArgs = repo === null ? [] : ['--read-remote-cache', 'true'];
+const dockerRepoArgs = dockerRepo === null ? [] : ['--repo', dockerRepo];
+const readRemoteCacheArgs = dockerRepo === null ? [] : ['--read-remote-cache', 'true'];
 const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
 
 // Run Toast.
@@ -45,7 +45,7 @@ try {
   childProcess.execFileSync(
     path.join(toastPrefix, 'toast'),
     fileArgs
-      .concat(repositoryArgs)
+      .concat(dockerRepoArgs)
       .concat(readRemoteCacheArgs)
       .concat(writeRemoteCacheArgs)
       .concat(taskArgs),
