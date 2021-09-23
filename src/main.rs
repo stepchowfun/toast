@@ -65,6 +65,7 @@ const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
+const DOCKER_CLI_OPTION: &str = "docker-cli";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -106,6 +107,7 @@ fn set_up_logging() {
 
 // Set up the signal handlers.
 fn set_up_signal_handlers(
+    docker_cli: String,
     interrupted: Arc<AtomicBool>,
     active_containers: Arc<Mutex<HashSet<String>>>,
 ) -> Result<(), Failure> {
@@ -119,7 +121,7 @@ fn set_up_signal_handlers(
         if interrupted.swap(true, Ordering::SeqCst) {
             // Stop any active containers. The `unwrap` will only fail if a panic already occurred.
             for container in &*active_containers.lock().unwrap() {
-                if let Err(e) = docker::stop_container(container, &interrupted) {
+                if let Err(e) = docker::stop_container(&docker_cli, container, &interrupted) {
                     error!("{}", e);
                 }
             }
@@ -149,6 +151,7 @@ fn parse_bool(s: &str) -> Result<bool, Failure> {
 #[allow(clippy::struct_excessive_bools)]
 pub struct Settings {
     toastfile_path: PathBuf,
+    docker_cli: String,
     docker_repo: String,
     read_local_cache: bool,
     write_local_cache: bool,
@@ -215,6 +218,12 @@ fn settings() -> Result<Settings, Failure> {
                 .short("r")
                 .long(REPO_OPTION)
                 .help("Sets the Docker repository"),
+        )
+        .arg(
+            Arg::with_name(DOCKER_CLI_OPTION)
+                .value_name("CLI")
+                .long(DOCKER_CLI_OPTION)
+                .help("Sets the Docker CLI binary"),
         )
         .arg(
             Arg::with_name(LIST_OPTION)
@@ -327,6 +336,12 @@ fn settings() -> Result<Settings, Failure> {
         .unwrap_or(&config.docker_repo)
         .to_owned();
 
+    // Read the Docker CLI.
+    let docker_cli = matches
+        .value_of(DOCKER_CLI_OPTION)
+        .unwrap_or(&config.docker_cli)
+        .to_owned();
+
     // Read the list switch.
     let list = matches.is_present(LIST_OPTION);
 
@@ -351,6 +366,7 @@ fn settings() -> Result<Settings, Failure> {
 
     Ok(Settings {
         toastfile_path,
+        docker_cli,
         docker_repo,
         read_local_cache,
         write_local_cache,
@@ -506,6 +522,7 @@ fn run_tasks(
         image: toastfile.image.clone(),
         persist: true,
         interrupted: interrupted.clone(),
+        docker_cli: settings.docker_cli.clone(),
     });
 
     // Run each task in the schedule.
@@ -575,11 +592,15 @@ fn entry() -> Result<(), Failure> {
     let interrupted = Arc::new(AtomicBool::new(false));
     let active_containers = Arc::new(Mutex::new(HashSet::<String>::new()));
 
-    // Set up the signal handlers.
-    set_up_signal_handlers(interrupted.clone(), active_containers.clone())?;
-
     // Parse the command-line arguments;
     let settings = settings()?;
+
+    // Set up the signal handlers.
+    set_up_signal_handlers(
+        settings.docker_cli.clone(),
+        interrupted.clone(),
+        active_containers.clone(),
+    )?;
 
     // Parse the toastfile.
     let toastfile = parse_toastfile(&settings.toastfile_path)?;
@@ -715,6 +736,7 @@ fn entry() -> Result<(), Failure> {
 
         // Spawn the shell.
         docker::spawn_shell(
+            &settings.docker_cli,
             &context.unwrap().image, // Safe due to [ref:spawn_shell_requires_context].
             &toastfile_dir,
             &task_environment,

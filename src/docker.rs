@@ -35,10 +35,15 @@ use tempfile::tempdir;
 use walkdir::WalkDir;
 
 // Query whether an image exists locally.
-pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, Failure> {
+pub fn image_exists(
+    docker_cli: &str,
+    image: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<bool, Failure> {
     debug!("Checking existence of image {}\u{2026}", image.code_str());
 
     match run_quiet(
+        docker_cli,
         "Checking existence of image\u{2026}",
         "The image doesn't exist.",
         &vec!["image", "inspect", image]
@@ -54,10 +59,15 @@ pub fn image_exists(image: &str, interrupted: &Arc<AtomicBool>) -> Result<bool, 
 }
 
 // Push an image.
-pub fn push_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn push_image(
+    docker_cli: &str,
+    image: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Pushing image {}\u{2026}", image.code_str());
 
     run_quiet(
+        docker_cli,
         "Pushing image\u{2026}",
         "Unable to push image.",
         &vec!["image", "push", image]
@@ -70,10 +80,15 @@ pub fn push_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fail
 }
 
 // Pull an image.
-pub fn pull_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn pull_image(
+    docker_cli: &str,
+    image: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Pulling image {}\u{2026}", image.code_str());
 
     run_quiet(
+        docker_cli,
         "Pulling image\u{2026}",
         "Unable to pull image.",
         &vec!["image", "pull", image]
@@ -86,10 +101,15 @@ pub fn pull_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fail
 }
 
 // Delete an image.
-pub fn delete_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn delete_image(
+    docker_cli: &str,
+    image: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Deleting image {}\u{2026}", image.code_str());
 
     run_quiet(
+        docker_cli,
         "Deleting image\u{2026}",
         "Unable to delete image.",
         &vec!["image", "rm", "--force", image]
@@ -104,6 +124,7 @@ pub fn delete_image(image: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Fa
 // Create a container and return its ID.
 #[allow(clippy::too_many_arguments)]
 pub fn create_container(
+    docker_cli: &str,
     image: &str,
     source_dir: &Path,
     environment: &HashMap<String, String>,
@@ -141,6 +162,7 @@ pub fn create_container(
     );
 
     Ok(run_quiet(
+        docker_cli,
         "Creating container\u{2026}",
         "Unable to create container.",
         &args,
@@ -152,6 +174,7 @@ pub fn create_container(
 
 // Copy files into a container.
 pub fn copy_into_container<R: Read>(
+    docker_cli: &str,
     container: &str,
     mut tar: R,
     interrupted: &Arc<AtomicBool>,
@@ -162,6 +185,7 @@ pub fn copy_into_container<R: Read>(
     );
 
     run_quiet_stdin(
+        docker_cli,
         "Copying files into container\u{2026}",
         "Unable to copy files into the container.",
         &[
@@ -237,6 +261,7 @@ fn rename_or_copy_file_or_symlink(
 
 // Copy files from a container.
 pub fn copy_from_container(
+    docker_cli: &str,
     container: &str,
     paths: &[PathBuf],
     source_dir: &Path,
@@ -269,6 +294,7 @@ pub fn copy_from_container(
 
         // Get the path from the container.
         run_quiet(
+            docker_cli,
             "Copying files from the container\u{2026}",
             "Unable to copy files from the container.",
             &[
@@ -346,10 +372,15 @@ pub fn copy_from_container(
 }
 
 // Start a container.
-pub fn start_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn start_container(
+    docker_cli: &str,
+    container: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Starting container {}\u{2026}", container.code_str());
 
     run_loud(
+        docker_cli,
         "Unable to start container.",
         &vec!["container", "start", "--attach", container]
             .into_iter()
@@ -361,10 +392,15 @@ pub fn start_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result
 }
 
 // Stop a container.
-pub fn stop_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn stop_container(
+    docker_cli: &str,
+    container: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Stopping container {}\u{2026}", container.code_str());
 
     run_quiet(
+        docker_cli,
         "Stopping container\u{2026}",
         "Unable to stop container.",
         &vec!["container", "stop", container]
@@ -378,6 +414,7 @@ pub fn stop_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<
 
 // Commit a container to an image.
 pub fn commit_container(
+    docker_cli: &str,
     container: &str,
     image: &str,
     interrupted: &Arc<AtomicBool>,
@@ -389,6 +426,7 @@ pub fn commit_container(
     );
 
     run_quiet(
+        docker_cli,
         "Committing container\u{2026}",
         "Unable to commit container.",
         &vec!["container", "commit", container, image]
@@ -401,10 +439,15 @@ pub fn commit_container(
 }
 
 // Delete a container.
-pub fn delete_container(container: &str, interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+pub fn delete_container(
+    docker_cli: &str,
+    container: &str,
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     debug!("Deleting container {}\u{2026}", container.code_str());
 
     run_quiet(
+        docker_cli,
         "Deleting container\u{2026}",
         "Unable to delete container.",
         &vec!["container", "rm", "--force", container]
@@ -419,6 +462,7 @@ pub fn delete_container(container: &str, interrupted: &Arc<AtomicBool>) -> Resul
 // Run an interactive shell.
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_shell(
+    docker_cli: &str,
     image: &str,
     source_dir: &Path,
     environment: &HashMap<String, String>,
@@ -457,7 +501,12 @@ pub fn spawn_shell(
             .collect::<Vec<_>>(),
     );
 
-    run_attach("The shell exited with a failure.", &args, interrupted)
+    run_attach(
+        docker_cli,
+        "The shell exited with a failure.",
+        &args,
+        interrupted,
+    )
 }
 
 // This function returns arguments for `docker create` or `docker run`.
@@ -534,6 +583,7 @@ fn container_args(
 
 // Run a command and return its standard output.
 fn run_quiet(
+    docker_cli: &str,
     spinner_message: &str,
     error: &str,
     args: &[String],
@@ -547,10 +597,12 @@ fn run_quiet(
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let child = command(args).output().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
-        error,
-    )))?;
+    let child = command(docker_cli, args)
+        .output()
+        .map_err(failure::system(format!(
+            "{} Perhaps you don't have Docker installed.",
+            error,
+        )))?;
 
     // Handle the result.
     if child.status.success() {
@@ -575,6 +627,7 @@ fn run_quiet(
 // Run a command and return its standard output. Accepts a closure which receives a pipe to the
 // standard input stream of the child process.
 fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
+    docker_cli: &str,
     spinner_message: &str,
     error: &str,
     args: &[String],
@@ -589,7 +642,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let mut child = command(args)
+    let mut child = command(docker_cli, args)
         .stdin(Stdio::piped()) // [tag:run_quiet_stdin_piped]
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -629,13 +682,18 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
 }
 
 // Run a command and inherit standard output and error streams.
-fn run_loud(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+fn run_loud(
+    docker_cli: &str,
+    error: &str,
+    args: &[String],
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let mut child = command(args)
+    let mut child = command(docker_cli, args)
         .stdin(Stdio::null())
         .spawn()
         .map_err(failure::system(format!(
@@ -665,16 +723,23 @@ fn run_loud(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Resu
 }
 
 // Run a command and inherit standard input, output, and error streams.
-fn run_attach(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Result<(), Failure> {
+fn run_attach(
+    docker_cli: &str,
+    error: &str,
+    args: &[String],
+    interrupted: &Arc<AtomicBool>,
+) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
     // the child process.
     let was_interrupted = interrupted.load(Ordering::SeqCst);
 
     // Run the child process.
-    let child = command(args).status().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
-        error,
-    )))?;
+    let child = command(docker_cli, args)
+        .status()
+        .map_err(failure::system(format!(
+            "{} Perhaps you don't have Docker installed.",
+            error,
+        )))?;
 
     // Handle the result.
     if child.success() {
@@ -692,8 +757,8 @@ fn run_attach(error: &str, args: &[String], interrupted: &Arc<AtomicBool>) -> Re
 }
 
 // Construct a Docker `Command` from an array of arguments.
-fn command(args: &[String]) -> Command {
-    let mut command = Command::new("docker");
+fn command(docker_cli: &str, args: &[String]) -> Command {
+    let mut command = Command::new(docker_cli);
     for arg in args {
         command.arg(arg);
     }

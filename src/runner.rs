@@ -18,6 +18,7 @@ use tempfile::tempfile;
 // A context is an image that may need to be cleaned up.
 #[derive(Clone)]
 pub struct Context {
+    pub docker_cli: String,
     pub image: String,
     pub persist: bool,
     pub interrupted: Arc<AtomicBool>,
@@ -27,7 +28,7 @@ impl Drop for Context {
     fn drop(&mut self) {
         // Delete the image if needed.
         if !self.persist {
-            if let Err(e) = docker::delete_image(&self.image, &self.interrupted) {
+            if let Err(e) = docker::delete_image(&self.docker_cli, &self.image, &self.interrupted) {
                 error!("{}", e);
             }
         }
@@ -120,14 +121,14 @@ pub fn run(
     if caching_enabled {
         // Check the local cache.
         cached = settings.read_local_cache
-            && match docker::image_exists(&image, interrupted) {
+            && match docker::image_exists(&settings.docker_cli, &image, interrupted) {
                 Ok(exists) => exists,
                 Err(e) => return (Err(e), Some(context)),
             };
 
         // Check the remote cache.
         if !cached && settings.read_remote_cache {
-            if let Err(e) = docker::pull_image(&image, interrupted) {
+            if let Err(e) = docker::pull_image(&settings.docker_cli, &image, interrupted) {
                 // If the pull failed, it could be because the user killed the child process (e.g.,
                 // by hitting CTRL+C).
                 if interrupted.load(Ordering::SeqCst) {
@@ -145,6 +146,7 @@ pub fn run(
         if !task.output_paths.is_empty() {
             // We need to create a container from which we can extract the output files.
             let container = match docker::create_container(
+                &settings.docker_cli,
                 &image,
                 &toastfile_dir,
                 &task_environment,
@@ -163,13 +165,18 @@ pub fn run(
 
             // Delete the container when we're done.
             defer! {{
-              if let Err(e) = docker::delete_container(&container, interrupted) {
+              if let Err(e) = docker::delete_container(
+                  &settings.docker_cli,
+                  &container,
+                  interrupted
+              ) {
                 error!("{}", e);
               }
             }}
 
             // Extract the output files from the container.
             if let Err(e) = docker::copy_from_container(
+                &settings.docker_cli,
                 &container,
                 &task.output_paths,
                 &location,
@@ -190,23 +197,25 @@ pub fn run(
                     image,
                     persist: true,
                     interrupted: interrupted.clone(),
+                    docker_cli: settings.docker_cli.clone(),
                 }
             }),
         )
     } else {
         // Pull the image if necessary. Note that this is not considered reading from the remote
         // cache.
-        if !match docker::image_exists(&context.image, interrupted) {
+        if !match docker::image_exists(&settings.docker_cli, &context.image, interrupted) {
             Ok(exists) => exists,
             Err(e) => return (Err(e), Some(context)),
         } {
-            if let Err(e) = docker::pull_image(&context.image, interrupted) {
+            if let Err(e) = docker::pull_image(&settings.docker_cli, &context.image, interrupted) {
                 return (Err(e), Some(context));
             }
         }
 
         // Create a container from the image.
         let container = match docker::create_container(
+            &settings.docker_cli,
             &context.image,
             &toastfile_dir,
             &task_environment,
@@ -238,29 +247,36 @@ pub fn run(
           }
 
           // Delete the container.
-          if let Err(e) = docker::delete_container(&container, interrupted) {
+          if let Err(e) = docker::delete_container(&settings.docker_cli, &container, interrupted) {
             error!("{}", e);
           }
         }}
 
         // Copy files into the container. If `task.input_paths` is empty, then this will just create
         // a directory for `location`.
-        if let Err(e) = docker::copy_into_container(&container, &mut tar_file, interrupted) {
+        if let Err(e) = docker::copy_into_container(
+            &settings.docker_cli,
+            &container,
+            &mut tar_file,
+            interrupted,
+        ) {
             return (Err(e), Some(context));
         }
 
         // Start the container to run the command.
-        let result = docker::start_container(&container, interrupted).map_err(|e| match e {
-            Failure::Interrupted => e,
-            Failure::System(_, _) | Failure::User(_, _) => {
-                Failure::User("Command failed.".to_owned(), None)
-            }
-        });
+        let result = docker::start_container(&settings.docker_cli, &container, interrupted)
+            .map_err(|e| match e {
+                Failure::Interrupted => e,
+                Failure::System(_, _) | Failure::User(_, _) => {
+                    Failure::User("Command failed.".to_owned(), None)
+                }
+            });
 
         // Copy files from the container, if applicable.
         match result {
             Ok(_) if !task.output_paths.is_empty() => {
                 if let Err(e) = docker::copy_from_container(
+                    &settings.docker_cli,
                     &container,
                     &task.output_paths,
                     &location,
@@ -272,6 +288,7 @@ pub fn run(
             }
             Err(_) if !task.output_paths_on_failure.is_empty() => {
                 if let Err(e) = docker::copy_from_container(
+                    &settings.docker_cli,
                     &container,
                     &task.output_paths_on_failure,
                     &location,
@@ -293,7 +310,9 @@ pub fn run(
         // Only commit the container if we actually need to return a context.
         if (need_context || persist_locally || persist_remotely) && !failed_fatally {
             // Commit the container.
-            if let Err(e) = docker::commit_container(&container, &image, interrupted) {
+            if let Err(e) =
+                docker::commit_container(&settings.docker_cli, &container, &image, interrupted)
+            {
                 return (Err(e), Some(context));
             }
 
@@ -305,12 +324,15 @@ pub fn run(
                     image,
                     persist: persist_locally,
                     interrupted: interrupted.clone(),
+                    docker_cli: settings.docker_cli.clone(),
                 }
             };
 
             // Write to remote cache, if applicable.
             if persist_remotely {
-                if let Err(e) = docker::push_image(&new_context.image, interrupted) {
+                if let Err(e) =
+                    docker::push_image(&settings.docker_cli, &new_context.image, interrupted)
+                {
                     return (Err(e), Some(new_context));
                 }
             }

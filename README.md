@@ -343,17 +343,21 @@ extra_docker_arguments: []  # Additional arguments for `docker container create`
 
 The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for Toast itself is a comprehensive real-world example.
 
-## Cache configuration
+## Configuration
 
-Toast supports local and remote caching. By default, only local caching is enabled. Remote caching requires that the Docker Engine is logged into a Docker registry (e.g., via `docker login`).
-
-The caching behavior can be customized with a configuration file. The default location of the configuration file depends on the operating system:
+Toast can be customized with a YAML configuration file. The default location of the configuration file depends on the operating system:
 
 - For macOS, the default location is `$HOME/Library/Application Support/toast/toast.yml`.
 - For other Unix platforms, Toast follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `$XDG_CONFIG_HOME/toast/toast.yml` or `$HOME/.config/toast/toast.yml` if `XDG_CONFIG_HOME` is not set to an absolute path.
 - For Windows, the default location is `{FOLDERID_RoamingAppData}\toast\toast.yml`.
 
-The configuration file has the following schema and defaults:
+The schema of the configuration file is described in the subsections below.
+
+### Cache configuration
+
+Toast supports local and remote caching. By default, only local caching is enabled. Remote caching requires that the Docker Engine is logged into a Docker registry (e.g., via `docker login`).
+
+The cache-related fields and their default values are as follows:
 
 ```yaml
 docker_repo: toast        # Docker repository
@@ -366,6 +370,16 @@ write_remote_cache: false # Whether Toast should write to remote cache
 Each of these options can be overridden via command-line options (see [below](#command-line-options)).
 
 A typical configuration for a CI environment will enable all forms of caching, whereas for local development you may want to set `write_remote_cache: false` to avoid waiting for remote cache writes.
+
+### Docker CLI
+
+You can configure the Docker CLI binary used by Toast. Toast uses the `PATH` environment variable to search for the specified binary. You can use this mechanism to switch to a drop-in replacement for the Docker CLI, such as Podman.
+
+The relevant field and its default value are as follows:
+
+```yaml
+docker_cli: docker
+```
 
 ## Command-line options
 
