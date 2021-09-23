@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 2021-09-23
+
+### Added
+- Added support for `--docker-cli`. This enables users to switch from Docker to Podman, if they so choose.
+
+### Changed
+- `--repo` has been renamed to `--docker-repo`. `--repo` is still supported for now, but will be removed in a future release. Please use `--docker-repo` from now on. If you are using the `repo` option for the GitHub Action, please use `docker_repo` instead.
+
 ## [0.42.1] - 2021-08-26
 
 ### Fixed
