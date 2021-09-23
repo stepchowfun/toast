@@ -6,8 +6,17 @@ const { v4: uuidv4 } = require('uuid');
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
 const fileInput = core.getInput('file').trim();
-const dockerRepoInput = (core.getInput('repo') || core.getInput('docker_repo')).trim();
+const dockerRepoInput = core.getInput('docker_repo').trim();
 const writeRemoteCacheInput = core.getInput('write_remote_cache').trim();
+
+// Fail if the workflow is still using `repo` instead of `docker_repo`.
+if (core.getInput('repo').trim() !== '') {
+  console.error(
+    'Your GitHub workflow is using the legacy `repo` option in the Toast action. Please change ' +
+      'it to `docker_repo` instead. The Toast maintainers apologize for the inconvenience.'
+  );
+  process.exit(1);
+}
 
 // Parse the action inputs.
 const tasks = tasksInput === '' ? null : tasksInput.split(/\s+/);
@@ -15,7 +24,7 @@ const file = fileInput === '' ? null : fileInput;
 const dockerRepo = dockerRepoInput === '' ? null : dockerRepoInput;
 const writeRemoteCache = writeRemoteCacheInput == 'true';
 
-// Where to install Toast.
+// Where to install Toast
 const toastPrefix = process.env.HOME;
 
 // Before doing anything, disable command workflow processing. This is to prevent an injection
@@ -36,7 +45,7 @@ childProcess.execSync(
 // Construct the command-line arguments for Toast.
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
-const dockerRepoArgs = dockerRepo === null ? [] : ['--repo', dockerRepo];
+const dockerRepoArgs = dockerRepo === null ? [] : ['--docker-repo', dockerRepo];
 const readRemoteCacheArgs = dockerRepo === null ? [] : ['--read-remote-cache', 'true'];
 const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
 

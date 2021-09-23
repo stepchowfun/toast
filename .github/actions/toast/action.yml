@@ -19,7 +19,8 @@ inputs:
     default: 'false'
   repo:
     description: 'Deprecated. Use `docker_repo` instead.'
-    required: false
+    required: true
+    default: ''
 runs:
   using: node12
   main: index.js
