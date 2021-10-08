@@ -1,10 +1,12 @@
-use crate::{failure::Failure, format, format::CodeStr};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Display, Formatter};
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    path::{Path, PathBuf},
+use {
+    crate::{failure::Failure, format, format::CodeStr},
+    serde::{Deserialize, Deserializer, Serialize, Serializer},
+    std::{
+        collections::{HashMap, HashSet},
+        env,
+        fmt::{self, Display, Formatter},
+        path::{Path, PathBuf},
+    },
 };
 
 // The default location for commands and files copied into the container
@@ -614,11 +616,13 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
 #[cfg(test)]
 mod tests {
-    use crate::toastfile::{
-        check_dependencies, check_task, command, environment, location, parse, user, MappingPath,
-        Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
+    use {
+        crate::toastfile::{
+            check_dependencies, check_task, command, environment, location, parse, user,
+            MappingPath, Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
+        },
+        std::{collections::HashMap, env, path::Path},
     };
-    use std::{collections::HashMap, env, path::Path};
 
     #[test]
     fn parse_empty() {

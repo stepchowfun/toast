@@ -166,9 +166,16 @@ tasks:
       fi
       rg '_\(' --type rust --files-with-matches src | xargs sed -i 's/_(/!(/g'
 
+      # Forbid unconsolidated `use` declarations.
+      if rg --line-number --type rust --multiline '}[[:space]]*;[[:space:]]*\n[[:space:]]*use' src
+      then
+        echo 'Please consolidate these `use` declarations.' >&2
+        exit 1
+      fi
+
       # Enforce that lines span no more than 100 columns.
       if rg --line-number --type rust '.{101}' src; then
-        echo "There are lines spanning more than 100 columns." >&2
+        echo 'There are lines spanning more than 100 columns.' >&2
         exit 1
       fi
 

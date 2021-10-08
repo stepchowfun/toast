@@ -1,4 +1,8 @@
-use crate::{failure, failure::Failure, format::CodeStr, spinner::spin};
+use {
+    crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
+    tempfile::tempdir,
+    walkdir::WalkDir,
+};
 
 #[cfg(unix)]
 use std::{
@@ -29,10 +33,6 @@ use std::{
         Arc,
     },
 };
-
-use crate::toastfile::MappingPath;
-use tempfile::tempdir;
-use walkdir::WalkDir;
 
 // Query whether an image exists locally.
 pub fn image_exists(

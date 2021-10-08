@@ -1,5 +1,7 @@
-use crate::{failure, failure::Failure};
-use serde::{Deserialize, Serialize};
+use {
+    crate::{failure, failure::Failure},
+    serde::{Deserialize, Serialize},
+};
 
 pub const REPO_DEFAULT: &str = "toast";
 pub const EMPTY_CONFIG: &str = "{}";

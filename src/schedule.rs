@@ -1,5 +1,7 @@
-use crate::toastfile::Toastfile;
-use std::{collections::HashSet, convert::AsRef};
+use {
+    crate::toastfile::Toastfile,
+    std::{collections::HashSet, convert::AsRef},
+};
 
 // Compute a topological sort of the transitive reflexive closure of a set of tasks. The resulting
 // schedule does not depend on the order of the inputs or dependencies. We assume the tasks form a
@@ -77,9 +79,13 @@ pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> 
 
 #[cfg(test)]
 mod tests {
-    use crate::schedule::compute;
-    use crate::toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER};
-    use std::{collections::HashMap, path::Path};
+    use {
+        crate::{
+            schedule::compute,
+            toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
+        },
+        std::{collections::HashMap, path::Path},
+    };
 
     fn task_with_dependencies(dependencies: Vec<String>) -> Task {
         Task {
