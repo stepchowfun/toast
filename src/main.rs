@@ -11,30 +11,32 @@ mod spinner;
 mod tar;
 mod toastfile;
 
-use crate::{failure::Failure, format::CodeStr};
-use atty::Stream;
-use clap::{App, AppSettings, Arg};
-use env_logger::{fmt::Color, Builder};
-use log::{Level, LevelFilter};
-use std::{
-    collections::{HashMap, HashSet},
-    convert::AsRef,
-    default::Default,
-    env,
-    env::current_dir,
-    fs,
-    io::{stdout, Write},
-    mem::drop,
-    path::Path,
-    path::PathBuf,
-    process::exit,
-    str::FromStr,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+use {
+    crate::{failure::Failure, format::CodeStr},
+    atty::Stream,
+    clap::{App, AppSettings, Arg},
+    env_logger::{fmt::Color, Builder},
+    log::{Level, LevelFilter},
+    std::{
+        collections::{HashMap, HashSet},
+        convert::AsRef,
+        default::Default,
+        env,
+        env::current_dir,
+        fs,
+        io::{stdout, Write},
+        mem::drop,
+        path::Path,
+        path::PathBuf,
+        process::exit,
+        str::FromStr,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Mutex,
+        },
     },
+    toastfile::{default_task_mount_readonly, location, user, DEFAULT_USER},
 };
-use toastfile::{default_task_mount_readonly, location, user, DEFAULT_USER};
 
 #[macro_use]
 extern crate lazy_static;

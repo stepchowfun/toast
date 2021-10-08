@@ -1,16 +1,18 @@
-use crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin};
-use std::{
-    collections::HashSet,
-    fs::{read_link, symlink_metadata, File, Metadata},
-    io::{empty, Read, Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
+use {
+    crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin},
+    std::{
+        collections::HashSet,
+        fs::{read_link, symlink_metadata, File, Metadata},
+        io::{empty, Read, Seek, SeekFrom, Write},
+        path::{Path, PathBuf},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
     },
+    tar::{Builder, EntryType, Header},
+    walkdir::WalkDir,
 };
-use tar::{Builder, EntryType, Header};
-use walkdir::WalkDir;
 
 // To help keep track of the various types of paths, we will adopt the following variable suffixes:
 //

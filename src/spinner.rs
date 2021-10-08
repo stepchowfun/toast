@@ -1,15 +1,17 @@
-use atty::Stream;
-use crossbeam::channel::{bounded, Sender};
-use indicatif::{ProgressBar, ProgressStyle};
-use scopeguard::guard;
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
+use {
+    atty::Stream,
+    crossbeam::channel::{bounded, Sender},
+    indicatif::{ProgressBar, ProgressStyle},
+    scopeguard::guard,
+    std::{
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
+        thread,
+        thread::sleep,
+        time::{Duration, Instant},
     },
-    thread,
-    thread::sleep,
-    time::{Duration, Instant},
 };
 
 // Render a spinner in the terminal. When the returned value is dropped, the spinner is stopped.

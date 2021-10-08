@@ -1,14 +1,16 @@
-use crate::{
-    failure,
-    failure::Failure,
-    toastfile::{command, location, user, Task, Toastfile},
-};
-use sha2::{Digest, Sha256};
-use std::{
-    collections::HashMap,
-    io,
-    io::Read,
-    path::{Path, PathBuf},
+use {
+    crate::{
+        failure,
+        failure::Failure,
+        toastfile::{command, location, user, Task, Toastfile},
+    },
+    sha2::{Digest, Sha256},
+    std::{
+        collections::HashMap,
+        io,
+        io::Read,
+        path::{Path, PathBuf},
+    },
 };
 
 #[cfg(unix)]
@@ -139,11 +141,13 @@ pub fn image_name(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        cache::{combine, hash_read, image_name, CryptoHash},
-        toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
+    use {
+        crate::{
+            cache::{combine, hash_read, image_name, CryptoHash},
+            toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
+        },
+        std::{collections::HashMap, path::Path},
     };
-    use std::{collections::HashMap, path::Path};
 
     fn toastfile_with_task(foo_task: Task) -> Toastfile {
         let mut tasks = HashMap::new();
