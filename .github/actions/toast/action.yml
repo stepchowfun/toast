@@ -17,10 +17,6 @@ inputs:
     description: 'Whether to write to the Docker repository for remote caching'
     required: true
     default: 'false'
-  repo:
-    description: 'Deprecated. Use `docker_repo` instead.'
-    required: true
-    default: ''
 runs:
   using: node12
   main: index.js
