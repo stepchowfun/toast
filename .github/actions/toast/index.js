@@ -9,15 +9,6 @@ const fileInput = core.getInput('file').trim();
 const dockerRepoInput = core.getInput('docker_repo').trim();
 const writeRemoteCacheInput = core.getInput('write_remote_cache').trim();
 
-// Fail if the workflow is still using `repo` instead of `docker_repo`.
-if (core.getInput('repo').trim() !== '') {
-  console.error(
-    'Your GitHub workflow is using the legacy `repo` option in the Toast action. Please change ' +
-      'it to `docker_repo` instead. The Toast maintainers apologize for the inconvenience.'
-  );
-  process.exit(1);
-}
-
 // Parse the action inputs.
 const tasks = tasksInput === '' ? null : tasksInput.split(/\s+/);
 const file = fileInput === '' ? null : fileInput;
