@@ -609,10 +609,7 @@ fn entry() -> Result<(), Failure> {
 
     // If the user just wants to list all the tasks, do that and quit.
     if settings.list {
-        info!(
-            "Here are the tasks that have a description and any environment variables they \
-            support:",
-        );
+        info!("Here are the tasks that have a description:");
 
         // Select the names of the tasks that have a description [tag:tasks_have_descriptions].
         let mut task_names = toastfile
