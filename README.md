@@ -61,7 +61,7 @@ If you run it again, Toast will find that nothing has changed and skip the task:
 
 ![Caching.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/caching-0.svg?sanitize=true)
 
-Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like running your development server. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
+Toast caches tasks to save you time. For example, you don't want to reinstall your dependencies every time you run your tests. However, caching may not be appropriate for some tasks, like running a development server. You can disable caching for a specific task and all tasks that depend on it with the `cache` option:
 
 ```yaml
 image: ubuntu
@@ -128,7 +128,7 @@ tasks:
     command: ./a.out
 ```
 
-Notice the `input_paths` array in the `build` task. Here we are copying a single file into the container, but we could instead import the entire directory containing the toastfile with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
+Notice the `input_paths` array in the `build` task. Here we're copying a single file into the container, but we could instead import the entire directory containing the toastfile with `.`. By default, the files will be copied into a directory called `/scratch` in the container. The commands will be run in that directory as well.
 
 Now if you run `toast`, you'll see this:
 
@@ -180,7 +180,7 @@ When you run this task, Toast will read the value from the environment:
 
 ![Passing arguments to a task.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/arguments-explicit-0.svg?sanitize=true)
 
-If the variable does not exist in the environment, Toast will use the default value:
+If the variable doesn't exist in the environment, Toast will use the default value:
 
 ![Using argument defaults.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/arguments-default-0.svg?sanitize=true)
 
@@ -299,9 +299,9 @@ When you're done, the container is deleted automatically.
 
 ## How Toast works
 
-Given a set of tasks to run, Toast computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Toast builds a Docker image for each task based on the image from the previous task, or the base image in the case of the first task. Because Docker doesn't support combining two arbitrary images into one (for good reasons), Toast doesn't run tasks in parallel. You're free to use parallelism within individual tasks, of course.
+Given a set of tasks to run, Toast computes a [topological sort](https://en.wikipedia.org/wiki/Topological_sorting) of the dependency DAG to determine in what order to run the tasks. Toast then builds a Docker image for each task based on the image from the previous task in the topological sort, or the base image in the case of the first task.
 
-The topological sort of an arbitrary DAG is not necessarily unique. Toast uses an algorithm based on depth-first search, traversing children in lexicographical order. The algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering tasks in a toastfile will not invalidate the cache. Furthermore, `toast foo bar` and `toast bar foo` are guaranteed to produce identical schedules to maximize cache utilization.
+The topological sort of an arbitrary DAG isn't necessarily unique. Toast uses an algorithm based on depth-first search, traversing children in lexicographical order. The algorithm is deterministic and invariant to the order in which tasks and dependencies are listed, so reordering tasks in a toastfile won't invalidate the cache. Furthermore, `toast foo bar` and `toast bar foo` are guaranteed to produce identical schedules to maximize cache utilization.
 
 For each task in the schedule, Toast first computes a cache key based on a hash of the shell command, the contents of the `input_paths`, the cache key of the previous task in the schedule, etc. Toast will then look for a Docker image tagged with that cache key. If the image is found, Toast will skip the task. Otherwise, Toast will create a container, copy any `input_paths` into it, run the shell command, copy any `output_paths` from the container to the host, commit the container to an image, and delete the container. The image is tagged with the cache key so the task can be skipped for subsequent runs.
 
@@ -348,7 +348,7 @@ The [toastfile](https://github.com/stepchowfun/toast/blob/main/toast.yml) for To
 Toast can be customized with a YAML configuration file. The default location of the configuration file depends on the operating system:
 
 - For macOS, the default location is `$HOME/Library/Application Support/toast/toast.yml`.
-- For other Unix platforms, Toast follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `$XDG_CONFIG_HOME/toast/toast.yml` or `$HOME/.config/toast/toast.yml` if `XDG_CONFIG_HOME` is not set to an absolute path.
+- For other Unix platforms, Toast follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html). The default location is `$XDG_CONFIG_HOME/toast/toast.yml` or `$HOME/.config/toast/toast.yml` if `XDG_CONFIG_HOME` isn't set to an absolute path.
 - For Windows, the default location is `{FOLDERID_RoamingAppData}\toast\toast.yml`.
 
 The schema of the configuration file is described in the subsections below.
@@ -538,7 +538,7 @@ jobs:
 ## Requirements
 
 - Toast requires [Docker Engine](https://www.docker.com/products/docker-engine) 17.06.0 or later.
-- Toast only works with Linux containers; Windows containers are not currently supported. However, in addition to Linux hosts, Toast also supports macOS and Windows hosts with the appropriate virtualization capabilities thanks to [Docker Desktop](https://www.docker.com/products/docker-desktop).
+- Toast only works with Linux containers; Windows containers aren't currently supported. However, in addition to Linux hosts, Toast also supports macOS and Windows hosts with the appropriate virtualization capabilities thanks to [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
 ## Acknowledgements
 
