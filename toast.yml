@@ -27,9 +27,9 @@ tasks:
       # Install the following packages:
       #
       # - build-essential - Used for linking the binary
-      # - curl            - Used for installing Tagref
+      # - curl            - Used for installing Tagref and Rust
       # - lsb-release     - Used below to determine the Ubuntu release codename
-      # - ripgrep         - Used for line length checking
+      # - ripgrep         - Used for various linting tasks
       # - shellcheck      - Used for linting shell scripts
       apt-get update
       apt-get install --yes build-essential curl lsb-release ripgrep shellcheck
