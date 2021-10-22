@@ -2,7 +2,7 @@
 name = "toast"
 version = "0.45.0"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
-edition = "2018"
+edition = "2021"
 description = "Containerize your development and continuous integration environments."
 license = "MIT"
 documentation = "https://github.com/stepchowfun/toast"

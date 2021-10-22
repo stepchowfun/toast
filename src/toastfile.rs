@@ -205,7 +205,7 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     // Make sure the dependencies are valid.
     check_dependencies(&toastfile)?;
 
-    // Check that `location` is absolute. [tag:toastfile_location_absolute]
+    // Check that `location` is absolute [tag:toastfile_location_absolute].
     if !is_absolute_linux_path(&toastfile.location) {
         return Err(Failure::User(
             format!(
@@ -291,7 +291,7 @@ pub fn command(toastfile: &Toastfile, task: &Task) -> String {
 // Check that all dependencies exist and form a DAG (no cycles).
 #[allow(clippy::too_many_lines)]
 fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
-    // Check the default task. [tag:valid_default]
+    // Check the default task [tag:valid_default].
     let valid_default = toastfile
         .default
         .as_ref()
@@ -300,7 +300,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     // Map from task to vector of invalid dependencies.
     let mut violations: HashMap<String, Vec<String>> = HashMap::new();
 
-    // Scan for invalid dependencies. [tag:task_valid]
+    // Scan for invalid dependencies [tag:task_valid].
     for task in toastfile.tasks.keys() {
         // [ref:task_valid]
         for dependency in &toastfile.tasks[task].dependencies {
@@ -365,14 +365,14 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         ));
     }
 
-    // Check that the dependencies aren't cyclic. [tag:tasks_dag]
+    // Check that the dependencies aren't cyclic [tag:tasks_dag].
     let mut visited: HashSet<&'a str> = HashSet::new();
     for task in toastfile.tasks.keys() {
         let mut frontier: Vec<(&'a str, usize)> = vec![(task, 0)];
         let mut ancestors_set: HashSet<&'a str> = HashSet::new();
         let mut ancestors_stack: Vec<&'a str> = vec![];
 
-        // Keep going as long as there are more nodes to process. [tag:toastfile_frontier_nonempty]
+        // Keep going as long as there are more nodes to process [tag:toastfile_frontier_nonempty].
         while !frontier.is_empty() {
             // Take the top task from the frontier. This is safe due to
             // [ref:toastfile_frontier_nonempty].
@@ -461,7 +461,7 @@ fn is_relative_linux_path(path: &Path) -> bool {
 // Check that a task is valid.
 #[allow(clippy::too_many_lines)]
 fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
-    // Check that environment variable names don't have `=` in them. [tag:env_var_equals]
+    // Check that environment variable names don't have `=` in them [tag:env_var_equals].
     for variable in task.environment.keys() {
         if variable.contains('=') {
             return Err(Failure::User(
@@ -476,7 +476,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `input_paths` are relative. [tag:input_paths_relative]
+    // Check that `input_paths` are relative [tag:input_paths_relative].
     for path in &task.input_paths {
         if !is_relative_linux_path(path) {
             return Err(Failure::User(
@@ -491,7 +491,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `excluded_input_paths` are relative. [tag:excluded_input_paths_relative]
+    // Check that `excluded_input_paths` are relative [tag:excluded_input_paths_relative].
     for path in &task.excluded_input_paths {
         if !is_relative_linux_path(path) {
             return Err(Failure::User(
@@ -506,7 +506,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `output_paths` are relative. [tag:output_paths_relative]
+    // Check that `output_paths` are relative [tag:output_paths_relative].
     for path in &task.output_paths {
         if !is_relative_linux_path(path) {
             return Err(Failure::User(
@@ -521,7 +521,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `output_paths_on_failure` are relative. [tag:output_paths_on_failure_relative]
+    // Check that `output_paths_on_failure` are relative [tag:output_paths_on_failure_relative].
     for path in &task.output_paths_on_failure {
         if !is_relative_linux_path(path) {
             return Err(Failure::User(
@@ -538,7 +538,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check `mount_paths`.
     for path in &task.mount_paths {
-        // Check that the path doesn't contain any commas. [tag:mount_paths_no_commas]
+        // Check that the path doesn't contain any commas [tag:mount_paths_no_commas].
         if path.container_path.to_string_lossy().contains(',')
             || path.host_path.to_string_lossy().contains(',')
         {
@@ -554,7 +554,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // Check that `location` is absolute. [tag:task_location_absolute]
+    // Check that `location` is absolute [tag:task_location_absolute].
     if let Some(location) = &task.location {
         if !is_absolute_linux_path(location) {
             return Err(Failure::User(
@@ -569,7 +569,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         }
     }
 
-    // If a task has any mount paths, then caching should be disabled. [tag:mount_paths_nand_cache]
+    // If a task has any mount paths, then caching should be disabled [tag:mount_paths_nand_cache].
     if !task.mount_paths.is_empty() && task.cache {
         return Err(Failure::User(
             format!(
@@ -583,7 +583,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
         ));
     }
 
-    // If a task exposes ports, then caching should be disabled. [tag:ports_nand_cache]
+    // If a task exposes ports, then caching should be disabled [tag:ports_nand_cache].
     if !&task.ports.is_empty() && task.cache {
         return Err(Failure::User(
             format!(
