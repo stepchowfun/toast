@@ -51,8 +51,8 @@ jobs:
         set -euo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.55.0 # [ref:rust_1_55_0]
-        rustup default 1.55.0 # [ref:rust_1_55_0]
+        rustup toolchain install 1.56.0 # [ref:rust_1_56_0]
+        rustup default 1.56.0 # [ref:rust_1_56_0]
 
         # Build and test.
         RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
@@ -75,8 +75,8 @@ jobs:
         set -euo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.55.0 # [ref:rust_1_55_0]
-        rustup default 1.55.0 # [ref:rust_1_55_0]
+        rustup toolchain install 1.56.0 # [ref:rust_1_56_0]
+        rustup default 1.56.0 # [ref:rust_1_56_0]
 
         # Build and test.
         cargo build --locked --release --target x86_64-apple-darwin
