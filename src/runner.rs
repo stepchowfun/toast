@@ -56,6 +56,10 @@ pub fn run(
     // All relative paths are relative to where the toastfile lives.
     let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
     toastfile_dir.pop();
+    if toastfile_dir.components().peekable().peek().is_none() {
+        // [ref:source_dir_nonempty]
+        toastfile_dir.push(".");
+    }
 
     // Apply defaults.
     let location = location(toastfile, task);

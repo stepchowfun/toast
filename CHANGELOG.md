@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.1] - 2021-11-05
+
+### Fixed
+- Added a workaround for the Docker limitation that bind mount paths must be absolute on the host. This would cause Toast to fail when using relative `mount_paths` in combination with the `-f`/`--file` flag.
+
 ## [0.45.0] - 2021-09-23
 
 ### Changed

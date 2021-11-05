@@ -1,38 +1,24 @@
 use {
     crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
+    std::{
+        collections::HashMap,
+        fs::{canonicalize, copy, create_dir_all, rename, symlink_metadata, Metadata},
+        io,
+        io::Read,
+        path::{Path, PathBuf},
+        process::{ChildStdin, Command, Stdio},
+        string::ToString,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
+    },
     tempfile::tempdir,
     walkdir::WalkDir,
 };
 
 #[cfg(unix)]
-use std::{
-    collections::HashMap,
-    fs::{copy, create_dir_all, read_link, rename, symlink_metadata, Metadata},
-    io,
-    io::Read,
-    path::{Path, PathBuf},
-    process::{ChildStdin, Command, Stdio},
-    string::ToString,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
-
-#[cfg(windows)]
-use std::{
-    collections::HashMap,
-    fs::{copy, create_dir_all, rename, symlink_metadata, Metadata},
-    io,
-    io::Read,
-    path::{Path, PathBuf},
-    process::{ChildStdin, Command, Stdio},
-    string::ToString,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::fs::read_link;
 
 // Query whether an image exists locally.
 pub fn image_exists(
@@ -126,7 +112,7 @@ pub fn delete_image(
 pub fn create_container(
     docker_cli: &str,
     image: &str,
-    source_dir: &Path,
+    source_dir: &Path, // [ref:source_dir_nonempty]
     environment: &HashMap<String, String>,
     mount_paths: &[MappingPath],
     mount_readonly: bool,
@@ -145,14 +131,14 @@ pub fn create_container(
         .collect::<Vec<_>>();
 
     args.extend(container_args(
-        source_dir,
+        source_dir, // [ref:source_dir_nonempty]
         environment,
         location,
         mount_paths,
         mount_readonly,
         ports,
         extra_args,
-    ));
+    )?);
 
     args.extend(
         vec![image, "/bin/su", "-c", command, user]
@@ -464,7 +450,7 @@ pub fn delete_container(
 pub fn spawn_shell(
     docker_cli: &str,
     image: &str,
-    source_dir: &Path,
+    source_dir: &Path, // [ref:source_dir_nonempty]
     environment: &HashMap<String, String>,
     location: &Path,
     mount_paths: &[MappingPath],
@@ -485,14 +471,14 @@ pub fn spawn_shell(
         .collect::<Vec<_>>();
 
     args.extend(container_args(
-        source_dir,
+        source_dir, // [ref:source_dir_nonempty]
         environment,
         location,
         mount_paths,
         mount_readonly,
         ports,
         extra_args,
-    ));
+    )?);
 
     args.extend(
         vec![image, "/bin/su", user]
@@ -511,14 +497,14 @@ pub fn spawn_shell(
 
 // This function returns arguments for `docker create` or `docker run`.
 fn container_args(
-    source_dir: &Path,
+    source_dir: &Path, // Shouldn't be empty [tag:source_dir_nonempty]
     environment: &HashMap<String, String>,
     location: &Path,
     mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
     extra_args: &[String],
-) -> Vec<String> {
+) -> Result<Vec<String>, Failure> {
     // Why `--init`? (1) PID 1 is supposed to reap orphaned zombie processes, otherwise they can
     // accumulate. Bash does this, but we run `/bin/sh` in the container, which may or may not be
     // Bash. So `--init` runs Tini (https://github.com/krallin/tini) as PID 1, which properly reaps
@@ -541,6 +527,12 @@ fn container_args(
         location.to_string_lossy().into_owned(),
     ]);
 
+    // For bind mounts, Docker requires the host path to be absolute. Path canonicalization doesn't
+    // work on empty paths, so we rely on [ref:source_dir_nonempty].
+    let canonical_source_dir = canonicalize(source_dir).map_err(failure::user(
+        "Unable to canonicalize the source directory.",
+    ))?;
+
     // Mount paths
     args.extend(mount_paths.iter().flat_map(|mount_path| {
         // [ref:mount_paths_no_commas]
@@ -549,13 +541,17 @@ fn container_args(
             if mount_readonly {
                 format!(
                     "type=bind,source={},target={},readonly",
-                    source_dir.join(&mount_path.host_path).to_string_lossy(),
+                    canonical_source_dir
+                        .join(&mount_path.host_path)
+                        .to_string_lossy(),
                     location.join(&mount_path.container_path).to_string_lossy(),
                 )
             } else {
                 format!(
                     "type=bind,source={},target={}",
-                    source_dir.join(&mount_path.host_path).to_string_lossy(),
+                    canonical_source_dir
+                        .join(&mount_path.host_path)
+                        .to_string_lossy(),
                     location.join(&mount_path.container_path).to_string_lossy(),
                 )
             },
@@ -578,7 +574,7 @@ fn container_args(
     // User-provided arguments
     args.extend_from_slice(extra_args);
 
-    args
+    Ok(args)
 }
 
 // Run a command and return its standard output.
