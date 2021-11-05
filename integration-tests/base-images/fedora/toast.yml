@@ -1,4 +1,4 @@
-image: fedora
+image: fedora:34 # Later versions of Fedora don't seem to have `su`, which is needed by Toast.
 tasks:
   i_am_root:
     command: touch /i-am-root.txt

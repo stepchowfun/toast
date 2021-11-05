@@ -65,7 +65,7 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
                     .map_err(|_| E::custom("Illegal container path."))?,
             })
         } else {
-            let path: PathBuf = v.parse().map_err(|_| E::custom("Illegal host path."))?;
+            let path: PathBuf = v.parse().map_err(|_| E::custom("Illegal path."))?;
             Ok(MappingPath {
                 host_path: path.clone(),
                 container_path: path,
