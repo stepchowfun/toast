@@ -97,9 +97,12 @@ pub fn image_name(
     input_files_hash: &str,
     environment: &HashMap<String, String>,
 ) -> String {
+    // Compute the command for this task.
+    let command = command(toastfile, task);
+
     // If there are no environment variables, no input paths, and no command to run, we can just use
     // the image from the previous task.
-    if task.environment.is_empty() && task.input_paths.is_empty() && task.command.is_empty() {
+    if task.environment.is_empty() && task.input_paths.is_empty() && command.is_empty() {
         return previous_image.to_owned();
     }
 
@@ -132,7 +135,7 @@ pub fn image_name(
     cache_key = combine(&cache_key, &user(toastfile, task));
 
     // Incorporate the command.
-    cache_key = combine(&cache_key, &command(toastfile, task));
+    cache_key = combine(&cache_key, &command);
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
