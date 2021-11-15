@@ -137,20 +137,28 @@ pub struct Task {
     #[serde(default)] // [tag:default_ports]
     pub ports: Vec<String>,
 
-    // If `None`, the corresponding top-level value in the toastfile should be used.
-    // Must be absolute [ref:task_location_absolute]
+    // If `None`, the corresponding top-level value in the toastfile should be used. There is a
+    // helper function [ref:location_helper] which implements that logic. To prevent accidental
+    // misuse of this field, it is not made public. This path must be absolute
+    // [ref:task_location_absolute].
     #[serde(default)]
-    pub location: Option<PathBuf>,
+    location: Option<PathBuf>,
 
-    // If `None`, the corresponding top-level value in the toastfile should be used.
-    pub user: Option<String>,
+    // If `None`, the corresponding top-level value in the toastfile should be used. There is a
+    // helper function [ref:user_helper] which implements that logic. To prevent accidental misuse
+    // of this field, it is not made public.
+    user: Option<String>,
 
+    // The actual command to run in the container is this value concatenated with the
+    // `command_prefix` value below. There is a helper function [ref:command_helper] which
+    // implements that logic. To prevent accidental misuse of this field, it is not made public.
     #[serde(default)]
-    pub command: String,
+    command: String,
 
-    // If `None`, the corresponding top-level value in the toastfile should be used.
+    // If `None`, the corresponding top-level value in the toastfile should be used. To prevent
+    // accidental misuse of this field, it is not made public.
     #[serde(default)]
-    pub command_prefix: Option<String>,
+    command_prefix: Option<String>,
 
     // Must be empty if `cache` is enabled [ref:extra_docker_arguments_nand_cache]
     #[serde(default)]
@@ -259,19 +267,21 @@ pub fn environment(task: &Task) -> Result<HashMap<String, String>, Vec<&str>> {
     }
 }
 
-// Fetch the location for a task, defaulting to the top-level location if needed.
+// [tag:location_helper] Fetch the location for a task, defaulting to the top-level location if
+// needed.
 pub fn location(toastfile: &Toastfile, task: &Task) -> PathBuf {
     task.location
         .clone()
         .unwrap_or_else(|| toastfile.location.clone())
 }
 
-// Fetch the user for a task, defaulting to the top-level location if needed.
+// [tag:user_helper] Fetch the user for a task, defaulting to the top-level location if needed.
 pub fn user(toastfile: &Toastfile, task: &Task) -> String {
     task.user.clone().unwrap_or_else(|| toastfile.user.clone())
 }
 
-// Fetch the command for a task, including the prefix, using the top-level prefix if needed.
+// [tag:command_helper] Fetch the command for a task, including the prefix, using the top-level
+// prefix if needed.
 pub fn command(toastfile: &Toastfile, task: &Task) -> String {
     let mut command = String::new();
 
