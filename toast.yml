@@ -17,8 +17,10 @@ command_prefix: |
   cargo-offline () { cargo --frozen --offline "$@"; }
 
   # Use this wrapper for formatting code or checking that code is formatted. We use a nightly Rust
-  # version for the `trailing_comma` formatting option [tag:rust_fmt_nightly].
-  cargo-fmt () { cargo +nightly-2021-10-22 --frozen --offline fmt --all -- "$@"; }
+  # version for the `trailing_comma` formatting option [tag:rust_fmt_nightly]. The nightly version
+  # was chosen as the latest available release with all components present according to this page:
+  #   https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
+  cargo-fmt () { cargo +nightly-2022-01-16 --frozen --offline fmt --all -- "$@"; }
 tasks:
   install_packages:
     description: Install system packages.
@@ -70,10 +72,10 @@ tasks:
       - install_packages
       - create_user
     command: |
-      # Install stable Rust [tag:rust_1_56_0].
+      # Install stable Rust [tag:rust_1_58_0].
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- \
         -y \
-        --default-toolchain 1.56.0 \
+        --default-toolchain 1.58.0 \
         --profile minimal \
         --component clippy
 
@@ -81,7 +83,7 @@ tasks:
       . "$HOME/.cargo/env"
 
       # Install nightly Rust [ref:rust_fmt_nightly].
-      rustup toolchain install nightly-2021-10-22 --profile minimal --component rustfmt
+      rustup toolchain install nightly-2022-01-16 --profile minimal --component rustfmt
 
   install_tools:
     description: Install the tools needed to build and validate the program.
