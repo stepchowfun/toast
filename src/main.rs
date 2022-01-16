@@ -101,7 +101,7 @@ fn set_up_logging() {
                 buf,
                 "{} {}",
                 style.value(format!("[{}]", record.level())),
-                record.args().to_string(),
+                record.args(),
             )
         })
         .init();
@@ -319,18 +319,18 @@ fn settings() -> Result<Settings, Failure> {
     // Read the local caching switches.
     let read_local_cache = matches
         .value_of(READ_LOCAL_CACHE_OPTION)
-        .map_or(Ok(config.read_local_cache), |s| parse_bool(s))?;
+        .map_or(Ok(config.read_local_cache), parse_bool)?;
     let write_local_cache = matches
         .value_of(WRITE_LOCAL_CACHE_OPTION)
-        .map_or(Ok(config.write_local_cache), |s| parse_bool(s))?;
+        .map_or(Ok(config.write_local_cache), parse_bool)?;
 
     // Read the remote caching switches.
     let read_remote_cache = matches
         .value_of(READ_REMOTE_CACHE_OPTION)
-        .map_or(Ok(config.read_remote_cache), |s| parse_bool(s))?;
+        .map_or(Ok(config.read_remote_cache), parse_bool)?;
     let write_remote_cache = matches
         .value_of(WRITE_REMOTE_CACHE_OPTION)
-        .map_or(Ok(config.write_remote_cache), |s| parse_bool(s))?;
+        .map_or(Ok(config.write_remote_cache), parse_bool)?;
 
     // Read the Docker repo.
     let docker_repo = matches
