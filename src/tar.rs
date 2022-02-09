@@ -58,7 +58,7 @@ fn path_excluded(excluded_input_paths_rcr: &[PathBuf], path_rcr: &Path) -> bool 
     false
 }
 
-// Check if a file can be added to the archive. This function also adds the path to `visited_paths`.
+// Check if a path can be added to the archive. This function also adds the path to `visited_paths`.
 fn can_add_path(
     visited_paths_rcr: &mut HashSet<PathBuf>,
     excluded_input_paths_rcr: &[PathBuf],
@@ -80,18 +80,11 @@ fn can_add_path(
 // Add a file to a tar archive.
 fn add_file<R: Read, W: Write>(
     builder: &mut Builder<W>,
-    visited_paths_rcr: &mut HashSet<PathBuf>,
-    excluded_input_paths_rcr: &[PathBuf],
     path_rcr: &Path,
     data: R,
     size: u64,
     executable: bool,
 ) -> Result<(), Failure> {
-    // Check if this path should be added.
-    if !can_add_path(visited_paths_rcr, excluded_input_paths_rcr, path_rcr) {
-        return Ok(());
-    }
-
     // Construct a tar header for this entry.
     let mut header = Header::new_gnu();
     header.set_entry_type(EntryType::Regular);
@@ -110,16 +103,9 @@ fn add_file<R: Read, W: Write>(
 // Add a symlink to a tar archive.
 fn add_symlink<W: Write>(
     builder: &mut Builder<W>,
-    visited_paths_rcr: &mut HashSet<PathBuf>,
-    excluded_input_paths_rcr: &[PathBuf],
     path_rcr: &Path,
     target: &Path,
 ) -> Result<(), Failure> {
-    // Check if this path should be added.
-    if !can_add_path(visited_paths_rcr, excluded_input_paths_rcr, path_rcr) {
-        return Ok(());
-    }
-
     // Construct a tar header for this entry.
     let mut header = Header::new_gnu();
     header.set_entry_type(EntryType::Symlink);
@@ -139,17 +125,7 @@ fn add_symlink<W: Write>(
 }
 
 // Add a directory to a tar archive.
-fn add_directory<W: Write>(
-    builder: &mut Builder<W>,
-    visited_paths_rcr: &mut HashSet<PathBuf>,
-    excluded_input_paths_rcr: &[PathBuf],
-    path_rcr: &Path,
-) -> Result<(), Failure> {
-    // Check if this path should be added.
-    if !can_add_path(visited_paths_rcr, excluded_input_paths_rcr, path_rcr) {
-        return Ok(());
-    }
-
+fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &Path) -> Result<(), Failure> {
     // If the path has no components, there's nothing to do. The root directory will already exist.
     // Without this check, we could encounter the following error: `paths in archives must have at
     // least one component when setting path for`.
@@ -182,16 +158,18 @@ fn add_path<W: Write>(
     path_rcr: &Path,
     metadata: &Metadata,
 ) -> Result<(), Failure> {
+    // Check if this path should be added.
+    if !can_add_path(visited_paths_rcr, excluded_input_paths_rcr, path_rcr) {
+        return Ok(());
+    }
+
     // Add the ancestor directories. They would be created automatically, but we add them explicitly
     // here to ensure they have the right permissions.
-    if let Some(parent) = path_rcr.parent() {
-        for ancestor in parent.ancestors() {
-            add_directory(
-                builder,
-                visited_paths_rcr,
-                excluded_input_paths_rcr,
-                ancestor,
-            )?;
+    if let Some(parent_rcr) = path_rcr.parent() {
+        for ancestor_rcr in parent_rcr.ancestors() {
+            if can_add_path(visited_paths_rcr, excluded_input_paths_rcr, ancestor_rcr) {
+                add_directory(builder, ancestor_rcr)?;
+            }
         }
     }
 
@@ -220,15 +198,7 @@ fn add_path<W: Write>(
             )))?;
 
         // Add the file to the archive and return.
-        add_file(
-            builder,
-            visited_paths_rcr,
-            excluded_input_paths_rcr,
-            path_rcr,
-            file,
-            metadata.len(),
-            executable,
-        )
+        add_file(builder, path_rcr, file, metadata.len(), executable)
     } else if metadata.file_type().is_symlink() {
         // It's a symlink. Read the target path.
         let target_path = read_link(path_cd).map_err(failure::system(format!(
@@ -240,24 +210,13 @@ fn add_path<W: Write>(
         content_hashes.push(cache::combine(path_rcr, &target_path));
 
         // Add the symlink to the archive.
-        add_symlink(
-            builder,
-            visited_paths_rcr,
-            excluded_input_paths_rcr,
-            path_rcr,
-            &target_path,
-        )
+        add_symlink(builder, path_rcr, &target_path)
     } else if metadata.file_type().is_dir() {
         // It's a directory. Only its name is relevant for the cache key.
         content_hashes.push(path_rcr.crypto_hash());
 
         // Add the directory to the archive.
-        add_directory(
-            builder,
-            visited_paths_rcr,
-            excluded_input_paths_rcr,
-            path_rcr,
-        )
+        add_directory(builder, path_rcr)
     } else {
         Err(Failure::User(
             format!(
@@ -291,18 +250,14 @@ pub fn create<W: Write>(
     // This set is used to avoid adding the same path to the archive multiple times, which could
     // otherwise easily happen since we explicitly add all ancestor directories for every entry
     // added to the archive.
-    let mut visited_paths = HashSet::new();
+    let mut visited_paths_rcr = HashSet::new();
 
     // This builder will be responsible for writing to the tar file.
     let mut builder = Builder::new(writer);
 
     // Add `destination_dir_acr` to the archive.
-    add_directory(
-        &mut builder,
-        &mut visited_paths,
-        &[], // Always create `destination_dir_acr`, even if it's denied by `excluded_input_paths`.
-        strip_root_rcr(destination_dir_acr),
-    )?;
+    add_directory(&mut builder, strip_root_rcr(destination_dir_acr))?;
+    visited_paths_rcr.insert(PathBuf::new());
 
     // Convert the `excluded_input_paths` to be relative to the container filesystem root.
     let excluded_input_paths_rcr = excluded_input_paths_rsd
@@ -327,8 +282,7 @@ pub fn create<W: Write>(
 
         // Check what type of filesystem object the path corresponds to.
         if input_path_metadata.is_dir() {
-            // It's a directory. Traverse it. As an optimization, we use `filter_entry` to avoid
-            // descending into directories which are denied by `excluded_input_paths`.
+            // It's a directory. Traverse it.
             let mut iterator = WalkDir::new(&input_path_cd).into_iter();
             loop {
                 // If the user wants to stop the operation, quit now.
@@ -364,7 +318,9 @@ pub fn create<W: Write>(
                     entry.path().to_string_lossy().code_str(),
                 )))?;
 
-                // Don't add this path if it's denied by `excluded_input_paths`.
+                // Skip descending into directories which are denied by `excluded_input_paths`.
+                // This is merely an optimization, since `add_path` would otherwise skip the
+                // contents of the directory anyway.
                 if entry_metadata.is_dir()
                     && path_excluded(&excluded_input_paths_rcr, entry_path_rcr)
                 {
@@ -376,7 +332,7 @@ pub fn create<W: Write>(
                 add_path(
                     &mut builder,
                     &mut content_hashes,
-                    &mut visited_paths,
+                    &mut visited_paths_rcr,
                     &excluded_input_paths_rcr,
                     entry.path(),
                     entry_path_rcr,
@@ -388,7 +344,7 @@ pub fn create<W: Write>(
             add_path(
                 &mut builder,
                 &mut content_hashes,
-                &mut visited_paths,
+                &mut visited_paths_rcr,
                 &excluded_input_paths_rcr,
                 &input_path_cd,
                 strip_root_rcr(
