@@ -72,10 +72,10 @@ tasks:
       - install_packages
       - create_user
     command: |
-      # Install stable Rust [tag:rust_1_58_0].
+      # Install stable Rust [tag:rust_1.59.0].
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- \
         -y \
-        --default-toolchain 1.58.0 \
+        --default-toolchain 1.59.0 \
         --profile minimal \
         --component clippy
 

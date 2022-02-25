@@ -55,7 +55,7 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
     where
         E: serde::de::Error,
     {
-        if let Some((host_path, container_path)) = v.split_once(":") {
+        if let Some((host_path, container_path)) = v.split_once(':') {
             Ok(MappingPath {
                 host_path: host_path
                     .parse()
