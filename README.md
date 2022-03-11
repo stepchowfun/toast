@@ -485,6 +485,21 @@ brew install toast
 
 You can update an existing installation with `brew upgrade toast`.
 
+### Installation with MacPorts
+
+On macOS, you can also install Toast via [MacPorts](https://www.macports.org) as follows:
+
+```sh
+sudo port install toast
+```
+
+You can update an existing installation via:
+
+```sh
+sudo port selfupdate
+sudo port upgrade toast
+```
+
 ### Installation with Cargo
 
 If you have [Cargo](https://doc.rust-lang.org/cargo/), you can install Toast as follows:
