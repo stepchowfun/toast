@@ -514,6 +514,12 @@ fn container_args(
     // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
     let mut args = vec!["--init".to_owned()];
 
+    // Run as the `root` user. We always run `/bin/su` in the container, which switches to the user
+    // specified in the toastfile. We want to run `/bin/su` as root so it can switch users without
+    // requiring a password. Most Docker images already use `root` as the default user, but not
+    // all.
+    args.extend(vec!["--user".to_owned(), "root".to_owned()]);
+
     // Environment
     args.extend(
         environment.iter().flat_map(|(variable, value)| {
