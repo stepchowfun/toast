@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.4] - 2022-05-20
+
+### Fixed
+- Fixed a bug which would cause Toast to fail if the Docker image specifies a user other than `root`.
+
 ## [0.45.3] - 2022-02-09
 
 ### Fixed
