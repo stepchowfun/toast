@@ -474,6 +474,21 @@ If you're running Windows on an x86-64 CPU, download the latest binary from the 
 
 To update to an existing installation, simply replace the existing binary.
 
+### Installation on Debian or Ubuntu
+
+If you use Debian or Ubuntu, you can build and install Toast from source from the [MPR](https://mpr.makedeb.org/packages/toast). You'll need [makedeb](https://makedeb.org) installed in order to build it.
+
+```sh
+git clone 'https://mpr.makedeb.org/toast'
+cd toast/
+makedeb -si
+```
+
+Alternatively, you can set up the [Prebuilt-MPR](https://docs.makedeb.org/prebuilt-mpr/getting-started) and then install Toast directly with APT:
+
+```sh
+sudo apt install toast
+```
 
 ### Installation with Homebrew
 
