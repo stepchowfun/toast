@@ -37,6 +37,7 @@ Related tools:
 
 - [Docker Compose](https://docs.docker.com/compose/): Docker Compose is a convenient Docker-based development environment which shares many features with Toast. However, it doesn't support defining tasks (like `lint`, `test`, `run`, etc.) or remote caching.
 - [Nix](https://nixos.org/nix/): Nix achieves reproducible builds by leveraging ideas from functional programming rather than containerization. We're big fans of Nix. However, Nix requires a larger commitment compared to Toast because you have to use the Nix package manager or write your own Nix derivations. For better or worse, Toast allows you to use familiar idioms like `apt-get install ...`.
+- [Earthly](https://github.com/earthly/earthly): Earthly is a CI/CD framework that allows you to develop pipelines locally and run them anywhere. Earthly leverages containers for the execution of pipelines. This makes them self-contained, repeatable, portable and parallel.
 
 To prevent Docker images from accumulating on your machine when using Docker-related tools such as Toast or Docker Compose, we recommend using [Docuum](https://github.com/stepchowfun/docuum) to perform least recently used (LRU) image eviction.
 
