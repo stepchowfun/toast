@@ -112,7 +112,7 @@ pub fn delete_image(
 pub fn create_container(
     docker_cli: &str,
     image: &str,
-    source_dir: &Path, // [ref:source_dir_nonempty]
+    source_dir: &Path,
     environment: &HashMap<String, String>,
     mount_paths: &[MappingPath],
     mount_readonly: bool,
@@ -131,7 +131,7 @@ pub fn create_container(
         .collect::<Vec<_>>();
 
     args.extend(container_args(
-        source_dir, // [ref:source_dir_nonempty]
+        source_dir,
         environment,
         location,
         mount_paths,
@@ -450,7 +450,7 @@ pub fn delete_container(
 pub fn spawn_shell(
     docker_cli: &str,
     image: &str,
-    source_dir: &Path, // [ref:source_dir_nonempty]
+    source_dir: &Path,
     environment: &HashMap<String, String>,
     location: &Path,
     mount_paths: &[MappingPath],
@@ -471,7 +471,7 @@ pub fn spawn_shell(
         .collect::<Vec<_>>();
 
     args.extend(container_args(
-        source_dir, // [ref:source_dir_nonempty]
+        source_dir,
         environment,
         location,
         mount_paths,
@@ -497,7 +497,7 @@ pub fn spawn_shell(
 
 // This function returns arguments for `docker create` or `docker run`.
 fn container_args(
-    source_dir: &Path, // Shouldn't be empty [tag:source_dir_nonempty]
+    source_dir: &Path,
     environment: &HashMap<String, String>,
     location: &Path,
     mount_paths: &[MappingPath],
@@ -534,10 +534,16 @@ fn container_args(
     ]);
 
     // For bind mounts, Docker requires the host path to be absolute. Path canonicalization doesn't
-    // work on empty paths, so we rely on [ref:source_dir_nonempty].
-    let canonical_source_dir = canonicalize(source_dir).map_err(failure::user(
-        "Unable to canonicalize the source directory.",
-    ))?;
+    // work on empty paths, so in that case we replace the path with `.`.
+    let canonical_source_dir =
+        canonicalize(if source_dir.components().peekable().peek().is_none() {
+            Path::new(".")
+        } else {
+            source_dir
+        })
+        .map_err(failure::user(
+            "Unable to canonicalize the source directory.",
+        ))?;
 
     // Mount paths
     args.extend(mount_paths.iter().flat_map(|mount_path| {

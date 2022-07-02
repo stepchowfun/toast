@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.5] - 2022-07-02
+
+### Fixed
+- Fixed a bug which would cause Toast to fail if `-s`/`--shell` is provided and `-f`/`--file` is set to a path with a single component (e.g., `toast.yml` rather than `./toast.yml`).
+
 ## [0.45.4] - 2022-05-20
 
 ### Fixed
