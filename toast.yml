@@ -265,10 +265,10 @@ tasks:
       - src
     command: |
       # Fetch the program version.
-      VERSION="$(cargo-offline pkgid | cut -d# -f2 | cut -d: -f2)"
+      VERSION="$(cargo-offline pkgid | grep --extended-regexp --only-matching '[0-9.]+$')"
 
       # If this version of the package already exists on crates.io, there's nothing more to do.
-      if cargo-online search toast | grep "toast = \"$VERSION\""; then
+      if cargo-online search toast | grep "toast = \"$VERSION\"" > /dev/null; then
         echo "Version $VERSION of crate already exists."
         exit
       fi
