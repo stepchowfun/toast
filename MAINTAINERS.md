@@ -6,9 +6,11 @@ This document describes some instructions for maintainers. Other contributors an
 
 When setting up the repository on GitHub, configure the following settings:
 
-- Under `Secrets`, add the following repository secrets with appropriate values:
-  - `CRATES_IO_TOKEN`
-  - `DOCKER_PASSWORD`
+- Under `Secrets`:
+  - Under `Actions`, add the following repository secrets with appropriate values:
+    - `CRATES_IO_TOKEN`
+    - `DOCKER_PASSWORD`
+  - Add the same repository secrets under `Dependabot`.
 - Under `Branches`, add a branch protection rule for the `main` branch.
   - Enable `Require status checks to pass before merging`.
     - Enable `Require branches to be up to date before merging`.
