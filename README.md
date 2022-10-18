@@ -218,7 +218,7 @@ Toast can be used for more than just building a project. Suppose you're developi
 
 We can use a web server like [nginx](https://www.nginx.com/). The official `nginx` Docker image will do, but you could also use a more general image and define a Toast task to install nginx.
 
-In our `toast.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also use `mount_paths` rather than `input_paths` to synchronize files between the host and the container while the server is running.
+In our `toast.yml` file, we'll use the `ports` field to make the website accessible outside the container. We'll also use `mount_paths` rather than `input_paths` so we can edit the web page without having to restart the server.
 
 ```yaml
 image: nginx
@@ -226,7 +226,7 @@ tasks:
   serve:
     cache: false # It doesn't make sense to cache this task.
     mount_paths:
-      - index.html # Synchronize this file between the host and the container.
+      - index.html # Updates to this file will be visible inside the container.
     ports:
       - 3000:80 # Expose port 80 in the container as port 3000 on the host.
     location: /usr/share/nginx/html/ # Nginx will serve the files in here.
@@ -307,7 +307,7 @@ For each task in the schedule, Toast first computes a cache key based on a hash 
 
 Toast aims to make as few assumptions about the container environment as possible. Toast only assumes there is a program at `/bin/su` which can be invoked as `su -c COMMAND USER`. This program is used to run commands for tasks in the container as the appropriate user with their preferred shell. Every popular Linux distribution has a `su` utility that supports this usage. Toast has integration tests to ensure it works with popular base images such as `debian`, `alpine`, `busybox`, etc.
 
-## Toastfiles
+## Toastfile reference
 
 A *toastfile* is a YAML file (typically named `toast.yml`) that defines tasks and their dependencies. The schema contains the following top-level keys and defaults:
 
