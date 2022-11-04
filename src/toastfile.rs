@@ -645,7 +645,7 @@ image: encom:os-12
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: HashMap::new(),
         };
 
@@ -689,7 +689,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -871,7 +871,7 @@ tasks:
             default: Some("foo".to_owned()),
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -908,7 +908,7 @@ tasks:
             default: Some("bar".to_owned()),
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -924,7 +924,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: HashMap::new(),
         };
 
@@ -961,7 +961,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1019,7 +1019,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1077,7 +1077,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1116,7 +1116,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1176,7 +1176,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1257,7 +1257,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1861,7 +1861,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1901,7 +1901,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1941,7 +1941,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -1981,7 +1981,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -2058,7 +2058,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -2098,7 +2098,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -2138,7 +2138,7 @@ tasks:
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 

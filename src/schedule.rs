@@ -119,7 +119,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: HashMap::new(),
         };
 
@@ -139,7 +139,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -167,7 +167,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -199,7 +199,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -221,7 +221,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -254,7 +254,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: tasks1,
         };
 
@@ -263,7 +263,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: tasks2,
         };
 
@@ -285,7 +285,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
@@ -320,7 +320,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: tasks1,
         };
 
@@ -329,7 +329,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks: tasks2,
         };
 
@@ -351,7 +351,7 @@ mod tests {
             default: None,
             location: Path::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
-            command_prefix: "".to_owned(),
+            command_prefix: String::new(),
             tasks,
         };
 
