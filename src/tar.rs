@@ -303,7 +303,7 @@ pub fn create<W: Write>(
 
                 // Compute the path relative to the container filesystem root.
                 let entry_path_acr =
-                    destination_dir_acr.join(entry.path().strip_prefix(&source_dir_cd).map_err(
+                    destination_dir_acr.join(entry.path().strip_prefix(source_dir_cd).map_err(
                         failure::system(format!(
                             "Unable to relativize path {} with respect to {}.",
                             entry.path().to_string_lossy().code_str(),
@@ -348,7 +348,7 @@ pub fn create<W: Write>(
                 &excluded_input_paths_rcr,
                 &input_path_cd,
                 strip_root_rcr(
-                    &destination_dir_acr.join(input_path_cd.strip_prefix(&source_dir_cd).map_err(
+                    &destination_dir_acr.join(input_path_cd.strip_prefix(source_dir_cd).map_err(
                         failure::system(format!(
                             "Unable to relativize path {} with respect to {}.",
                             input_path_cd.to_string_lossy().code_str(),
