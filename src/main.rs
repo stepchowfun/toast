@@ -58,6 +58,7 @@ const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 // Command-line argument and option names
 const TOASTFILE_OPTION: &str = "file";
 const CONFIG_FILE_OPTION: &str = "config-file";
+const CONFIG_OUTPUT_DIR_OPTION: &str = "output-dir";
 const READ_LOCAL_CACHE_OPTION: &str = "read-local-cache";
 const WRITE_LOCAL_CACHE_OPTION: &str = "write-local-cache";
 const READ_REMOTE_CACHE_OPTION: &str = "read-remote-cache";
@@ -163,6 +164,7 @@ pub struct Settings {
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
     forced_tasks: Vec<String>,
+    output_path: PathBuf,
 }
 
 // Parse the command-line arguments.
@@ -189,6 +191,13 @@ fn settings() -> Result<Settings, Failure> {
                 .short("c")
                 .long(CONFIG_FILE_OPTION)
                 .help("Sets the path of the config file"),
+        )
+        .arg(
+            Arg::with_name(CONFIG_OUTPUT_DIR_OPTION)
+                .value_name("PATH")
+                .short("o")
+                .long(CONFIG_OUTPUT_DIR_OPTION)
+                .help("Sets the output directory"),
         )
         .arg(
             Arg::with_name(READ_LOCAL_CACHE_OPTION)
@@ -287,6 +296,26 @@ fn settings() -> Result<Settings, Failure> {
         |path| Some(PathBuf::from(path)),
     );
 
+    // Read the config file path.
+    let default_output_path = toastfile_path.parent().unwrap().to_path_buf();
+    let output_path = matches.value_of(CONFIG_OUTPUT_DIR_OPTION).map_or_else(
+        || Ok(default_output_path),
+        |path| {
+            let candidate_path = PathBuf::from(path);
+            return if candidate_path.exists() && candidate_path.is_dir() {
+                Ok(candidate_path)
+            } else {
+                Err(Failure::User(
+                    format!(
+                        "Output Path {} not exist.",
+                        path,
+                    ),
+                    None,
+                ))
+            }
+        },
+    )?;
+
     // Parse the config file.
     let config_data = config_file_path
         .as_ref()
@@ -378,6 +407,7 @@ fn settings() -> Result<Settings, Failure> {
         spawn_shell,
         tasks,
         forced_tasks,
+        output_path,
     })
 }
 

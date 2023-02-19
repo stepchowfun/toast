@@ -57,6 +57,8 @@ pub fn run(
     let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
     toastfile_dir.pop();
 
+    let output_dir = PathBuf::from(&settings.output_path);
+
     // Apply defaults.
     let location = location(toastfile, task);
     let user = user(toastfile, task);
@@ -182,7 +184,7 @@ pub fn run(
                 &container,
                 &task.output_paths,
                 &location,
-                &toastfile_dir,
+                &output_dir,
                 interrupted,
             ) {
                 return (Err(e), Some(context));
@@ -282,7 +284,7 @@ pub fn run(
                     &container,
                     &task.output_paths,
                     &location,
-                    &toastfile_dir,
+                    &output_dir,
                     interrupted,
                 ) {
                     return (Err(e), Some(context));
@@ -294,7 +296,7 @@ pub fn run(
                     &container,
                     &task.output_paths_on_failure,
                     &location,
-                    &toastfile_dir,
+                    &output_dir,
                     interrupted,
                 ) {
                     return (Err(e), Some(context));
