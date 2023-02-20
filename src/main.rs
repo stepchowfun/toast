@@ -58,7 +58,6 @@ const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
 // Command-line argument and option names
 const TOASTFILE_OPTION: &str = "file";
 const CONFIG_FILE_OPTION: &str = "config-file";
-const CONFIG_OUTPUT_DIR_OPTION: &str = "output-dir";
 const READ_LOCAL_CACHE_OPTION: &str = "read-local-cache";
 const WRITE_LOCAL_CACHE_OPTION: &str = "write-local-cache";
 const READ_REMOTE_CACHE_OPTION: &str = "read-remote-cache";
@@ -69,6 +68,7 @@ const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
+const OUTPUT_DIR_OPTION: &str = "output-dir";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -193,10 +193,10 @@ fn settings() -> Result<Settings, Failure> {
                 .help("Sets the path of the config file"),
         )
         .arg(
-            Arg::with_name(CONFIG_OUTPUT_DIR_OPTION)
+            Arg::with_name(OUTPUT_DIR_OPTION)
                 .value_name("PATH")
                 .short("o")
-                .long(CONFIG_OUTPUT_DIR_OPTION)
+                .long(OUTPUT_DIR_OPTION)
                 .help("Sets the output directory"),
         )
         .arg(
@@ -298,7 +298,7 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the config file path.
     let default_output_path = toastfile_path.parent().unwrap().to_path_buf();
-    let output_path = matches.value_of(CONFIG_OUTPUT_DIR_OPTION).map_or_else(
+    let output_path = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
         || Ok(default_output_path),
         |path| {
             let candidate_path = PathBuf::from(path);
