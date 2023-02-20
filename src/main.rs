@@ -297,22 +297,14 @@ fn settings() -> Result<Settings, Failure> {
     );
 
     // Read the config file path.
-    let default_output_path = toastfile_path.parent().unwrap().to_path_buf();
     let output_path = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
-        || Ok(default_output_path),
+        || {
+            let mut candidate_dir = toastfile_path.to_path_buf();
+            candidate_dir.pop();
+            return Ok(candidate_dir);
+        },
         |path| {
-            let candidate_path = PathBuf::from(path);
-            return if candidate_path.exists() && candidate_path.is_dir() {
-                Ok(candidate_path)
-            } else {
-                Err(Failure::User(
-                    format!(
-                        "Output Path {} not exist.",
-                        path,
-                    ),
-                    None,
-                ))
-            }
+            return Ok(PathBuf::from(path));
         },
     )?;
 
