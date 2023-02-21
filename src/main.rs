@@ -299,13 +299,11 @@ fn settings() -> Result<Settings, Failure> {
     // Read the config file path.
     let output_path = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
         || {
-            let mut candidate_dir = toastfile_path.to_path_buf();
+            let mut candidate_dir = toastfile_path.clone();
             candidate_dir.pop();
-            return Ok(candidate_dir);
+            Ok(candidate_dir)
         },
-        |path| {
-            return Ok(PathBuf::from(path));
-        },
+        |path| Ok(PathBuf::from(path)),
     )?;
 
     // Parse the config file.
