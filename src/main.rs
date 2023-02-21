@@ -301,10 +301,10 @@ fn settings() -> Result<Settings, Failure> {
         || {
             let mut candidate_dir = toastfile_path.clone();
             candidate_dir.pop();
-            Ok(candidate_dir)
+            candidate_dir
         },
-        |path| Ok(PathBuf::from(path)),
-    )?;
+        |path| PathBuf::new(path).to_owned(),
+    );
 
     // Parse the config file.
     let config_data = config_file_path
