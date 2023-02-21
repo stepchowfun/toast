@@ -164,7 +164,7 @@ pub struct Settings {
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
     forced_tasks: Vec<String>,
-    output_path: PathBuf,
+    output_dir: PathBuf,
 }
 
 // Parse the command-line arguments.
@@ -297,7 +297,7 @@ fn settings() -> Result<Settings, Failure> {
     );
 
     // Read the config file path.
-    let output_path = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
+    let output_dir = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
         || {
             let mut candidate_dir = toastfile_path.clone();
             candidate_dir.pop();
@@ -397,7 +397,7 @@ fn settings() -> Result<Settings, Failure> {
         spawn_shell,
         tasks,
         forced_tasks,
-        output_path,
+        output_dir,
     })
 }
 

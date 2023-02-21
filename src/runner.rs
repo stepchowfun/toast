@@ -57,7 +57,7 @@ pub fn run(
     let mut toastfile_dir = PathBuf::from(&settings.toastfile_path);
     toastfile_dir.pop();
 
-    let output_dir = PathBuf::from(&settings.output_path);
+    let output_dir = PathBuf::from(&settings.output_dir);;
 
     // Apply defaults.
     let location = location(toastfile, task);
