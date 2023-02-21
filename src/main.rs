@@ -303,7 +303,7 @@ fn settings() -> Result<Settings, Failure> {
             candidate_dir.pop();
             candidate_dir
         },
-        |path| PathBuf::new(path).to_owned(),
+        |path| Path::new(path).to_owned(),
     );
 
     // Parse the config file.
