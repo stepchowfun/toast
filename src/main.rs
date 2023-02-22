@@ -68,6 +68,7 @@ const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
+const OUTPUT_DIR_OPTION: &str = "output-dir";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -163,6 +164,7 @@ pub struct Settings {
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
     forced_tasks: Vec<String>,
+    output_dir: PathBuf,
 }
 
 // Parse the command-line arguments.
@@ -189,6 +191,13 @@ fn settings() -> Result<Settings, Failure> {
                 .short("c")
                 .long(CONFIG_FILE_OPTION)
                 .help("Sets the path of the config file"),
+        )
+        .arg(
+            Arg::with_name(OUTPUT_DIR_OPTION)
+                .value_name("PATH")
+                .short("o")
+                .long(OUTPUT_DIR_OPTION)
+                .help("Sets the output directory"),
         )
         .arg(
             Arg::with_name(READ_LOCAL_CACHE_OPTION)
@@ -287,6 +296,16 @@ fn settings() -> Result<Settings, Failure> {
         |path| Some(PathBuf::from(path)),
     );
 
+    // Read the config file path.
+    let output_dir = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
+        || {
+            let mut candidate_dir = toastfile_path.clone();
+            candidate_dir.pop();
+            candidate_dir
+        },
+        |path| Path::new(path).to_owned(),
+    );
+
     // Parse the config file.
     let config_data = config_file_path
         .as_ref()
@@ -378,6 +397,7 @@ fn settings() -> Result<Settings, Failure> {
         spawn_shell,
         tasks,
         forced_tasks,
+        output_dir,
     })
 }
 

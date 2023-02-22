@@ -419,6 +419,9 @@ OPTIONS:
     -l, --list
             Lists the tasks that have a description
 
+    -o, --output-dir <PATH>
+            Sets the output directory
+
         --read-local-cache <BOOL>
             Sets whether local cache reading is enabled
 
