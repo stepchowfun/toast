@@ -2,7 +2,8 @@ use {
     crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
     std::{
         collections::HashMap,
-        fs::{canonicalize, copy, create_dir_all, rename, symlink_metadata, Metadata},
+        env::current_dir,
+        fs::{copy, create_dir_all, rename, symlink_metadata, Metadata},
         io,
         io::Read,
         path::{Path, PathBuf},
@@ -533,17 +534,15 @@ fn container_args(
         location.to_string_lossy().into_owned(),
     ]);
 
-    // For bind mounts, Docker requires the host path to be absolute. Path canonicalization doesn't
-    // work on empty paths, so in that case we replace the path with `.`.
-    let canonical_source_dir =
-        canonicalize(if source_dir.components().peekable().peek().is_none() {
-            Path::new(".")
-        } else {
-            source_dir
-        })
+    // For bind mounts, Docker requires the host path to be absolute. We can't
+    // use `std::fs::canonicalize` here, since on Windows that generates an
+    // extended-length path (e.g., `\\?\C:\Users\...`) which Docker doesn't
+    // understand.
+    let absolute_source_dir = current_dir()
         .map_err(failure::user(
-            "Unable to canonicalize the source directory.",
-        ))?;
+            "Unable to determine the current working directory.",
+        ))?
+        .join(source_dir);
 
     // Mount paths
     args.extend(mount_paths.iter().flat_map(|mount_path| {
@@ -553,7 +552,7 @@ fn container_args(
             if mount_readonly {
                 format!(
                     "type=bind,source={},target={},readonly",
-                    canonical_source_dir
+                    absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
                     location.join(&mount_path.container_path).to_string_lossy(),
@@ -561,7 +560,7 @@ fn container_args(
             } else {
                 format!(
                     "type=bind,source={},target={}",
-                    canonical_source_dir
+                    absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
                     location.join(&mount_path.container_path).to_string_lossy(),
