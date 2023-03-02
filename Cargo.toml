@@ -26,6 +26,7 @@ sha2 = "0.9"
 tar = "0.4"
 tempfile = "3"
 walkdir = "2"
+path-slash = "0.2.1"
 
 [dependencies.clap]
 version = "2"

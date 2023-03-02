@@ -1,5 +1,6 @@
 use {
     crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
+    path_slash::PathBufExt,
     std::{
         collections::HashMap,
         env::current_dir,
@@ -555,7 +556,7 @@ fn container_args(
                     absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_string_lossy(),
+                    location.join(&mount_path.container_path).to_slash_lossy(),
                 )
             } else {
                 format!(
@@ -563,7 +564,7 @@ fn container_args(
                     absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_string_lossy(),
+                    location.join(&mount_path.container_path).to_slash_lossy(),
                 )
             },
         ]
