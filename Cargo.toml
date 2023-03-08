@@ -1,6 +1,6 @@
 [package]
 name = "toast"
-version = "0.46.1"
+version = "0.46.2"
 authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 edition = "2021"
 description = "Containerize your development and continuous integration environments."
@@ -25,8 +25,8 @@ serde_yaml = "0.8"
 sha2 = "0.9"
 tar = "0.4"
 tempfile = "3"
+typed-path = "0.3"
 walkdir = "2"
-path-slash = "0.2.1"
 
 [dependencies.clap]
 version = "2"

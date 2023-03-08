@@ -4,13 +4,14 @@ use {
         collections::HashSet,
         fs::{read_link, symlink_metadata, File, Metadata},
         io::{empty, Read, Seek, SeekFrom, Write},
-        path::{Path, PathBuf},
+        path::Path,
         sync::{
             atomic::{AtomicBool, Ordering},
             Arc,
         },
     },
     tar::{Builder, EntryType, Header},
+    typed_path::{TryAsRef, UnixPath, UnixPathBuf},
     walkdir::WalkDir,
 };
 
@@ -41,13 +42,13 @@ fn is_file_executable(_metadata: &Metadata) -> bool {
 
 // Tar archives must contain only relative paths. For our purposes, the paths will be relative to
 // the filesystem root, so we need to strip the leading `/` before adding paths to the archive.
-fn strip_root_rcr(path_acr: &Path) -> &Path {
+fn strip_root_rcr(path_acr: &UnixPath) -> &UnixPath {
     // The `unwrap` is safe since `absolute_path` is absolute and Toast only supports Unix.
     path_acr.strip_prefix("/").unwrap()
 }
 
 // Check if a file is denied by `excluded_input_paths`.
-fn path_excluded(excluded_input_paths_rcr: &[PathBuf], path_rcr: &Path) -> bool {
+fn path_excluded(excluded_input_paths_rcr: &[UnixPathBuf], path_rcr: &UnixPath) -> bool {
     // Don't add this path if it's denied by `excluded_input_paths`.
     for excluded_input_path_rcr in excluded_input_paths_rcr {
         if path_rcr.starts_with(excluded_input_path_rcr) {
@@ -60,9 +61,9 @@ fn path_excluded(excluded_input_paths_rcr: &[PathBuf], path_rcr: &Path) -> bool 
 
 // Check if a path can be added to the archive. This function also adds the path to `visited_paths`.
 fn can_add_path(
-    visited_paths_rcr: &mut HashSet<PathBuf>,
-    excluded_input_paths_rcr: &[PathBuf],
-    path_rcr: &Path,
+    visited_paths_rcr: &mut HashSet<UnixPathBuf>,
+    excluded_input_paths_rcr: &[UnixPathBuf],
+    path_rcr: &UnixPath,
 ) -> bool {
     // Don't add this path multiple times.
     if !visited_paths_rcr.insert(path_rcr.to_owned()) {
@@ -80,7 +81,7 @@ fn can_add_path(
 // Add a file to a tar archive.
 fn add_file<R: Read, W: Write>(
     builder: &mut Builder<W>,
-    path_rcr: &Path,
+    path_rcr: &UnixPath,
     data: R,
     size: u64,
     executable: bool,
@@ -93,7 +94,16 @@ fn add_file<R: Read, W: Write>(
 
     // Add the entry to the archive.
     builder
-        .append_data(&mut header, path_rcr, data)
+        .append_data(
+            &mut header,
+            path_rcr.try_as_ref().ok_or_else(|| {
+                Failure::User(
+                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
+                    None,
+                )
+            })?,
+            data,
+        )
         .map_err(failure::system("Error appending data to tar archive."))?;
 
     // Everything succeeded.
@@ -103,21 +113,37 @@ fn add_file<R: Read, W: Write>(
 // Add a symlink to a tar archive.
 fn add_symlink<W: Write>(
     builder: &mut Builder<W>,
-    path_rcr: &Path,
-    target: &Path,
+    path_rcr: &UnixPath,
+    target: &UnixPath,
 ) -> Result<(), Failure> {
     // Construct a tar header for this entry.
     let mut header = Header::new_gnu();
     header.set_entry_type(EntryType::Symlink);
-    header.set_link_name(target).map_err(failure::system(
-        "Error appending symbolic link to tar archive.",
-    ))?;
+    header
+        .set_link_name(target.try_as_ref().ok_or_else(|| {
+            Failure::User(
+                format!("Invalid path {}", target.to_string_lossy().code_str()),
+                None,
+            )
+        })?)
+        .map_err(failure::system(
+            "Error appending symbolic link to tar archive.",
+        ))?;
     header.set_mode(0o777);
     header.set_size(0);
 
     // Add the entry to the archive.
     builder
-        .append_data(&mut header, path_rcr, empty())
+        .append_data(
+            &mut header,
+            path_rcr.try_as_ref().ok_or_else(|| {
+                Failure::User(
+                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
+                    None,
+                )
+            })?,
+            empty(),
+        )
         .map_err(failure::system("Error appending data to tar archive."))?;
 
     // Everything succeeded.
@@ -125,7 +151,7 @@ fn add_symlink<W: Write>(
 }
 
 // Add a directory to a tar archive.
-fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &Path) -> Result<(), Failure> {
+fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &UnixPath) -> Result<(), Failure> {
     // If the path has no components, there's nothing to do. The root directory will already exist.
     // Without this check, we could encounter the following error: `paths in archives must have at
     // least one component when setting path for`.
@@ -141,7 +167,16 @@ fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &Path) -> Result<
 
     // Add the entry to the archive.
     builder
-        .append_data(&mut header, path_rcr, empty())
+        .append_data(
+            &mut header,
+            path_rcr.try_as_ref().ok_or_else(|| {
+                Failure::User(
+                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
+                    None,
+                )
+            })?,
+            empty(),
+        )
         .map_err(failure::system("Error appending data to tar archive."))?;
 
     // Everything succeeded.
@@ -152,10 +187,10 @@ fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &Path) -> Result<
 fn add_path<W: Write>(
     builder: &mut Builder<W>,
     content_hashes: &mut Vec<String>,
-    visited_paths_rcr: &mut HashSet<PathBuf>,
-    excluded_input_paths_rcr: &[PathBuf],
+    visited_paths_rcr: &mut HashSet<UnixPathBuf>,
+    excluded_input_paths_rcr: &[UnixPathBuf],
     path_cd: &Path,
-    path_rcr: &Path,
+    path_rcr: &UnixPath,
     metadata: &Metadata,
 ) -> Result<(), Failure> {
     // Check if this path should be added.
@@ -201,16 +236,22 @@ fn add_path<W: Write>(
         add_file(builder, path_rcr, file, metadata.len(), executable)
     } else if metadata.file_type().is_symlink() {
         // It's a symlink. Read the target path.
-        let target_path = read_link(path_cd).map_err(failure::system(format!(
+        let target_path_std = read_link(path_cd).map_err(failure::system(format!(
             "Unable to read target of symbolic link {}.",
             path_cd.to_string_lossy().code_str(),
         )))?;
+        let target_path = target_path_std.try_as_ref().ok_or_else(|| {
+            Failure::User(
+                format!("Invalid path {}.", path_cd.to_string_lossy().code_str()),
+                None,
+            )
+        })?;
 
         // Compute the hash of the symlink path and the target path.
-        content_hashes.push(cache::combine(path_rcr, &target_path));
+        content_hashes.push(cache::combine(path_rcr, target_path));
 
         // Add the symlink to the archive.
-        add_symlink(builder, path_rcr, &target_path)
+        add_symlink(builder, path_rcr, target_path)
     } else if metadata.file_type().is_dir() {
         // It's a directory. Only its name is relevant for the cache key.
         content_hashes.push(path_rcr.crypto_hash());
@@ -230,14 +271,14 @@ fn add_path<W: Write>(
 
 // Construct a tar archive and return a hash of its contents. This function does not follow symbolic
 // links.
-#[allow(clippy::similar_names)]
+#[allow(clippy::similar_names, clippy::too_many_lines)]
 pub fn create<W: Write>(
     spinner_message: &str,
     writer: W,
-    input_paths_rsd: &[PathBuf],
-    excluded_input_paths_rsd: &[PathBuf],
+    input_paths_rsd: &[UnixPathBuf],
+    excluded_input_paths_rsd: &[UnixPathBuf],
     source_dir_cd: &Path,
-    destination_dir_acr: &Path,
+    destination_dir_acr: &UnixPath,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<(W, String), Failure> {
     // Render a spinner animation in the terminal.
@@ -257,7 +298,7 @@ pub fn create<W: Write>(
 
     // Add `destination_dir_acr` to the archive.
     add_directory(&mut builder, strip_root_rcr(destination_dir_acr))?;
-    visited_paths_rcr.insert(PathBuf::new());
+    visited_paths_rcr.insert(UnixPathBuf::new());
 
     // Convert the `excluded_input_paths` to be relative to the container filesystem root.
     let excluded_input_paths_rcr = excluded_input_paths_rsd
@@ -271,7 +312,15 @@ pub fn create<W: Write>(
     for input_path_rsd in input_paths_rsd {
         // The original `input_path` is relative to `source_dir_cd`. Here we make it relative to the
         // current working directory instead.
-        let input_path_cd = source_dir_cd.join(input_path_rsd);
+        let input_path_cd = source_dir_cd.join(input_path_rsd.try_as_ref().ok_or_else(|| {
+            Failure::User(
+                format!(
+                    "Invalid path {}",
+                    input_path_rsd.to_string_lossy().code_str(),
+                ),
+                None,
+            )
+        })?);
 
         // Fetch filesystem metadata for `input_path`.
         let input_path_metadata =
@@ -302,14 +351,25 @@ pub fn create<W: Write>(
                 )))?;
 
                 // Compute the path relative to the container filesystem root.
-                let entry_path_acr =
-                    destination_dir_acr.join(entry.path().strip_prefix(source_dir_cd).map_err(
-                        failure::system(format!(
+                let entry_path_rsd =
+                    entry
+                        .path()
+                        .strip_prefix(source_dir_cd)
+                        .map_err(failure::system(format!(
                             "Unable to relativize path {} with respect to {}.",
                             entry.path().to_string_lossy().code_str(),
                             source_dir_cd.to_string_lossy().code_str(),
-                        )),
-                    )?);
+                        )))?;
+                let entry_path_acr =
+                    destination_dir_acr.join(entry_path_rsd.try_as_ref().ok_or_else(|| {
+                        Failure::User(
+                            format!(
+                                "Invalid path {}",
+                                entry_path_rsd.to_string_lossy().code_str(),
+                            ),
+                            None,
+                        )
+                    })?);
                 let entry_path_rcr = strip_root_rcr(&entry_path_acr);
 
                 // Fetch the metadata for this entry.
@@ -340,6 +400,10 @@ pub fn create<W: Write>(
                 )?;
             }
         } else {
+            // Compute the path relative to the container filesystem root.
+            let input_path_acr = destination_dir_acr.join(input_path_rsd);
+            let input_path_rcr = strip_root_rcr(&input_path_acr);
+
             // It's not a directory, so hopefully it's a file or symlink. Add it to the archive.
             add_path(
                 &mut builder,
@@ -347,15 +411,7 @@ pub fn create<W: Write>(
                 &mut visited_paths_rcr,
                 &excluded_input_paths_rcr,
                 &input_path_cd,
-                strip_root_rcr(
-                    &destination_dir_acr.join(input_path_cd.strip_prefix(source_dir_cd).map_err(
-                        failure::system(format!(
-                            "Unable to relativize path {} with respect to {}.",
-                            input_path_cd.to_string_lossy().code_str(),
-                            source_dir_cd.to_string_lossy().code_str(),
-                        )),
-                    )?),
-                ),
+                input_path_rcr,
                 &input_path_metadata,
             )?;
         }

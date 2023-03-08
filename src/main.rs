@@ -36,6 +36,7 @@ use {
         },
     },
     toastfile::{default_task_mount_readonly, location, user, DEFAULT_USER},
+    typed_path::UnixPath,
 };
 
 #[macro_use]
@@ -750,9 +751,9 @@ fn entry() -> Result<(), Failure> {
                 // There is no last task, so the context will be the base image. Use default
                 // settings.
                 (
-                    HashMap::default(),        // [ref:default_environment]
-                    Path::new("/").to_owned(), // `toastfile::DEFAULT_LOCATION` might not exist.
-                    Vec::default(),            // [ref:default_mount_paths]
+                    HashMap::default(),            // [ref:default_environment]
+                    UnixPath::new("/").to_owned(), // `toastfile::DEFAULT_LOCATION` might not exist.
+                    Vec::default(),                // [ref:default_mount_paths]
                     default_task_mount_readonly(),
                     Vec::default(), // [ref:default_ports]
                     DEFAULT_USER.to_owned(),

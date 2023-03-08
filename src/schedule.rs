@@ -84,7 +84,8 @@ mod tests {
             schedule::compute,
             toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
         },
-        std::{collections::HashMap, path::Path},
+        std::collections::HashMap,
+        typed_path::UnixPath,
     };
 
     fn task_with_dependencies(dependencies: Vec<String>) -> Task {
@@ -117,7 +118,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: HashMap::new(),
@@ -137,7 +138,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -165,7 +166,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -197,7 +198,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -219,7 +220,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -252,7 +253,7 @@ mod tests {
         let toastfile1 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: tasks1,
@@ -261,7 +262,7 @@ mod tests {
         let toastfile2 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: tasks2,
@@ -283,7 +284,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -318,7 +319,7 @@ mod tests {
         let toastfile1 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: tasks1,
@@ -327,7 +328,7 @@ mod tests {
         let toastfile2 = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: tasks2,
@@ -349,7 +350,7 @@ mod tests {
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,

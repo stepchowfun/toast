@@ -11,6 +11,7 @@ use {
         io::Read,
         path::{Path, PathBuf},
     },
+    typed_path::{UnixPath, UnixPathBuf},
 };
 
 #[cfg(unix)]
@@ -65,6 +66,18 @@ impl CryptoHash for Path {
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
         hex::encode(Sha256::digest(&path_as_bytes(self)))
+    }
+}
+
+impl CryptoHash for UnixPath {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_bytes()))
+    }
+}
+
+impl CryptoHash for UnixPathBuf {
+    fn crypto_hash(&self) -> String {
+        hex::encode(Sha256::digest(self.as_bytes()))
     }
 }
 
@@ -150,6 +163,7 @@ mod tests {
             toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
         },
         std::{collections::HashMap, path::Path},
+        typed_path::UnixPath,
     };
 
     fn toastfile_with_task(foo_task: Task) -> Toastfile {
@@ -159,7 +173,7 @@ mod tests {
         Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -174,7 +188,7 @@ mod tests {
         Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -204,6 +218,22 @@ mod tests {
         assert_ne!(
             Path::new("foo").crypto_hash(),
             Path::new("bar").crypto_hash(),
+        );
+    }
+
+    #[test]
+    fn hash_unix_path_pure() {
+        assert_eq!(
+            UnixPath::new("foo").crypto_hash(),
+            UnixPath::new("foo").crypto_hash(),
+        );
+    }
+
+    #[test]
+    fn hash_unix_path_not_constant() {
+        assert_ne!(
+            UnixPath::new("foo").crypto_hash(),
+            UnixPath::new("bar").crypto_hash(),
         );
     }
 
@@ -299,8 +329,8 @@ mod tests {
             dependencies: vec![],
             cache: true,
             environment,
-            input_paths: vec![Path::new("flob").to_owned()],
-            excluded_input_paths: vec![Path::new("thud").to_owned()],
+            input_paths: vec![UnixPath::new("flob").to_owned()],
+            excluded_input_paths: vec![UnixPath::new("thud").to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -613,8 +643,8 @@ mod tests {
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            input_paths: vec![Path::new("flob").to_owned()],
-            excluded_input_paths: vec![Path::new("thud").to_owned()],
+            input_paths: vec![UnixPath::new("flob").to_owned()],
+            excluded_input_paths: vec![UnixPath::new("thud").to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -671,7 +701,7 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Some(Path::new("/foo").to_owned()),
+            location: Some(UnixPath::new("/foo").to_owned()),
             user: None,
             command: "echo wibble".to_owned(),
             command_prefix: None,
@@ -690,7 +720,7 @@ mod tests {
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Some(Path::new("/bar").to_owned()),
+            location: Some(UnixPath::new("/bar").to_owned()),
             user: None,
             command: "echo wibble".to_owned(),
             command_prefix: None,
