@@ -1,13 +1,12 @@
 use {
     crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
-    path_slash::PathBufExt,
     std::{
         collections::HashMap,
         env::current_dir,
         fs::{copy, create_dir_all, rename, symlink_metadata, Metadata},
         io,
         io::Read,
-        path::{Path, PathBuf},
+        path::Path,
         process::{ChildStdin, Command, Stdio},
         string::ToString,
         sync::{
@@ -16,6 +15,7 @@ use {
         },
     },
     tempfile::tempdir,
+    typed_path::{TryAsRef, UnixPath, UnixPathBuf},
     walkdir::WalkDir,
 };
 
@@ -119,7 +119,7 @@ pub fn create_container(
     mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
-    location: &Path,
+    location: &UnixPath,
     user: &str,
     command: &str,
     extra_args: &[String],
@@ -251,8 +251,8 @@ fn rename_or_copy_file_or_symlink(
 pub fn copy_from_container(
     docker_cli: &str,
     container: &str,
-    paths: &[PathBuf],
-    source_dir: &Path,
+    paths: &[UnixPathBuf],
+    source_dir: &UnixPath,
     destination_dir: &Path,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<(), Failure> {
@@ -278,7 +278,12 @@ pub fn copy_from_container(
         // Figure out what needs to go where.
         let source = source_dir.join(path);
         let intermediate = temp_dir.path().join("data");
-        let destination = destination_dir.join(path);
+        let destination = destination_dir.join(path.try_as_ref().ok_or_else(|| {
+            Failure::User(
+                format!("Invalid path {}", path.to_string_lossy().code_str()),
+                None,
+            )
+        })?);
 
         // Get the path from the container.
         run_quiet(
@@ -454,7 +459,7 @@ pub fn spawn_shell(
     image: &str,
     source_dir: &Path,
     environment: &HashMap<String, String>,
-    location: &Path,
+    location: &UnixPath,
     mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
@@ -501,7 +506,7 @@ pub fn spawn_shell(
 fn container_args(
     source_dir: &Path,
     environment: &HashMap<String, String>,
-    location: &Path,
+    location: &UnixPath,
     mount_paths: &[MappingPath],
     mount_readonly: bool,
     ports: &[String],
@@ -556,7 +561,7 @@ fn container_args(
                     absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_slash_lossy(),
+                    location.join(&mount_path.container_path).to_string_lossy(),
                 )
             } else {
                 format!(
@@ -564,7 +569,7 @@ fn container_args(
                     absolute_source_dir
                         .join(&mount_path.host_path)
                         .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_slash_lossy(),
+                    location.join(&mount_path.container_path).to_string_lossy(),
                 )
             },
         ]

@@ -1,12 +1,13 @@
 use {
     crate::{failure::Failure, format, format::CodeStr},
-    serde::{Deserialize, Deserializer, Serialize, Serializer},
+    serde::{de::Error, Deserialize, Deserializer},
     std::{
         collections::{HashMap, HashSet},
         env,
         fmt::{self, Display, Formatter},
-        path::{Path, PathBuf},
+        path::PathBuf,
     },
+    typed_path::{UnixPath, UnixPathBuf},
 };
 
 // The default location for commands and files copied into the container
@@ -15,11 +16,54 @@ pub const DEFAULT_LOCATION: &str = "/scratch";
 // The default user for commands and files copied into the container
 pub const DEFAULT_USER: &str = "root";
 
+// Deserializer for `UnixPathBuf`
+fn deserialize_unix_path_buf<'de, D>(deserializer: D) -> Result<UnixPathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    UnixPathBuf::try_from(PathBuf::deserialize(deserializer)?)
+        .map_err(|_| D::Error::custom("invalid path"))
+}
+
+// Deserializer for `Option<UnixPathBuf>`
+fn deserialize_option_unix_path_buf<'de, D>(
+    deserializer: D,
+) -> Result<Option<UnixPathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    if let Some(path) = Option::<PathBuf>::deserialize(deserializer)? {
+        match UnixPathBuf::try_from(path) {
+            Ok(path) => Ok(Some(path)),
+            Err(_) => Err(D::Error::custom("invalid path")),
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+// Deserializer for `Vec<UnixPathBuf>`
+fn deserialize_vec_unix_path_buf<'de, D>(deserializer: D) -> Result<Vec<UnixPathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mut result = Vec::new();
+    for path in Vec::<PathBuf>::deserialize(deserializer)? {
+        match UnixPathBuf::try_from(path) {
+            Ok(path) => {
+                result.push(path);
+            }
+            Err(_) => return Err(D::Error::custom("invalid path")),
+        }
+    }
+    Ok(result)
+}
+
 // This struct represents a path on the host and a corresponding path in the container.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MappingPath {
     pub host_path: PathBuf,
-    pub container_path: PathBuf,
+    pub container_path: UnixPathBuf,
 }
 
 impl Display for MappingPath {
@@ -30,15 +74,6 @@ impl Display for MappingPath {
             self.host_path.to_string_lossy(),
             self.container_path.to_string_lossy(),
         )
-    }
-}
-
-impl Serialize for MappingPath {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(format!("{}", self).as_str())
     }
 }
 
@@ -65,10 +100,9 @@ impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
                     .map_err(|_| E::custom("Illegal container path."))?,
             })
         } else {
-            let path: PathBuf = v.parse().map_err(|_| E::custom("Illegal path."))?;
             Ok(MappingPath {
-                host_path: path.clone(),
-                container_path: path,
+                host_path: v.parse().map_err(|_| E::custom("Illegal path."))?,
+                container_path: v.parse().map_err(|_| E::custom("Illegal path."))?,
             })
         }
     }
@@ -84,7 +118,7 @@ impl<'de> Deserialize<'de> for MappingPath {
 }
 
 // This struct represents a task.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
     pub description: Option<String>,
@@ -106,20 +140,20 @@ pub struct Task {
     pub environment: HashMap<String, Option<String>>,
 
     // Must be relative [ref:input_paths_relative]
-    #[serde(default)]
-    pub input_paths: Vec<PathBuf>,
+    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    pub input_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:excluded_input_paths_relative]
-    #[serde(default)]
-    pub excluded_input_paths: Vec<PathBuf>,
+    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    pub excluded_input_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:output_paths_relative]
-    #[serde(default)]
-    pub output_paths: Vec<PathBuf>,
+    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    pub output_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:output_paths_on_failure_relative]
-    #[serde(default)]
-    pub output_paths_on_failure: Vec<PathBuf>,
+    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    pub output_paths_on_failure: Vec<UnixPathBuf>,
 
     // Can be relative or absolute (absolute paths are allowed in order to support mounting the
     //   Docker socket, which is usually located at `/var/run/docker.sock`)
@@ -140,8 +174,8 @@ pub struct Task {
     // If `None`, the corresponding top-level value in the toastfile should be used. There is a
     // helper function [ref:location_helper] which implements that logic. This path must be absolute
     // [ref:task_location_absolute].
-    #[serde(default)]
-    pub location: Option<PathBuf>,
+    #[serde(default, deserialize_with = "deserialize_option_unix_path_buf")]
+    pub location: Option<UnixPathBuf>,
 
     // If `None`, the corresponding top-level value in the toastfile should be used. There is a
     // helper function [ref:user_helper] which implements that logic.
@@ -171,7 +205,7 @@ pub fn default_task_mount_readonly() -> bool {
 }
 
 // This struct represents a toastfile.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Toastfile {
     pub image: String,
@@ -181,7 +215,8 @@ pub struct Toastfile {
 
     // Must be absolute [ref:toastfile_location_absolute]
     #[serde(default = "default_location")]
-    pub location: PathBuf,
+    #[serde(deserialize_with = "deserialize_unix_path_buf")]
+    pub location: UnixPathBuf,
 
     #[serde(default = "default_user")]
     pub user: String,
@@ -193,8 +228,8 @@ pub struct Toastfile {
     pub tasks: HashMap<String, Task>,
 }
 
-fn default_location() -> PathBuf {
-    Path::new(DEFAULT_LOCATION).to_owned()
+fn default_location() -> UnixPathBuf {
+    UnixPath::new(DEFAULT_LOCATION).to_owned()
 }
 
 fn default_user() -> String {
@@ -211,7 +246,7 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     check_dependencies(&toastfile)?;
 
     // Check that `location` is absolute [tag:toastfile_location_absolute].
-    if !is_absolute_linux_path(&toastfile.location) {
+    if !toastfile.location.is_absolute() {
         return Err(Failure::User(
             format!(
                 "Toastfile has a relative {}: {}.",
@@ -266,7 +301,7 @@ pub fn environment(task: &Task) -> Result<HashMap<String, String>, Vec<&str>> {
 
 // [tag:location_helper] Fetch the location for a task, defaulting to the top-level location if
 // needed.
-pub fn location(toastfile: &Toastfile, task: &Task) -> PathBuf {
+pub fn location(toastfile: &Toastfile, task: &Task) -> UnixPathBuf {
     task.location
         .clone()
         .unwrap_or_else(|| toastfile.location.clone())
@@ -450,23 +485,6 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     Ok(())
 }
 
-// Check if a path is an absolute Linux path.
-#[cfg(unix)]
-fn is_absolute_linux_path(path: &Path) -> bool {
-    path.is_absolute()
-}
-
-// Check if a path is an absolute Linux path.
-#[cfg(windows)]
-fn is_absolute_linux_path(path: &Path) -> bool {
-    path.has_root() && !path.is_absolute()
-}
-
-// Check if a path is a relative Linux path.
-fn is_relative_linux_path(path: &Path) -> bool {
-    path.is_relative() && !path.has_root()
-}
-
 // Check that a task is valid.
 #[allow(clippy::too_many_lines)]
 fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
@@ -487,7 +505,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `input_paths` are relative [tag:input_paths_relative].
     for path in &task.input_paths {
-        if !is_relative_linux_path(path) {
+        if !path.is_relative() {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute {}: {}.",
@@ -502,7 +520,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `excluded_input_paths` are relative [tag:excluded_input_paths_relative].
     for path in &task.excluded_input_paths {
-        if !is_relative_linux_path(path) {
+        if !path.is_relative() {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute {}: {}.",
@@ -517,7 +535,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `output_paths` are relative [tag:output_paths_relative].
     for path in &task.output_paths {
-        if !is_relative_linux_path(path) {
+        if !path.is_relative() {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute path in {}: {}.",
@@ -532,7 +550,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `output_paths_on_failure` are relative [tag:output_paths_on_failure_relative].
     for path in &task.output_paths_on_failure {
-        if !is_relative_linux_path(path) {
+        if !path.is_relative() {
             return Err(Failure::User(
                 format!(
                     "Task {} has an absolute path in {}: {}.",
@@ -565,7 +583,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check that `location` is absolute [tag:task_location_absolute].
     if let Some(location) = &task.location {
-        if !is_absolute_linux_path(location) {
+        if !location.is_absolute() {
             return Err(Failure::User(
                 format!(
                     "Task {} has a relative {}: {}.",
@@ -631,6 +649,7 @@ mod tests {
             MappingPath, Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
         },
         std::{collections::HashMap, env, path::Path},
+        typed_path::UnixPath,
     };
 
     #[test]
@@ -643,7 +662,7 @@ image: encom:os-12
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: HashMap::new(),
@@ -687,7 +706,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -786,42 +805,42 @@ tasks:
                 cache: false,
                 environment,
                 input_paths: vec![
-                    Path::new("qux").to_owned(),
-                    Path::new("quux").to_owned(),
-                    Path::new("quuz").to_owned(),
+                    UnixPath::new("qux").to_owned(),
+                    UnixPath::new("quux").to_owned(),
+                    UnixPath::new("quuz").to_owned(),
                 ],
                 excluded_input_paths: vec![
-                    Path::new("spam").to_owned(),
-                    Path::new("ham").to_owned(),
-                    Path::new("eggs").to_owned(),
+                    UnixPath::new("spam").to_owned(),
+                    UnixPath::new("ham").to_owned(),
+                    UnixPath::new("eggs").to_owned(),
                 ],
                 output_paths: vec![
-                    Path::new("corge").to_owned(),
-                    Path::new("grault").to_owned(),
-                    Path::new("garply").to_owned(),
+                    UnixPath::new("corge").to_owned(),
+                    UnixPath::new("grault").to_owned(),
+                    UnixPath::new("garply").to_owned(),
                 ],
                 output_paths_on_failure: vec![
-                    Path::new("fnord").to_owned(),
-                    Path::new("smurf").to_owned(),
-                    Path::new("xyzzy").to_owned(),
+                    UnixPath::new("fnord").to_owned(),
+                    UnixPath::new("smurf").to_owned(),
+                    UnixPath::new("xyzzy").to_owned(),
                 ],
                 mount_paths: vec![
                     MappingPath {
                         host_path: Path::new("wibble").to_owned(),
-                        container_path: Path::new("wibble").to_owned(),
+                        container_path: UnixPath::new("wibble").to_owned(),
                     },
                     MappingPath {
                         host_path: Path::new("/wobble").to_owned(),
-                        container_path: Path::new("/wobble").to_owned(),
+                        container_path: UnixPath::new("/wobble").to_owned(),
                     },
                     MappingPath {
                         host_path: Path::new("wubble").to_owned(),
-                        container_path: Path::new("wabble").to_owned(),
+                        container_path: UnixPath::new("wabble").to_owned(),
                     },
                 ],
                 mount_readonly: true,
                 ports: vec!["3000".to_owned(), "3001".to_owned(), "3002".to_owned()],
-                location: Some(Path::new("/code").to_owned()),
+                location: Some(UnixPath::new("/code").to_owned()),
                 user: Some("waldo".to_owned()),
                 command: "flob".to_owned(),
                 command_prefix: Some("flob_prefix".to_owned()),
@@ -832,7 +851,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("bar".to_owned()),
-            location: Path::new("/default_location").to_owned(),
+            location: UnixPath::new("/default_location").to_owned(),
             user: "default_user".to_owned(),
             command_prefix: "prefix".to_owned(),
             tasks,
@@ -869,7 +888,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("foo".to_owned()),
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -906,7 +925,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: Some("bar".to_owned()),
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -922,7 +941,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks: HashMap::new(),
@@ -959,7 +978,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1017,7 +1036,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1075,7 +1094,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1114,7 +1133,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1174,7 +1193,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1255,7 +1274,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1333,31 +1352,31 @@ tasks:
             dependencies: vec![],
             cache: false,
             environment: HashMap::new(),
-            input_paths: vec![Path::new("bar").to_owned()],
-            excluded_input_paths: vec![Path::new("baz").to_owned()],
-            output_paths: vec![Path::new("qux").to_owned()],
-            output_paths_on_failure: vec![Path::new("quux").to_owned()],
+            input_paths: vec![UnixPath::new("bar").to_owned()],
+            excluded_input_paths: vec![UnixPath::new("baz").to_owned()],
+            output_paths: vec![UnixPath::new("qux").to_owned()],
+            output_paths_on_failure: vec![UnixPath::new("quux").to_owned()],
             mount_paths: vec![
                 MappingPath {
                     host_path: Path::new("quuy").to_owned(),
-                    container_path: Path::new("quuz").to_owned(),
+                    container_path: UnixPath::new("quuz").to_owned(),
                 },
                 MappingPath {
                     host_path: Path::new("quuy").to_owned(),
-                    container_path: Path::new("/quuz").to_owned(),
+                    container_path: UnixPath::new("/quuz").to_owned(),
                 },
                 MappingPath {
                     host_path: Path::new("quuy").to_owned(),
-                    container_path: Path::new("/quuz").to_owned(),
+                    container_path: UnixPath::new("/quuz").to_owned(),
                 },
                 MappingPath {
                     host_path: Path::new("/quuy").to_owned(),
-                    container_path: Path::new("/quuz").to_owned(),
+                    container_path: UnixPath::new("/quuz").to_owned(),
                 },
             ],
             mount_readonly: false,
             ports: vec![],
-            location: Some(Path::new("/corge").to_owned()),
+            location: Some(UnixPath::new("/corge").to_owned()),
             user: None,
             command: String::new(),
             command_prefix: None,
@@ -1369,18 +1388,12 @@ tasks:
 
     #[test]
     fn check_task_paths_absolute_input_paths() {
-        #[cfg(unix)]
-        let absolute_path = "/bar";
-
-        #[cfg(windows)]
-        let absolute_path = "C:\\bar";
-
         let task = Task {
             description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
-            input_paths: vec![Path::new(absolute_path).to_owned()],
+            input_paths: vec![UnixPath::new("/bar").to_owned()],
             excluded_input_paths: vec![],
             output_paths: vec![],
             output_paths_on_failure: vec![],
@@ -1396,24 +1409,18 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(absolute_path));
+        assert!(result.unwrap_err().to_string().contains("/bar"));
     }
 
     #[test]
     fn check_task_paths_absolute_excluded_input_paths() {
-        #[cfg(unix)]
-        let absolute_path = "/bar";
-
-        #[cfg(windows)]
-        let absolute_path = "C:\\bar";
-
         let task = Task {
             description: None,
             dependencies: vec![],
             cache: true,
             environment: HashMap::new(),
             input_paths: vec![],
-            excluded_input_paths: vec![Path::new(absolute_path).to_owned()],
+            excluded_input_paths: vec![UnixPath::new("/bar").to_owned()],
             output_paths: vec![],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
@@ -1428,17 +1435,11 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(absolute_path));
+        assert!(result.unwrap_err().to_string().contains("/bar"));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths() {
-        #[cfg(unix)]
-        let absolute_path = "/bar";
-
-        #[cfg(windows)]
-        let absolute_path = "C:\\bar";
-
         let task = Task {
             description: None,
             dependencies: vec![],
@@ -1446,7 +1447,7 @@ tasks:
             environment: HashMap::new(),
             input_paths: vec![],
             excluded_input_paths: vec![],
-            output_paths: vec![Path::new(absolute_path).to_owned()],
+            output_paths: vec![UnixPath::new("/bar").to_owned()],
             output_paths_on_failure: vec![],
             mount_paths: vec![],
             mount_readonly: false,
@@ -1460,17 +1461,11 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(absolute_path));
+        assert!(result.unwrap_err().to_string().contains("/bar"));
     }
 
     #[test]
     fn check_task_paths_absolute_output_paths_on_failure() {
-        #[cfg(unix)]
-        let absolute_path = "/bar";
-
-        #[cfg(windows)]
-        let absolute_path = "C:\\bar";
-
         let task = Task {
             description: None,
             dependencies: vec![],
@@ -1479,7 +1474,7 @@ tasks:
             input_paths: vec![],
             excluded_input_paths: vec![],
             output_paths: vec![],
-            output_paths_on_failure: vec![Path::new(absolute_path).to_owned()],
+            output_paths_on_failure: vec![UnixPath::new("/bar").to_owned()],
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
@@ -1492,7 +1487,7 @@ tasks:
 
         let result = check_task("foo", &task);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains(absolute_path));
+        assert!(result.unwrap_err().to_string().contains("/bar"));
     }
 
     #[test]
@@ -1508,7 +1503,7 @@ tasks:
             output_paths_on_failure: vec![],
             mount_paths: vec![MappingPath {
                 host_path: Path::new("bar,baz").to_owned(),
-                container_path: Path::new("bar,baz").to_owned(),
+                container_path: UnixPath::new("bar,baz").to_owned(),
             }],
             mount_readonly: false,
             ports: vec![],
@@ -1538,7 +1533,7 @@ tasks:
             mount_paths: vec![],
             mount_readonly: false,
             ports: vec![],
-            location: Some(Path::new("code").to_owned()),
+            location: Some(UnixPath::new("code").to_owned()),
             user: None,
             command: String::new(),
             command_prefix: None,
@@ -1563,7 +1558,7 @@ tasks:
             output_paths_on_failure: vec![],
             mount_paths: vec![MappingPath {
                 host_path: Path::new("bar").to_owned(),
-                container_path: Path::new("bar").to_owned(),
+                container_path: UnixPath::new("bar").to_owned(),
             }],
             mount_readonly: false,
             ports: vec![],
@@ -1592,7 +1587,7 @@ tasks:
             output_paths_on_failure: vec![],
             mount_paths: vec![MappingPath {
                 host_path: Path::new("bar").to_owned(),
-                container_path: Path::new("bar").to_owned(),
+                container_path: UnixPath::new("bar").to_owned(),
             }],
             mount_readonly: false,
             ports: vec!["3000:80".to_owned()],
@@ -1859,7 +1854,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1867,7 +1862,7 @@ tasks:
 
         assert_eq!(
             location(&toastfile, &toastfile.tasks["foo"]),
-            Path::new(DEFAULT_LOCATION),
+            UnixPath::new(DEFAULT_LOCATION),
         );
     }
 
@@ -1888,7 +1883,7 @@ tasks:
                 mount_paths: vec![],
                 mount_readonly: false,
                 ports: vec![],
-                location: Some(Path::new("/bar").to_owned()),
+                location: Some(UnixPath::new("/bar").to_owned()),
                 user: None,
                 command: String::new(),
                 command_prefix: None,
@@ -1899,7 +1894,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1907,7 +1902,7 @@ tasks:
 
         assert_eq!(
             location(&toastfile, &toastfile.tasks["foo"]),
-            Path::new("/bar"),
+            UnixPath::new("/bar"),
         );
     }
 
@@ -1939,7 +1934,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -1979,7 +1974,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -2016,7 +2011,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: "set -euo pipefail".to_owned(),
             tasks,
@@ -2056,7 +2051,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -2096,7 +2091,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,
@@ -2136,7 +2131,7 @@ tasks:
         let toastfile = Toastfile {
             image: "encom:os-12".to_owned(),
             default: None,
-            location: Path::new(DEFAULT_LOCATION).to_owned(),
+            location: UnixPath::new(DEFAULT_LOCATION).to_owned(),
             user: DEFAULT_USER.to_owned(),
             command_prefix: String::new(),
             tasks,

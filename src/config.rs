@@ -1,6 +1,6 @@
 use {
     crate::{failure, failure::Failure},
-    serde::{Deserialize, Serialize},
+    serde::Deserialize,
 };
 
 pub const REPO_DEFAULT: &str = "toast";
@@ -8,7 +8,7 @@ pub const EMPTY_CONFIG: &str = "{}";
 const DOCKER_CLI_DEFAULT: &str = "docker";
 
 // A program configuration
-#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config {

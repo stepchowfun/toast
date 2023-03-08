@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.2] - 2023-03-08
+
+### Fixed
+- Various bugs related to paths on Windows have been fixed with the help of [`typed-path`](https://crates.io/crates/typed-path).
+
 ## [0.46.1] - 2023-03-02
 
 ### Fixed
