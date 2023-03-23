@@ -206,12 +206,13 @@ pub fn run(
             }),
         )
     } else {
-        // Pull the image if necessary. Note that this is not considered reading from the remote
-        // cache.
-        if !match docker::image_exists(&settings.docker_cli, &context.image, interrupted) {
-            Ok(exists) => exists,
-            Err(e) => return (Err(e), Some(context)),
-        } {
+        // Pull the image if necessary. Force reading from the remote if configured
+        if settings.force_image_pull
+            || !match docker::image_exists(&settings.docker_cli, &context.image, interrupted) {
+                Ok(exists) => exists,
+                Err(e) => return (Err(e), Some(context)),
+            }
+        {
             if let Err(e) = docker::pull_image(&settings.docker_cli, &context.image, interrupted) {
                 return (Err(e), Some(context));
             }
