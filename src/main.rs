@@ -69,6 +69,7 @@ const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
+const FORCE_IMAGE_PULL: &str = "force-image-pull";
 const OUTPUT_DIR_OPTION: &str = "output-dir";
 
 // Set up the logger.
@@ -165,6 +166,7 @@ pub struct Settings {
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
     forced_tasks: Vec<String>,
+    force_image_pull: bool,
     output_dir: PathBuf,
 }
 
@@ -255,6 +257,11 @@ fn settings() -> Result<Settings, Failure> {
                 .long(FORCE_OPTION)
                 .help("Runs a task unconditionally, even if it\u{2019}s cached")
                 .multiple(true),
+        )
+        .arg(
+            Arg::with_name(FORCE_IMAGE_PULL)
+                .long(FORCE_IMAGE_PULL)
+                .help("Pulls the base image unconditionally, even if it already exists locally"),
         )
         .arg(
             Arg::with_name(TASKS_OPTION)
@@ -386,6 +393,9 @@ fn settings() -> Result<Settings, Failure> {
                 .collect::<Vec<_>>()
         });
 
+    // Read the force image pulling switch.
+    let force_image_pull = matches.is_present(FORCE_IMAGE_PULL);
+
     Ok(Settings {
         toastfile_path,
         docker_cli,
@@ -398,6 +408,7 @@ fn settings() -> Result<Settings, Failure> {
         spawn_shell,
         tasks,
         forced_tasks,
+        force_image_pull,
         output_dir,
     })
 }
