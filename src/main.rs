@@ -69,7 +69,7 @@ const LIST_OPTION: &str = "list";
 const SHELL_OPTION: &str = "shell";
 const TASKS_OPTION: &str = "tasks";
 const FORCE_OPTION: &str = "force";
-const FORCE_IMAGE_PULL: &str = "force-image-pull";
+const FORCE_ALL_OPTION: &str = "force-all";
 const OUTPUT_DIR_OPTION: &str = "output-dir";
 
 // Set up the logger.
@@ -166,7 +166,7 @@ pub struct Settings {
     spawn_shell: bool,
     tasks: Option<Vec<String>>,
     forced_tasks: Vec<String>,
-    force_image_pull: bool,
+    force_all: bool,
     output_dir: PathBuf,
 }
 
@@ -259,9 +259,9 @@ fn settings() -> Result<Settings, Failure> {
                 .multiple(true),
         )
         .arg(
-            Arg::with_name(FORCE_IMAGE_PULL)
-                .long(FORCE_IMAGE_PULL)
-                .help("Pulls the base image unconditionally, even if it already exists locally"),
+            Arg::with_name(FORCE_ALL_OPTION)
+                .long(FORCE_ALL_OPTION)
+                .help("Pulls the base image and runs all tasks unconditionally"),
         )
         .arg(
             Arg::with_name(TASKS_OPTION)
@@ -393,8 +393,8 @@ fn settings() -> Result<Settings, Failure> {
                 .collect::<Vec<_>>()
         });
 
-    // Read the force image pulling switch.
-    let force_image_pull = matches.is_present(FORCE_IMAGE_PULL);
+    // Read the force all switch.
+    let force_all = matches.is_present(FORCE_ALL_OPTION);
 
     Ok(Settings {
         toastfile_path,
@@ -408,7 +408,7 @@ fn settings() -> Result<Settings, Failure> {
         spawn_shell,
         tasks,
         forced_tasks,
-        force_image_pull,
+        force_all,
         output_dir,
     })
 }
@@ -548,8 +548,9 @@ fn run_tasks(
 ) -> (Result<(), Failure>, Option<runner::Context>, Option<String>) {
     // This variable will be `true` as long as we're executing tasks that have `cache: true`. As
     // soon as we encounter a task with `cache: false`, this variable will be permanently set to
+    // `false`. If the user provided the `--force-image-pull` flag, this variable will always be
     // `false`.
-    let mut caching_enabled = true;
+    let mut caching_enabled = !settings.force_all;
 
     // We start with the base image.
     let mut context = Some(runner::Context {
@@ -592,6 +593,7 @@ fn run_tasks(
             toastfile,
             task_data,
             caching_enabled,
+            settings.force_all && i == 0,
             context.unwrap(), // Safe due to [ref:context_needed_if_not_final_task].
             need_context || i != schedule.len() - 1, // [tag:context_needed_if_not_final_task]
         );

@@ -50,6 +50,7 @@ pub fn run(
     toastfile: &Toastfile,
     task: &Task,
     caching_enabled: bool,
+    force_pull: bool,
     context: Context,
     need_context: bool,
 ) -> (Result<(), Failure>, Option<Context>) {
@@ -206,8 +207,8 @@ pub fn run(
             }),
         )
     } else {
-        // Pull the image if necessary. Force reading from the remote if configured
-        if settings.force_image_pull
+        // Pull the image if necessary. Force reading from the remote if configured.
+        if force_pull
             || !match docker::image_exists(&settings.docker_cli, &context.image, interrupted) {
                 Ok(exists) => exists,
                 Err(e) => return (Err(e), Some(context)),

@@ -413,8 +413,8 @@ OPTIONS:
         --force <TASK>...
             Runs a task unconditionally, even if it’s cached
 
-        --force-image-pull
-            Pulls the base image unconditionally, even if it already exists locally
+        --force-all
+            Pulls the base image and runs all tasks unconditionally
 
     -h, --help
             Prints help information

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.1] - 2023-04-03
+
+### Added
+- Fixed a bug in `--force-image-pull` which would cause the flag to have no effect if the first task in the schedule is available in the local or remote cache. Also, the flag has been renamed to `--force-all`.
+
 ## [0.47.0] - 2023-04-03
 
 ### Added
