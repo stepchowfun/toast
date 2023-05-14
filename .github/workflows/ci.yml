@@ -78,13 +78,25 @@ jobs:
         rustup toolchain install 1.65.0 # [ref:rust_1.65.0]
         rustup default 1.65.0 # [ref:rust_1.65.0]
 
-        # Build and test.
+        # Build and test for x86_64-apple-darwin.
         cargo build --locked --release --target x86_64-apple-darwin
+        NO_COLOR=true cargo test --locked # [ref:colorless_tests]
+
+        # Build and test for aarch64-apple-darwin.
+        rustup target add aarch64-apple-darwin
+        SDKROOT=$(xcrun --show-sdk-path) \
+          MACOSX_DEPLOYMENT_TARGET=$(xcrun --show-sdk-version) \
+            cargo build --locked --release --target aarch64-apple-darwin
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
     - uses: actions/upload-artifact@v2
       with:
         name: x86_64-apple-darwin
         path: target/x86_64-apple-darwin/release/toast
+        if-no-files-found: error
+    - uses: actions/upload-artifact@v2
+      with:
+        name: aarch64-apple-darwin
+        path: target/aarch64-apple-darwin/release/toast
         if-no-files-found: error
   install-macos:
     name: Install on macOS
@@ -154,6 +166,9 @@ jobs:
           artifacts/x86_64-apple-darwin/toast \
           artifacts/toast-x86_64-apple-darwin
         mv \
+          artifacts/aarch64-apple-darwin/toast \
+          artifacts/toast-aarch64-apple-darwin
+        mv \
           artifacts/x86_64-pc-windows-msvc/toast.exe \
           artifacts/toast-x86_64-pc-windows-msvc.exe
 
@@ -164,6 +179,7 @@ jobs:
           --attach 'artifacts/toast-x86_64-unknown-linux-gnu' \
           --attach 'artifacts/toast-x86_64-unknown-linux-musl' \
           --attach 'artifacts/toast-x86_64-apple-darwin' \
+          --attach 'artifacts/toast-aarch64-apple-darwin' \
           --attach 'artifacts/toast-x86_64-pc-windows-msvc.exe' \
           "v$VERSION"
         echo "Created release v$VERSION."
