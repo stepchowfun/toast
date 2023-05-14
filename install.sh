@@ -14,7 +14,7 @@
   DESTINATION="${PREFIX:-/usr/local/bin}/toast"
 
   # Which version to download
-  RELEASE="v${VERSION:-0.47.1}"
+  RELEASE="v${VERSION:-0.47.2}"
 
   # Determine which binary to download.
   FILENAME=''
@@ -28,6 +28,10 @@
   if uname -a | grep -qi 'Darwin.*x86_64'; then
     echo 'x86-64 macOS detected.'
     FILENAME=toast-x86_64-apple-darwin
+  fi
+  if uname -a | grep -qi 'Darwin.*arm64'; then
+    echo 'AArch64 macOS detected.'
+    FILENAME=toast-aarch64-apple-darwin
   fi
 
   # Find a temporary location for the binary.
