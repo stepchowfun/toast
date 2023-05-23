@@ -21,15 +21,16 @@
   if uname -a | grep -qi 'x86_64.*GNU/Linux'; then
     echo 'x86-64 GNU Linux detected.'
     FILENAME=toast-x86_64-unknown-linux-gnu
-  elif uname -a | grep -qi 'x86_64 Linux'; then
+  elif uname -a | grep -qi 'x86_64.*Linux'; then
     echo 'x86-64 non-GNU Linux detected.'
     FILENAME=toast-x86_64-unknown-linux-musl
-  fi
-  if uname -a | grep -qi 'Darwin.*x86_64'; then
+  elif uname -a | grep -qi 'aarch64.*GNU/Linux'; then
+    echo 'AArch64 GNU Linux detected.'
+    FILENAME=toast-aarch64-unknown-linux-gnu
+  elif uname -a | grep -qi 'Darwin.*x86_64'; then
     echo 'x86-64 macOS detected.'
     FILENAME=toast-x86_64-apple-darwin
-  fi
-  if uname -a | grep -qi 'Darwin.*arm64'; then
+  elif uname -a | grep -qi 'Darwin.*arm64'; then
     echo 'AArch64 macOS detected.'
     FILENAME=toast-aarch64-apple-darwin
   fi
