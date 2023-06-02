@@ -227,16 +227,19 @@ tasks:
       rustup target add x86_64-unknown-linux-gnu
       rustup target add x86_64-unknown-linux-musl
       rustup target add aarch64-unknown-linux-gnu
+      rustup target add aarch64-unknown-linux-musl
 
       # Set the linkers.
       export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
       export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
       export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+      export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc
 
       # Build the project with Cargo for each Linux target.
       cargo-online build --release --target x86_64-unknown-linux-gnu
       cargo-online build --release --target x86_64-unknown-linux-musl
       cargo-online build --release --target aarch64-unknown-linux-gnu
+      cargo-online build --release --target aarch64-unknown-linux-musl
 
       # Move the binaries to a more conveniennt location for exporting.
       mkdir artifacts
@@ -249,6 +252,9 @@ tasks:
       cp \
         target/aarch64-unknown-linux-gnu/release/toast \
         artifacts/toast-aarch64-unknown-linux-gnu
+      cp \
+        target/aarch64-unknown-linux-musl/release/toast \
+        artifacts/toast-aarch64-unknown-linux-musl
 
   validate_release:
     description: Validate the release.
