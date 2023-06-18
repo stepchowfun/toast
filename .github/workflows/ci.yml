@@ -8,7 +8,7 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - if: ${{ github.event_name == 'push' }}
       uses: azure/docker-login@v1
       with:
@@ -25,7 +25,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: x86_64-unknown-linux-gnu
         path: artifacts/toast
@@ -36,7 +36,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: x86_64-unknown-linux-musl
         path: artifacts/toast
@@ -47,7 +47,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: aarch64-unknown-linux-gnu
         path: artifacts/toast
@@ -58,7 +58,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: aarch64-unknown-linux-musl
         path: artifacts/toast
@@ -67,7 +67,7 @@ jobs:
     name: Build for Windows
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: |
         # Make Bash not silently ignore errors.
         set -euo pipefail
@@ -76,22 +76,38 @@ jobs:
         rustup toolchain install 1.65.0 # [ref:rust_1.65.0]
         rustup default 1.65.0 # [ref:rust_1.65.0]
 
-        # Build and test.
+        # Add the targets.
+        rustup target add x86_64-pc-windows-msvc
+        rustup target add aarch64-pc-windows-msvc
+
+        # Build and test for x86_64-pc-windows-msvc.
         RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
           --locked \
           --release \
           --target x86_64-pc-windows-msvc
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v2
+
+        # Build and test for aarch64-pc-windows-msvc.
+        RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
+          --locked \
+          --release \
+          --target aarch64-pc-windows-msvc
+        NO_COLOR=true cargo test --locked # [ref:colorless_tests]
+    - uses: actions/upload-artifact@v3
       with:
         name: x86_64-pc-windows-msvc
         path: target/x86_64-pc-windows-msvc/release/toast.exe
+        if-no-files-found: error
+    - uses: actions/upload-artifact@v3
+      with:
+        name: aarch64-pc-windows-msvc
+        path: target/aarch64-pc-windows-msvc/release/toast.exe
         if-no-files-found: error
   ci-macos:
     name: Build for macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: |
         # Make Bash not silently ignore errors.
         set -euo pipefail
@@ -100,22 +116,27 @@ jobs:
         rustup toolchain install 1.65.0 # [ref:rust_1.65.0]
         rustup default 1.65.0 # [ref:rust_1.65.0]
 
+        # Add the targets.
+        rustup target add x86_64-apple-darwin
+        rustup target add aarch64-apple-darwin
+
         # Build and test for x86_64-apple-darwin.
-        cargo build --locked --release --target x86_64-apple-darwin
+        SDKROOT=$(xcrun --show-sdk-path) \
+          MACOSX_DEPLOYMENT_TARGET=$(xcrun --show-sdk-version) \
+            cargo build --locked --release --target x86_64-apple-darwin
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
 
         # Build and test for aarch64-apple-darwin.
-        rustup target add aarch64-apple-darwin
         SDKROOT=$(xcrun --show-sdk-path) \
           MACOSX_DEPLOYMENT_TARGET=$(xcrun --show-sdk-version) \
             cargo build --locked --release --target aarch64-apple-darwin
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: x86_64-apple-darwin
         path: target/x86_64-apple-darwin/release/toast
         if-no-files-found: error
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: aarch64-apple-darwin
         path: target/aarch64-apple-darwin/release/toast
@@ -124,7 +145,7 @@ jobs:
     name: Install on macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: |
         # Make Bash not silently ignore errors.
         set -euo pipefail
@@ -138,7 +159,7 @@ jobs:
     name: Install on Ubuntu
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: |
         # Make Bash not silently ignore errors.
         set -euo pipefail
@@ -154,8 +175,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ci-linux, ci-macos, ci-windows, install-macos, install-ubuntu]
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
       with:
         path: artifacts/
     - env:
@@ -199,6 +220,9 @@ jobs:
         mv \
           artifacts/x86_64-pc-windows-msvc/toast.exe \
           artifacts/toast-x86_64-pc-windows-msvc.exe
+        mv \
+          artifacts/aarch64-pc-windows-msvc/toast.exe \
+          artifacts/toast-aarch64-pc-windows-msvc.exe
 
         # Create the release.
         hub release create \
@@ -211,9 +235,10 @@ jobs:
           --attach 'artifacts/toast-x86_64-apple-darwin' \
           --attach 'artifacts/toast-aarch64-apple-darwin' \
           --attach 'artifacts/toast-x86_64-pc-windows-msvc.exe' \
+          --attach 'artifacts/toast-aarch64-pc-windows-msvc.exe' \
           "v$VERSION"
         echo "Created release v$VERSION."
-    - uses: ./.github/actions/toast
+    - uses: stepchowfun/toast/.github/actions/toast@main
       with:
         tasks: publish
         docker_repo: stephanmisc/toast

@@ -223,7 +223,7 @@ tasks:
     output_paths:
       - artifacts
     command: |
-      # Add the targets. It's likely that this script is currently running in one of them.
+      # Add the targets.
       rustup target add x86_64-unknown-linux-gnu
       rustup target add x86_64-unknown-linux-musl
       rustup target add aarch64-unknown-linux-gnu
