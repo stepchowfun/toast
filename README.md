@@ -102,6 +102,7 @@ Here's a more realistic example. Suppose you want to compile and run a simple C 
 
 int main(void) {
   printf("Hello, World!\n");
+  return 0;
 }
 ```
 
