@@ -180,7 +180,7 @@ pub fn copy_into_container<R: Read>(
             "container".to_owned(),
             "cp".to_owned(),
             "-".to_owned(),
-            format!("{}:/", container),
+            format!("{container}:/"),
         ],
         |mut stdin| {
             io::copy(&mut tar, &mut stdin)
@@ -613,8 +613,7 @@ fn run_quiet(
     let child = command(docker_cli, args)
         .output()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
-            error,
+            "{error} Perhaps you don't have Docker installed.",
         )))?;
 
     // Handle the result.
@@ -661,8 +660,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
-            error,
+            "{error} Perhaps you don't have Docker installed.",
         )))?;
 
     // Pipe data to the child's standard input stream.
@@ -670,8 +668,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
 
     // Wait for the child to terminate.
     let output = child.wait_with_output().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
-        error,
+        "{error} Perhaps you don't have Docker installed.",
     )))?;
 
     // Handle the result.
@@ -710,14 +707,12 @@ fn run_loud(
         .stdin(Stdio::null())
         .spawn()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
-            error,
+            "{error} Perhaps you don't have Docker installed.",
         )))?;
 
     // Wait for the child to terminate.
     let status = child.wait().map_err(failure::system(format!(
-        "{} Perhaps you don't have Docker installed.",
-        error,
+        "{error} Perhaps you don't have Docker installed.",
     )))?;
 
     // Handle the result.
@@ -750,8 +745,7 @@ fn run_attach(
     let child = command(docker_cli, args)
         .status()
         .map_err(failure::system(format!(
-            "{} Perhaps you don't have Docker installed.",
-            error,
+            "{error} Perhaps you don't have Docker installed.",
         )))?;
 
     // Handle the result.

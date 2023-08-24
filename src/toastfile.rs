@@ -240,7 +240,7 @@ fn default_user() -> String {
 pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     // Deserialize the data.
     let toastfile: Toastfile =
-        serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{}", e), None))?;
+        serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{e}"), None))?;
 
     // Make sure the dependencies are valid.
     check_dependencies(&toastfile)?;
@@ -382,10 +382,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
 
         if valid_default {
             return Err(Failure::User(
-                format!(
-                    "The following tasks have invalid dependencies: {}.",
-                    violations_series,
-                ),
+                format!("The following tasks have invalid dependencies: {violations_series}."),
                 None,
             ));
         }
@@ -417,10 +414,9 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
         let mut ancestors_stack: Vec<&'a str> = vec![];
 
         // Keep going as long as there are more nodes to process [tag:toastfile_frontier_nonempty].
-        while !frontier.is_empty() {
+        while let Some((task, task_depth)) = frontier.pop() {
             // Take the top task from the frontier. This is safe due to
             // [ref:toastfile_frontier_nonempty].
-            let (task, task_depth) = frontier.pop().unwrap();
 
             // Update the ancestors set and stack.
             for _ in 0..ancestors_stack.len() - task_depth {
@@ -462,7 +458,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                     )
                 };
                 return Err(Failure::User(
-                    format!("The dependencies are cyclic. {}", error_message),
+                    format!("The dependencies are cyclic. {error_message}"),
                     None,
                 ));
             }
@@ -572,7 +568,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
             return Err(Failure::User(
                 format!(
                     "Mount path {} of task {} has a {}.",
-                    format!("{}", path).code_str(),
+                    format!("{path}").code_str(),
                     name.code_str(),
                     ",".code_str(),
                 ),

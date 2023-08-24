@@ -14,7 +14,7 @@ impl CodeStr for str {
         if SHOULD_COLORIZE.should_colorize() {
             self.magenta()
         } else {
-            ColoredString::from(&format!("`{}`", self) as &Self)
+            ColoredString::from(&format!("`{self}`") as &Self)
         }
     }
 }
@@ -23,9 +23,9 @@ impl CodeStr for str {
 // given multiplicity (pluralizing if necessary). For example, (3, "cow") becomes "3 cows".
 pub fn number(n: usize, noun: &str) -> String {
     if n == 1 {
-        format!("{} {}", n, noun)
+        format!("{n} {noun}")
     } else {
-        format!("{} {}s", n, noun)
+        format!("{n} {noun}s")
     }
 }
 
