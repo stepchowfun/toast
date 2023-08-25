@@ -28,9 +28,8 @@ pub fn compute<'a>(toastfile: &'a Toastfile, tasks: &[&'a str]) -> Vec<&'a str> 
 
         // Keep processing nodes on the frontier until there aren't any more left.
         // [tag:schedule_frontier_nonempty]
-        while !frontier.is_empty() {
+        while let Some((task, new)) = frontier.pop() {
             // Pop a task from the frontier [ref:schedule_frontier_nonempty].
-            let (task, new) = frontier.pop().unwrap();
 
             // Check if this is a new task or one that we are coming back to because we finished
             // processing its dependencies.

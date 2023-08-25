@@ -14,9 +14,9 @@ pub enum Failure {
 impl fmt::Display for Failure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::System(message, None) | Self::User(message, None) => write!(f, "{}", message),
+            Self::System(message, None) | Self::User(message, None) => write!(f, "{message}"),
             Self::System(message, Some(source)) | Self::User(message, Some(source)) => {
-                write!(f, "{} Reason: {}", message, source)
+                write!(f, "{message} Reason: {source}")
             }
             Self::Interrupted => write!(f, "Interrupted."),
         }

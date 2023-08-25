@@ -120,7 +120,7 @@ pub fn image_name(
     }
 
     // Start with a hash of the cache version.
-    let mut cache_key: String = format!("{}", CACHE_VERSION).crypto_hash();
+    let mut cache_key: String = format!("{CACHE_VERSION}").crypto_hash();
 
     // Incorporate the previous image.
     cache_key = combine(&cache_key, previous_image);
@@ -152,7 +152,7 @@ pub fn image_name(
 
     // We add this "toast-" prefix because Docker has a rule that tags cannot be 64-byte hexadecimal
     // strings. See this for more details: https://github.com/moby/moby/issues/20972
-    format!("{}:toast-{}", docker_repo, cache_key)
+    format!("{docker_repo}:toast-{cache_key}")
 }
 
 #[cfg(test)]
