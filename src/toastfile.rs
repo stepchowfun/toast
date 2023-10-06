@@ -352,7 +352,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
                 // [tag:dependencies_exist]
                 violations
                     .entry(task.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(dependency.clone());
             }
         }
