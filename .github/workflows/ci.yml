@@ -73,8 +73,8 @@ jobs:
         set -euo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.72.0 # [ref:rust_1.72.0]
-        rustup default 1.72.0 # [ref:rust_1.72.0]
+        rustup toolchain install 1.73.0 # [ref:rust_1.73.0]
+        rustup default 1.73.0 # [ref:rust_1.73.0]
 
         # Add the targets.
         rustup target add x86_64-pc-windows-msvc
@@ -113,8 +113,8 @@ jobs:
         set -euo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.72.0 # [ref:rust_1.72.0]
-        rustup default 1.72.0 # [ref:rust_1.72.0]
+        rustup toolchain install 1.73.0 # [ref:rust_1.73.0]
+        rustup default 1.73.0 # [ref:rust_1.73.0]
 
         # Add the targets.
         rustup target add x86_64-apple-darwin
@@ -186,8 +186,8 @@ jobs:
         set -euo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.72.0 # [ref:rust_1.72.0]
-        rustup default 1.72.0 # [ref:rust_1.72.0]
+        rustup toolchain install 1.73.0 # [ref:rust_1.73.0]
+        rustup default 1.73.0 # [ref:rust_1.73.0]
 
         # Fetch the program version.
         VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"

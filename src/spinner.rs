@@ -82,7 +82,7 @@ pub fn spin(message: &str) -> impl Drop {
         .unwrap();
 
     // Return a guard that stops the spinner via its destructor.
-    guard((), move |_| {
+    guard((), move |()| {
         // Tell the spinner service to stop the spinner.
         spinning.store(false, Ordering::SeqCst);
 

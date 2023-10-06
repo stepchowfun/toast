@@ -280,7 +280,7 @@ pub fn run(
 
         // Copy files from the container, if applicable.
         match result {
-            Ok(_) if !task.output_paths.is_empty() => {
+            Ok(()) if !task.output_paths.is_empty() => {
                 if let Err(e) = docker::copy_from_container(
                     &settings.docker_cli,
                     &container,
@@ -344,10 +344,10 @@ pub fn run(
             }
 
             // Return the new context.
-            (result.map(|_| ()), Some(new_context))
+            (result.map(|()| ()), Some(new_context))
         } else {
             // The caller doesn't need a context to be returned.
-            (result.map(|_| ()), None)
+            (result.map(|()| ()), None)
         }
     }
 }

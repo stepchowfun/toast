@@ -381,7 +381,7 @@ pub fn start_container(
             .collect::<Vec<_>>(),
         interrupted,
     )
-    .map(|_| ())
+    .map(|()| ())
 }
 
 // Stop a container.

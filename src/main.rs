@@ -718,7 +718,7 @@ fn entry() -> Result<(), Failure> {
 
     // Return early if needed.
     match result {
-        Ok(_) | Err(Failure::User(_, _)) => {
+        Ok(()) | Err(Failure::User(_, _)) => {
             // Proceed in case the user wants to drop into a shell.
         }
         Err(Failure::Interrupted | Failure::System(_, _)) => {
