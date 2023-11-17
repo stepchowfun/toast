@@ -80,14 +80,14 @@ mod tests {
 
     #[test]
     fn parse_nonempty() {
-        let config = r#"
+        let config = r"
 docker_cli: podman
 docker_repo: foo
 read_local_cache: false
 write_local_cache: false
 read_remote_cache: true
 write_remote_cache: true
-    "#
+    "
         .trim();
 
         let result = Config {
