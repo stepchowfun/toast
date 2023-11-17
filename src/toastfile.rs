@@ -650,9 +650,9 @@ mod tests {
 
     #[test]
     fn parse_empty() {
-        let input = r#"
+        let input = r"
 image: encom:os-12
-    "#
+    "
         .trim();
 
         let toastfile = Toastfile {
@@ -669,11 +669,11 @@ image: encom:os-12
 
     #[test]
     fn parse_minimal_task() {
-        let input = r#"
+        let input = r"
 image: encom:os-12
 tasks:
   foo: {}
-    "#
+    "
         .trim();
 
         let mut tasks = HashMap::new();
@@ -714,7 +714,7 @@ tasks:
     #[test]
     #[allow(clippy::too_many_lines)]
     fn parse_comprehensive_task() {
-        let input = r#"
+        let input = r"
 image: encom:os-12
 default: bar
 location: /default_location
@@ -763,7 +763,7 @@ tasks:
     extra_docker_arguments:
       - --cpus
       - '4'
-    "#
+    "
         .trim();
 
         let mut environment = HashMap::new();
