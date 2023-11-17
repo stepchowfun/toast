@@ -10,6 +10,11 @@ homepage = "https://github.com/stepchowfun/toast"
 repository = "https://github.com/stepchowfun/toast"
 readme = "README.md"
 
+[lints]
+clippy.all = "deny"
+clippy.pedantic = "deny"
+rust.warnings = "deny"
+
 [dependencies]
 atty = "0.2"
 colored = "2"
