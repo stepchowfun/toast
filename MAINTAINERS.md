@@ -32,4 +32,4 @@ Releasing a new version is a two-step process:
 
 1. Bump the version in `Cargo.toml`, run `cargo build` to update `Cargo.lock`, and update `CHANGELOG.md` with information about the new version. Ship those changes as a single commit.
 2. Once the GitHub workflow has finished on the `main` branch, update the version in `install.sh` to point to the new release.
-3. Create a pull request in the `Homebrew/homebrew-core` repository on GitHub to bump the version in [this file](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/toast.rb).
+3. Create a pull request in the `Homebrew/homebrew-core` repository on GitHub to bump the version in [this file](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/t/toast.rb).
