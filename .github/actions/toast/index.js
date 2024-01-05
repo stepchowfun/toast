@@ -39,7 +39,7 @@ childProcess.execSync(
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
 const dockerRepoArgs = dockerRepo === null ? [] : ['--docker-repo', dockerRepo];
-const readRemoteCacheArgs = readRemoteCache ? ['--write-remote-cache', 'true'] : [];
+const readRemoteCacheArgs = readRemoteCache ? ['--read-remote-cache', 'true'] : [];
 const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
 
 // Run Toast.
