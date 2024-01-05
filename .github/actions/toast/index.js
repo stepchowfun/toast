@@ -7,12 +7,14 @@ const { v4: uuidv4 } = require('uuid');
 const tasksInput = core.getInput('tasks').trim();
 const fileInput = core.getInput('file').trim();
 const dockerRepoInput = core.getInput('docker_repo').trim();
+const readRemoteCacheInput = core.getInput('read_remote_cache').trim();
 const writeRemoteCacheInput = core.getInput('write_remote_cache').trim();
 
 // Parse the action inputs.
 const tasks = tasksInput === '' ? null : tasksInput.split(/\s+/);
 const file = fileInput === '' ? null : fileInput;
 const dockerRepo = dockerRepoInput === '' ? null : dockerRepoInput;
+const readRemoteCache = readRemoteCacheInput == 'true';
 const writeRemoteCache = writeRemoteCacheInput == 'true';
 
 // Where to install Toast
@@ -37,7 +39,7 @@ childProcess.execSync(
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
 const dockerRepoArgs = dockerRepo === null ? [] : ['--docker-repo', dockerRepo];
-const readRemoteCacheArgs = dockerRepo === null ? [] : ['--read-remote-cache', 'true'];
+const readRemoteCacheArgs = readRemoteCache ? ['--write-remote-cache', 'true'] : [];
 const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
 
 // Run Toast.
