@@ -529,7 +529,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+    - main
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -547,7 +547,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+    - main
 jobs:
   ci:
     runs-on: ubuntu-latest
