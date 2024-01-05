@@ -525,7 +525,11 @@ The easiest way to run Toast in CI is to use [GitHub Actions](https://help.githu
 ```yaml
 # .github/workflows/ci.yml
 name: Continuous integration
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -539,7 +543,11 @@ Here's a more customized workflow that showcases all the options:
 ```yaml
 # .github/workflows/ci.yml
 name: Continuous integration
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -555,6 +563,7 @@ jobs:
         file: toastfiles/toast.yml
         tasks: build lint test
         docker_repo: DOCKER_USERNAME/DOCKER_REPO
+        read_remote_cache: ${{ github.event_name == 'push' }}
         write_remote_cache: ${{ github.event_name == 'push' }}
 ```
 
