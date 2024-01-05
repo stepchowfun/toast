@@ -480,7 +480,7 @@ If you prefer not to use this installation method, you can download the binary f
 
 If you're running Windows (AArch64 or x86-64), download the latest binary from the [releases page](https://github.com/stepchowfun/toast/releases) and rename it to `toast` (or `toast.exe` if you have file extensions visible). Create a directory called `Toast` in your `%PROGRAMFILES%` directory (e.g., `C:\Program Files\Toast`), and place the renamed binary in there. Then, in the "Advanced" tab of the "System Properties" section of Control Panel, click on "Environment Variables..." and add the full path to the new `Toast` directory to the `PATH` variable under "System variables". Note that the `Program Files` directory might have a different name if Windows is configured for a language other than English.
 
-To update to an existing installation, simply replace the existing binary.
+To update an existing installation, simply replace the existing binary.
 
 
 ### Installation with Homebrew
