@@ -2,7 +2,7 @@
 
 [![Build status](https://github.com/stepchowfun/toast/workflows/Continuous%20integration/badge.svg?branch=main)](https://github.com/stepchowfun/toast/actions?query=branch%3Amain)
 
-*Toast* is a tool for doing work in containers. You define tasks in a YAML file called a *toastfile*, and Toast runs them in a containerized environment based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, build an application, run a test suite, or even serve web pages. Tasks can depend on other tasks, so Toast can be understood as a high-level containerized build system.
+*Toast* is a tool for containerizing your workflows such as building and testing a project. You define tasks in a YAML file called a *toastfile*, and Toast runs them in a container based on a Docker image of your choosing. What constitutes a "task" is up to you: tasks can install system packages, compile an application, run a test suite, or even serve web pages. Tasks can depend on other tasks, so Toast can be understood as a high-level containerized build system.
 
 ![Welcome to Toast.](https://raw.githubusercontent.com/stepchowfun/toast/main/media/welcome-0.svg?sanitize=true)
 
