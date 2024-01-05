@@ -229,7 +229,7 @@ fn settings() -> Result<Settings, Failure> {
                 .value_name("REPO")
                 .short("r")
                 .long(DOCKER_REPO_OPTION)
-                .help("Sets the Docker repository"),
+                .help("Sets the Docker repository for remote caching"),
         )
         .arg(
             Arg::with_name(DOCKER_CLI_OPTION)
@@ -247,7 +247,7 @@ fn settings() -> Result<Settings, Failure> {
             Arg::with_name(SHELL_OPTION)
                 .short("s")
                 .long(SHELL_OPTION)
-                .help("Drops you into a shell after the tasks are finished"),
+                .help("Drops you into a containerized shell after the tasks are finished"),
         )
         .arg(
             Arg::with_name(FORCE_OPTION)
