@@ -406,7 +406,7 @@ OPTIONS:
             Sets the Docker CLI binary
 
     -r, --docker-repo <REPO>
-            Sets the Docker repository
+            Sets the Docker repository for remote caching
 
     -f, --file <PATH>
             Sets the path to the toastfile
@@ -433,7 +433,7 @@ OPTIONS:
             Sets whether remote cache reading is enabled
 
     -s, --shell
-            Drops you into a shell after the tasks are finished
+            Drops you into a containerized shell after the tasks are finished
 
     -v, --version
             Prints version information
