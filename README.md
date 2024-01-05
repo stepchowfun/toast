@@ -545,11 +545,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: azure/docker-login@v1
+    - if: github.event_name == 'push'
+      uses: docker/login-action@v3
       with:
         username: DOCKER_USERNAME
         password: ${{ secrets.DOCKER_PASSWORD }}
-      if: github.event_name == 'push'
     - uses: stepchowfun/toast/.github/actions/toast@main
       with:
         file: toastfiles/toast.yml
