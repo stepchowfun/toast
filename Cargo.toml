@@ -12,6 +12,7 @@ readme = "README.md"
 
 [lints]
 clippy.all = "deny"
+clippy.default_numeric_fallback = "deny"
 clippy.pedantic = "deny"
 rust.warnings = "deny"
 
