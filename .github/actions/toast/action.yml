@@ -13,6 +13,10 @@ inputs:
     description: 'The Docker repository for remote caching'
     required: true
     default: ''
+  read_remote_cache:
+    description: 'Whether to read from the Docker repository for remote caching'
+    required: true
+    default: 'false'
   write_remote_cache:
     description: 'Whether to write to the Docker repository for remote caching'
     required: true
