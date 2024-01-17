@@ -22,7 +22,7 @@ jobs:
       with:
         tasks: build test lint release validate_release run
         docker_repo: stephanmisc/toast
-        read_remote_cache: ${{ github.event_name == 'push' }}
+        read_remote_cache: true
         write_remote_cache: ${{ github.event_name == 'push' }}
     - run: |
         # Make Bash not silently ignore errors.

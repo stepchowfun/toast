@@ -563,7 +563,7 @@ jobs:
         file: toastfiles/toast.yml
         tasks: build lint test
         docker_repo: DOCKER_USERNAME/DOCKER_REPO
-        read_remote_cache: ${{ github.event_name == 'push' }}
+        read_remote_cache: true
         write_remote_cache: ${{ github.event_name == 'push' }}
 ```
 
