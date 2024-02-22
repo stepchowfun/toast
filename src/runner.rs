@@ -274,7 +274,7 @@ pub fn run(
             .map_err(|e| match e {
                 Failure::Interrupted => e,
                 Failure::System(_, _) | Failure::User(_, _) => {
-                    Failure::User("Command failed.".to_owned(), None)
+                    Failure::User("Task failed.".to_owned(), None)
                 }
             });
 
