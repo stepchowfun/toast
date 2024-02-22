@@ -38,6 +38,7 @@ pub fn image_exists(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     ) {
         Ok(_) => Ok(true),
@@ -62,6 +63,7 @@ pub fn push_image(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -83,6 +85,7 @@ pub fn pull_image(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -104,6 +107,7 @@ pub fn delete_image(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -154,6 +158,7 @@ pub fn create_container(
         "Creating container\u{2026}",
         "Unable to create container.",
         &args,
+        false,
         interrupted,
     )?
     .trim()
@@ -182,6 +187,7 @@ pub fn copy_into_container<R: Read>(
             "-".to_owned(),
             format!("{container}:/"),
         ],
+        false,
         |mut stdin| {
             io::copy(&mut tar, &mut stdin)
                 .map_err(failure::system("Unable to copy files into the container."))?;
@@ -296,6 +302,7 @@ pub fn copy_from_container(
                 format!("{}:{}", container, source.to_string_lossy()),
                 intermediate.to_string_lossy().into_owned(),
             ],
+            true,
             interrupted,
         )
         .map(|_| ())?;
@@ -379,6 +386,7 @@ pub fn start_container(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        true,
         interrupted,
     )
     .map(|()| ())
@@ -400,6 +408,7 @@ pub fn stop_container(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -426,6 +435,7 @@ pub fn commit_container(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -447,6 +457,7 @@ pub fn delete_container(
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
+        false,
         interrupted,
     )
     .map(|_| ())
@@ -498,6 +509,7 @@ pub fn spawn_shell(
         docker_cli,
         "The shell exited with a failure.",
         &args,
+        true,
         interrupted,
     )
 }
@@ -600,6 +612,7 @@ fn run_quiet(
     spinner_message: &str,
     error: &str,
     args: &[String],
+    user_command: bool,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
     // Render a spinner animation and clear it when we're done.
@@ -626,6 +639,11 @@ fn run_quiet(
             {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
+            } else if user_command {
+                Failure::User(
+                    format!("{}\n{}", error, String::from_utf8_lossy(&child.stderr)),
+                    None,
+                )
             } else {
                 Failure::System(
                     format!("{}\n{}", error, String::from_utf8_lossy(&child.stderr)),
@@ -643,6 +661,7 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
     spinner_message: &str,
     error: &str,
     args: &[String],
+    user_command: bool,
     writer: W,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<String, Failure> {
@@ -681,6 +700,11 @@ fn run_quiet_stdin<W: FnOnce(&mut ChildStdin) -> Result<(), Failure>>(
             {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
+            } else if user_command {
+                Failure::User(
+                    format!("{}\n{}", error, String::from_utf8_lossy(&output.stderr)),
+                    None,
+                )
             } else {
                 Failure::System(
                     format!("{}\n{}", error, String::from_utf8_lossy(&output.stderr)),
@@ -696,6 +720,7 @@ fn run_loud(
     docker_cli: &str,
     error: &str,
     args: &[String],
+    user_command: bool,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
@@ -723,6 +748,8 @@ fn run_loud(
             if status.code().is_none() || (!was_interrupted && interrupted.load(Ordering::SeqCst)) {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
+            } else if user_command {
+                Failure::User(error.to_owned(), None)
             } else {
                 Failure::System(error.to_owned(), None)
             },
@@ -735,6 +762,7 @@ fn run_attach(
     docker_cli: &str,
     error: &str,
     args: &[String],
+    user_command: bool,
     interrupted: &Arc<AtomicBool>,
 ) -> Result<(), Failure> {
     // This is used to determine whether the user interrupted the program during the execution of
@@ -756,6 +784,8 @@ fn run_attach(
             if child.code().is_none() || (!was_interrupted && interrupted.load(Ordering::SeqCst)) {
                 interrupted.store(true, Ordering::SeqCst);
                 Failure::Interrupted
+            } else if user_command {
+                Failure::User(error.to_owned(), None)
             } else {
                 Failure::System(error.to_owned(), None)
             },
