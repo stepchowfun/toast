@@ -1,4 +1,4 @@
-image: ubuntu:20.04
+image: ubuntu:22.04
 default: build
 user: user
 command_prefix: |
