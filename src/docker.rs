@@ -389,7 +389,6 @@ pub fn start_container(
         true,
         interrupted,
     )
-    .map(|()| ())
 }
 
 // Stop a container.

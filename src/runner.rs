@@ -344,10 +344,10 @@ pub fn run(
             }
 
             // Return the new context.
-            (result.map(|()| ()), Some(new_context))
+            (result, Some(new_context))
         } else {
             // The caller doesn't need a context to be returned.
-            (result.map(|()| ()), None)
+            (result, None)
         }
     }
 }
