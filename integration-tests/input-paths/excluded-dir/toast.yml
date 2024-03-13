@@ -7,5 +7,5 @@ tasks:
     excluded_input_paths:
       - bar
     command: |
-      set -euo pipefail
+      set -euxo pipefail
       ls -al

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 "$TOAST" --read-local-cache false --write-local-cache false > output.txt
 grep 'drwxrwxrwx .* root root .* foo' output.txt

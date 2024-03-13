@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 ln -s non-existent symlink
 "$TOAST" --read-local-cache false --write-local-cache false > output.txt
