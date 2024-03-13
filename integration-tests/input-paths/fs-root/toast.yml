@@ -5,6 +5,6 @@ tasks:
       - .
     location: /
     command: |
-      set -euo pipefail
+      set -euxo pipefail
       ls -al
       ls -al foo

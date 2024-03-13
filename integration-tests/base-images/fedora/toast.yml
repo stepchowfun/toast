@@ -14,7 +14,7 @@ tasks:
       - output.txt
     user: user
     command: |
-      set -euo pipefail
+      set -euxo pipefail
       pwd | grep scratch
       whoami | grep user
       ./greet.sh > output.txt

@@ -2,8 +2,8 @@ image: ubuntu:22.04
 default: build
 user: user
 command_prefix: |
-  # Make Bash not silently ignore errors.
-  set -euo pipefail
+  # Make Bash log commands and not silently ignore errors.
+  set -euxo pipefail
 
   # Load the Rust startup file, if it exists.
   if [ -f "$HOME/.cargo/env" ]; then

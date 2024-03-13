@@ -4,6 +4,6 @@ tasks:
     output_paths:
       - foo/bar.txt
     command: |
-      set -euo pipefail
+      set -euxo pipefail
       mkdir foo
       touch foo/bar.txt

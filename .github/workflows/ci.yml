@@ -25,8 +25,8 @@ jobs:
         read_remote_cache: true
         write_remote_cache: ${{ github.event_name == 'push' }}
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-gnu artifacts/toast
@@ -36,8 +36,8 @@ jobs:
         path: artifacts/toast
         if-no-files-found: error
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-musl artifacts/toast
@@ -47,8 +47,8 @@ jobs:
         path: artifacts/toast
         if-no-files-found: error
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-gnu artifacts/toast
@@ -58,8 +58,8 @@ jobs:
         path: artifacts/toast
         if-no-files-found: error
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-musl artifacts/toast
@@ -74,8 +74,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # Install the appropriate version of Rust.
         rustup toolchain install 1.76.0 # [ref:rust_1.76.0]
@@ -114,8 +114,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # Install the appropriate version of Rust.
         rustup toolchain install 1.76.0 # [ref:rust_1.76.0]
@@ -152,8 +152,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # Run the installer script.
         PREFIX=/tmp ./install.sh
@@ -166,8 +166,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # Run the installer script.
         PREFIX=/tmp ./install.sh
@@ -187,8 +187,8 @@ jobs:
     - env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Make Bash not silently ignore errors.
-        set -euo pipefail
+        # Make Bash log commands and not silently ignore errors.
+        set -euxo pipefail
 
         # Install the appropriate version of Rust.
         rustup toolchain install 1.76.0 # [ref:rust_1.76.0]

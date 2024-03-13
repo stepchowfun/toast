@@ -277,7 +277,7 @@ tasks:
       apt-get install --yes figlet
 ```
 
-For Bash in particular, we recommend going even further and setting `set -euo pipefail` instead of just `set -e`.
+For Bash in particular, we recommend going even further and setting `set -euxo pipefail` instead of just `set -e`.
 
 ### Dropping into an interactive shell
 

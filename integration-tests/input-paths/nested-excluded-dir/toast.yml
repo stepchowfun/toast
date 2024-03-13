@@ -6,6 +6,6 @@ tasks:
     excluded_input_paths:
       - foo/bar
     command: |
-      set -euo pipefail
+      set -euxo pipefail
       ls -al
       ls -al foo
