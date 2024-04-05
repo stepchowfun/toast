@@ -117,8 +117,8 @@ fn set_up_signal_handlers(
     // If Toast is in the foreground process group for some TTY, the process will receive a SIGINT
     // when the user types CTRL+C at the terminal. The default behavior is to crash when this signal
     // is received. However, we would rather clean up resources before terminating, so we trap the
-    // signal here. This code also traps SIGTERM, because we compile the `ctrlc` crate with the
-    // `termination` feature [ref:ctrlc_term].
+    // signal here. This code also traps SIGHUP and SIGTERM, since we compile the `ctrlc` crate with
+    // the `termination` feature [ref:ctrlc_term].
     ctrlc::set_handler(move || {
         // Let the rest of the program know the user wants to quit.
         if interrupted.swap(true, Ordering::SeqCst) {
