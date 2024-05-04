@@ -3,7 +3,7 @@ tasks:
   i_am_root:
     command: touch /i-am-root.txt
   create_user:
-    command: adduser user
+    command: useradd user --shell /bin/bash
   greet:
     dependencies:
       - i_am_root

@@ -11,9 +11,9 @@ repository = "https://github.com/stepchowfun/toast"
 readme = "README.md"
 
 [lints]
-clippy.all = "deny"
+clippy.all = { level = "deny", priority = -1 }
 clippy.default_numeric_fallback = "deny"
-clippy.pedantic = "deny"
+clippy.pedantic = { level = "deny", priority = -1 }
 rust.warnings = "deny"
 
 [dependencies]
