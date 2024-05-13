@@ -77,8 +77,13 @@ jobs:
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
 
-        # Install the appropriate version of Rust.
-        rustup toolchain install 1.78.0 # [ref:rust_1.78.0]
+        # Install the appropriate version of Rust. The `--no-self-update` is necessary to make this
+        # command work reliably on Windows. Without that flag, the command fails occasionally. See
+        #
+        #   https://github.com/rust-lang/rustup/issues/2415#issuecomment-658752121
+        #
+        # for more information.
+        rustup toolchain install 1.78.0 --no-self-update # [ref:rust_1.78.0]
         rustup default 1.78.0 # [ref:rust_1.78.0]
 
         # Add the targets.
