@@ -80,7 +80,7 @@ jobs:
         # Install the appropriate version of Rust. The `--no-self-update` is necessary to make this
         # command work reliably on Windows. Without that flag, the command fails occasionally. See
         #
-        #   https://github.com/rust-lang/rustup/issues/2415#issuecomment-658752121
+        #   https://github.com/rust-lang/rustup/issues/2441
         #
         # for more information.
         rustup toolchain install 1.78.0 --no-self-update # [ref:rust_1.78.0]
