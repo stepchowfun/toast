@@ -534,7 +534,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: stepchowfun/toast/.github/actions/toast@main
 ```
 
@@ -552,7 +552,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - if: github.event_name == 'push'
       uses: docker/login-action@v3
       with:
