@@ -2,8 +2,8 @@ image: ubuntu:24.04
 default: build
 user: user
 command_prefix: |
-  # Make Bash log commands and not silently ignore errors.
-  set -euxo pipefail
+  # Make not silently ignore errors.
+  set -euo pipefail
 
   # Load the Rust startup file, if it exists.
   if [ -f "$HOME/.cargo/env" ]; then
@@ -22,6 +22,9 @@ command_prefix: |
   # according to this page:
   #   https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
   cargo-fmt () { cargo +nightly-2024-05-04 --frozen --offline fmt --all -- "$@"; }
+
+  # Make Bash log commands.
+  set -x
 tasks:
   install_packages:
     description: Install system packages.
@@ -167,23 +170,24 @@ tasks:
       - artifacts
       - target
     command: |
-      # Lint the code with Clippy.
-      cargo-offline clippy --all-features --all-targets --workspace
-
       # Check references with Tagref.
       tagref
 
       # Lint shell files with ShellCheck.
       find . -type f -name '*.sh' | xargs shellcheck
 
+      # Lint the code with Clippy.
+      cargo-offline clippy --all-features --all-targets --workspace
+
       # Check code formatting with Rustfmt. See [ref:format_macros] for an explanation of the `rg`
       # commands.
-      rg '!\(' --type rust --files-with-matches src | xargs sed -i 's/!(/_(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/!(/_(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/^\([^ (]*\)_(/\1!(/g'
       if ! cargo-fmt --check; then
         echo 'ERROR: Please correct the formatting errors above.' 1>&2
         exit 1
       fi
-      rg '_\(' --type rust --files-with-matches src | xargs sed -i 's/_(/!(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/_(/!(/g'
 
       # Forbid unconsolidated `use` declarations.
       if rg --line-number --type rust --multiline '}[[:space]]*;[[:space:]]*\n[[:space:]]*use' src
@@ -217,9 +221,10 @@ tasks:
     command: |
       # Format the code with Rustfmt. We temporarily convert macro invocations into function calls
       # so Rustfmt's `trailing_comma` feature applies to macro arguments [tag:format_macros].
-      rg '!\(' --type rust --files-with-matches src | xargs sed -i 's/!(/_(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/!(/_(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/^\([^ (]*\)_(/\1!(/g'
       cargo-fmt
-      rg '_\(' --type rust --files-with-matches src | xargs sed -i 's/_(/!(/g'
+      rg --type rust --files-with-matches '' src | xargs sed -i 's/_(/!(/g'
 
   release:
     description: Build and output the release binaries for Linux.
