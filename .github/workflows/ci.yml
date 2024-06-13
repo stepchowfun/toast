@@ -235,7 +235,7 @@ jobs:
           artifacts/toast-aarch64-pc-windows-msvc.exe
 
         # Create the release.
-        gh release create "v$VERSION_TO_PUBLISH" --title "v$VERSION_TO_PUBLISH" --notes '' \
+        gh release create "v$VERSION" --title "v$VERSION" --notes '' \
           'artifacts/toast-x86_64-unknown-linux-gnu' \
           'artifacts/toast-x86_64-unknown-linux-musl' \
           'artifacts/toast-aarch64-unknown-linux-gnu' \
