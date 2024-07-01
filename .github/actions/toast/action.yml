@@ -16,11 +16,11 @@ inputs:
   read_remote_cache:
     description: 'Whether to read from the Docker repository for remote caching'
     required: true
-    default: 'false'
+    default: ''
   write_remote_cache:
     description: 'Whether to write to the Docker repository for remote caching'
     required: true
-    default: 'false'
+    default: ''
 runs:
   using: node20
   main: index.js
