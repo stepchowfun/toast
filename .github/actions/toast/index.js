@@ -14,8 +14,8 @@ const writeRemoteCacheInput = core.getInput('write_remote_cache').trim();
 const tasks = tasksInput === '' ? null : tasksInput.split(/\s+/);
 const file = fileInput === '' ? null : fileInput;
 const dockerRepo = dockerRepoInput === '' ? null : dockerRepoInput;
-const readRemoteCache = readRemoteCacheInput == 'true';
-const writeRemoteCache = writeRemoteCacheInput == 'true';
+const readRemoteCache = readRemoteCacheInput === '' ? null : readRemoteCacheInput.toLowerCase() === 'true';
+const writeRemoteCache = writeRemoteCacheInput === '' ? null : writeRemoteCacheInput.toLowerCase() === 'true';
 
 // Where to install Toast
 const toastPrefix = process.env.HOME;
@@ -39,8 +39,8 @@ childProcess.execSync(
 const taskArgs = tasks === null ? [] : tasks;
 const fileArgs = file === null ? [] : ['--file', file];
 const dockerRepoArgs = dockerRepo === null ? [] : ['--docker-repo', dockerRepo];
-const readRemoteCacheArgs = readRemoteCache ? ['--read-remote-cache', 'true'] : [];
-const writeRemoteCacheArgs = writeRemoteCache ? ['--write-remote-cache', 'true'] : [];
+const readRemoteCacheArgs = readRemoteCache === null ? [] : ['--read-remote-cache', readRemoteCache.toString()];
+const writeRemoteCacheArgs = writeRemoteCache === null ? [] : ['--write-remote-cache', writeRemoteCache.toString()];
 
 // Run Toast.
 try {
