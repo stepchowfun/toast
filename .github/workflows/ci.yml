@@ -90,18 +90,19 @@ jobs:
         rustup target add x86_64-pc-windows-msvc
         rustup target add aarch64-pc-windows-msvc
 
-        # Build and test for x86_64-pc-windows-msvc.
+        # Build for x86_64-pc-windows-msvc.
         RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
           --locked \
           --release \
           --target x86_64-pc-windows-msvc
-        NO_COLOR=true cargo test --locked # [ref:colorless_tests]
 
-        # Build and test for aarch64-pc-windows-msvc.
+        # Build for aarch64-pc-windows-msvc.
         RUSTFLAGS='--codegen target-feature=+crt-static' cargo build \
           --locked \
           --release \
           --target aarch64-pc-windows-msvc
+
+        # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
     - uses: actions/upload-artifact@v4
       with:
@@ -130,16 +131,17 @@ jobs:
         rustup target add x86_64-apple-darwin
         rustup target add aarch64-apple-darwin
 
-        # Build and test for x86_64-apple-darwin.
+        # Build for x86_64-apple-darwin.
         SDKROOT=$(xcrun --show-sdk-path) \
           MACOSX_DEPLOYMENT_TARGET=$(xcrun --show-sdk-version) \
             cargo build --locked --release --target x86_64-apple-darwin
-        NO_COLOR=true cargo test --locked # [ref:colorless_tests]
 
-        # Build and test for aarch64-apple-darwin.
+        # Build for aarch64-apple-darwin.
         SDKROOT=$(xcrun --show-sdk-path) \
           MACOSX_DEPLOYMENT_TARGET=$(xcrun --show-sdk-version) \
             cargo build --locked --release --target aarch64-apple-darwin
+
+        # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
     - uses: actions/upload-artifact@v4
       with:
