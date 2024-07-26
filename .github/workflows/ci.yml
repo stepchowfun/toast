@@ -83,8 +83,8 @@ jobs:
         #   https://github.com/rust-lang/rustup/issues/2441
         #
         # for more information.
-        rustup toolchain install 1.79.0 --no-self-update # [ref:rust_1.79.0]
-        rustup default 1.79.0 # [ref:rust_1.79.0]
+        rustup toolchain install 1.80.0 --no-self-update # [ref:rust_1.80.0]
+        rustup default 1.80.0 # [ref:rust_1.80.0]
 
         # Add the targets.
         rustup target add x86_64-pc-windows-msvc
@@ -124,8 +124,8 @@ jobs:
         set -euxo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.79.0 # [ref:rust_1.79.0]
-        rustup default 1.79.0 # [ref:rust_1.79.0]
+        rustup toolchain install 1.80.0 # [ref:rust_1.80.0]
+        rustup default 1.80.0 # [ref:rust_1.80.0]
 
         # Add the targets.
         rustup target add x86_64-apple-darwin
@@ -198,8 +198,8 @@ jobs:
         set -euxo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.79.0 # [ref:rust_1.79.0]
-        rustup default 1.79.0 # [ref:rust_1.79.0]
+        rustup toolchain install 1.80.0 # [ref:rust_1.80.0]
+        rustup default 1.80.0 # [ref:rust_1.80.0]
 
         # Fetch the program version.
         VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
