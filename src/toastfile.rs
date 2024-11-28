@@ -79,7 +79,7 @@ impl Display for MappingPath {
 
 struct MappingPathVisitor;
 
-impl<'de> serde::de::Visitor<'de> for MappingPathVisitor {
+impl serde::de::Visitor<'_> for MappingPathVisitor {
     type Value = MappingPath;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
