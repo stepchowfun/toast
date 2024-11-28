@@ -288,7 +288,10 @@ tasks:
         echo "Running integration test: $TEST"
 
         # Go into the test directory and run the test.
-        (cd "$(dirname "$TEST")" > /dev/null && ./run.sh)
+        (
+          cd "$(dirname "$TEST")" > /dev/null
+          ./run.sh
+        )
       done < <(find integration-tests -name run.sh -print0)
 
   publish:
