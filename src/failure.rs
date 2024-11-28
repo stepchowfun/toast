@@ -24,7 +24,7 @@ impl fmt::Display for Failure {
 }
 
 impl error::Error for Failure {
-    fn source<'a>(&'a self) -> Option<&(dyn error::Error + 'static)> {
+    fn source<'a>(&'a self) -> Option<&'a (dyn error::Error + 'static)> {
         match self {
             Self::System(_, source) => source.as_ref().map(|e| &**e),
             Self::User(_, source) => source.as_ref().map(|e| &**e),
