@@ -339,7 +339,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     let valid_default = toastfile
         .default
         .as_ref()
-        .map_or(true, |default| toastfile.tasks.contains_key(default));
+        .is_none_or(|default| toastfile.tasks.contains_key(default));
 
     // Map from task to vector of invalid dependencies.
     let mut violations: HashMap<String, Vec<String>> = HashMap::new();
