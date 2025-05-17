@@ -81,7 +81,7 @@ mod tests {
     use {
         crate::{
             schedule::compute,
-            toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
+            toastfile::{DEFAULT_LOCATION, DEFAULT_USER, Task, Toastfile},
         },
         std::collections::HashMap,
         typed_path::UnixPath,

@@ -62,7 +62,7 @@ pub fn parse(config: &str) -> Result<Config, Failure> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{parse, Config, DOCKER_CLI_DEFAULT, EMPTY_CONFIG};
+    use crate::config::{Config, DOCKER_CLI_DEFAULT, EMPTY_CONFIG, parse};
 
     #[test]
     fn parse_empty() {

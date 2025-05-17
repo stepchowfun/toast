@@ -3,15 +3,15 @@ use {
     std::{
         collections::HashMap,
         env::current_dir,
-        fs::{copy, create_dir_all, rename, symlink_metadata, Metadata},
+        fs::{Metadata, copy, create_dir_all, rename, symlink_metadata},
         io,
         io::Read,
         path::Path,
         process::{ChildStdin, Command, Stdio},
         string::ToString,
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc,
+            atomic::{AtomicBool, Ordering},
         },
     },
     tempfile::tempdir,

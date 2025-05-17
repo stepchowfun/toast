@@ -1,4 +1,4 @@
-use colored::{control::SHOULD_COLORIZE, ColoredString, Colorize};
+use colored::{ColoredString, Colorize, control::SHOULD_COLORIZE};
 
 // This trait has a function for formatting "code-like" text, such as a file path. The reason it's
 // implemented as a trait and not just a function is so we can use it with method syntax, as in
@@ -46,7 +46,7 @@ pub fn series(items: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{number, series, CodeStr};
+    use crate::format::{CodeStr, number, series};
 
     #[test]
     fn code_str_display() {

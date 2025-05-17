@@ -13,7 +13,7 @@ use {
     crate::{failure::Failure, format::CodeStr},
     atty::Stream,
     clap::{App, AppSettings, Arg},
-    env_logger::{fmt::Color, Builder},
+    env_logger::{Builder, fmt::Color},
     log::{Level, LevelFilter},
     std::{
         collections::{HashMap, HashSet},
@@ -22,23 +22,20 @@ use {
         env,
         env::current_dir,
         fs,
-        io::{stdout, Write},
+        io::{Write, stdout},
         mem::drop,
         path::Path,
         path::PathBuf,
         process::exit,
         str::FromStr,
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc, Mutex,
+            atomic::{AtomicBool, Ordering},
         },
     },
-    toastfile::{default_task_mount_readonly, location, user, DEFAULT_USER},
+    toastfile::{DEFAULT_USER, default_task_mount_readonly, location, user},
     typed_path::UnixPath,
 };
-
-#[macro_use]
-extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
@@ -723,7 +720,7 @@ fn entry() -> Result<(), Failure> {
             // There was an error not caused by a regular task failure. Quit now.
             return result;
         }
-    };
+    }
 
     // Drop the user into a shell if requested.
     if settings.spawn_shell {

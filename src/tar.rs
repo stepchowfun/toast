@@ -2,12 +2,12 @@ use {
     crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin},
     std::{
         collections::HashSet,
-        fs::{read_link, symlink_metadata, File, Metadata},
-        io::{empty, Read, Seek, SeekFrom, Write},
+        fs::{File, Metadata, read_link, symlink_metadata},
+        io::{Read, Seek, SeekFrom, Write, empty},
         path::Path,
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc,
+            atomic::{AtomicBool, Ordering},
         },
     },
     tar::{Builder, EntryType, Header},
