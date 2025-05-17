@@ -2,7 +2,7 @@ use {
     crate::{
         failure,
         failure::Failure,
-        toastfile::{command, location, user, Task, Toastfile},
+        toastfile::{Task, Toastfile, command, location, user},
     },
     sha2::{Digest, Sha256},
     std::{
@@ -159,8 +159,8 @@ pub fn image_name(
 mod tests {
     use {
         crate::{
-            cache::{combine, hash_read, image_name, CryptoHash},
-            toastfile::{Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER},
+            cache::{CryptoHash, combine, hash_read, image_name},
+            toastfile::{DEFAULT_LOCATION, DEFAULT_USER, Task, Toastfile},
         },
         std::{collections::HashMap, path::Path},
         typed_path::UnixPath,

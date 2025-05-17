@@ -3,15 +3,15 @@ use {
         cache, docker, failure,
         failure::Failure,
         tar,
-        toastfile::{command, location, user, Task, Toastfile},
+        toastfile::{Task, Toastfile, command, location, user},
     },
     std::{
         collections::{HashMap, HashSet},
         io::{Seek, SeekFrom},
         path::PathBuf,
         sync::{
-            atomic::{AtomicBool, Ordering},
             Arc, Mutex,
+            atomic::{AtomicBool, Ordering},
         },
     },
     tempfile::tempfile,
@@ -72,7 +72,7 @@ pub fn run(
             return (
                 Err(failure::system("Unable to create temporary file.")(e)),
                 Some(context),
-            )
+            );
         }
     };
 
@@ -96,7 +96,7 @@ pub fn run(
             Err(failure::system("Unable to seek temporary file.")(e)),
             Some(context),
         );
-    };
+    }
 
     // Compute the name of the image that this task produces.
     let image = cache::image_name(

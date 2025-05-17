@@ -1,6 +1,6 @@
 use {
     crate::{failure::Failure, format, format::CodeStr},
-    serde::{de::Error, Deserialize, Deserializer},
+    serde::{Deserialize, Deserializer, de::Error},
     std::{
         collections::{HashMap, HashSet},
         env,
@@ -641,8 +641,8 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 mod tests {
     use {
         crate::toastfile::{
-            check_dependencies, check_task, command, environment, location, parse, user,
-            MappingPath, Task, Toastfile, DEFAULT_LOCATION, DEFAULT_USER,
+            DEFAULT_LOCATION, DEFAULT_USER, MappingPath, Task, Toastfile, check_dependencies,
+            check_task, command, environment, location, parse, user,
         },
         std::{collections::HashMap, env, path::Path},
         typed_path::UnixPath,
@@ -1750,7 +1750,9 @@ tasks:
         let mut expected = HashMap::new();
         expected.insert("foo1".to_owned(), "baz".to_owned());
 
-        env::set_var("foo1", "baz");
+        unsafe {
+            env::set_var("foo1", "baz");
+        }
         assert_eq!(env::var("foo1"), Ok("baz".to_owned()));
         assert_eq!(environment(&task), Ok(expected));
     }
@@ -1784,7 +1786,9 @@ tasks:
         let mut expected = HashMap::new();
         expected.insert("foo2".to_owned(), "bar".to_owned());
 
-        env::remove_var("foo2");
+        unsafe {
+            env::remove_var("foo2");
+        }
         assert!(env::var("foo2").is_err());
         assert_eq!(environment(&task), Ok(expected));
     }
@@ -1815,7 +1819,9 @@ tasks:
             extra_docker_arguments: vec![],
         };
 
-        env::remove_var("foo3");
+        unsafe {
+            env::remove_var("foo3");
+        }
         assert!(env::var("foo3").is_err());
         let result = environment(&task);
         assert!(result.is_err());

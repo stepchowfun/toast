@@ -647,7 +647,6 @@ dependencies = [
  "env_logger",
  "hex",
  "indicatif",
- "lazy_static",
  "log",
  "scopeguard",
  "serde",
