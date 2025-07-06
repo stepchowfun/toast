@@ -75,8 +75,8 @@
 
   # If SELinux is installed, apply the default security context to the binary.
   # shellcheck disable=SC2024
-  if command -v restorecon 2> /dev/null; then
-    restorecon "$DESTINATION" 2> /dev/null ||
+  if command -v restorecon > /dev/null 2>&1; then
+    restorecon "$DESTINATION" > /dev/null 2>&1 ||
     sudo restorecon "$DESTINATION" < /dev/tty ||
     fail 'Failed to set SELinux attributes on the binary.'
   fi
