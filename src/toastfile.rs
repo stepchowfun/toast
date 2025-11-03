@@ -578,18 +578,18 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     }
 
     // Check that `location` is absolute [tag:task_location_absolute].
-    if let Some(location) = &task.location {
-        if !location.is_absolute() {
-            return Err(Failure::User(
-                format!(
-                    "Task {} has a relative {}: {}.",
-                    name.code_str(),
-                    "location".code_str(),
-                    location.to_string_lossy().code_str(),
-                ),
-                None,
-            ));
-        }
+    if let Some(location) = &task.location
+        && !location.is_absolute()
+    {
+        return Err(Failure::User(
+            format!(
+                "Task {} has a relative {}: {}.",
+                name.code_str(),
+                "location".code_str(),
+                location.to_string_lossy().code_str(),
+            ),
+            None,
+        ));
     }
 
     // If a task has any mount paths, then caching should be disabled [tag:mount_paths_nand_cache].

@@ -273,10 +273,10 @@ fn settings() -> Result<Settings, Failure> {
                 current_dir().map_err(failure::system("Unable to determine working directory."))?;
             loop {
                 let candidate_path = candidate_dir.join(TOASTFILE_DEFAULT_NAME);
-                if let Ok(metadata) = fs::metadata(&candidate_path) {
-                    if metadata.file_type().is_file() {
-                        return Ok(candidate_path);
-                    }
+                if let Ok(metadata) = fs::metadata(&candidate_path)
+                    && metadata.file_type().is_file()
+                {
+                    return Ok(candidate_path);
                 }
                 if !candidate_dir.pop() {
                     return Err(Failure::User(

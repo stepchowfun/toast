@@ -29,10 +29,10 @@ pub struct Context {
 impl Drop for Context {
     fn drop(&mut self) {
         // Delete the image if needed.
-        if !self.persist {
-            if let Err(e) = docker::delete_image(&self.docker_cli, &self.image, &self.interrupted) {
-                error!("{}", e);
-            }
+        if !self.persist
+            && let Err(e) = docker::delete_image(&self.docker_cli, &self.image, &self.interrupted)
+        {
+            error!("{}", e);
         }
     }
 }
@@ -208,15 +208,14 @@ pub fn run(
         )
     } else {
         // Pull the image if necessary. Force reading from the remote if configured.
-        if force_pull
+        if (force_pull
             || !match docker::image_exists(&settings.docker_cli, &context.image, interrupted) {
                 Ok(exists) => exists,
                 Err(e) => return (Err(e), Some(context)),
-            }
+            })
+            && let Err(e) = docker::pull_image(&settings.docker_cli, &context.image, interrupted)
         {
-            if let Err(e) = docker::pull_image(&settings.docker_cli, &context.image, interrupted) {
-                return (Err(e), Some(context));
-            }
+            return (Err(e), Some(context));
         }
 
         // Create a container from the image.
@@ -335,12 +334,11 @@ pub fn run(
             };
 
             // Write to remote cache, if applicable.
-            if persist_remotely {
-                if let Err(e) =
+            if persist_remotely
+                && let Err(e) =
                     docker::push_image(&settings.docker_cli, &new_context.image, interrupted)
-                {
-                    return (Err(e), Some(new_context));
-                }
+            {
+                return (Err(e), Some(new_context));
             }
 
             // Return the new context.
