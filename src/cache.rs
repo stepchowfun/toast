@@ -7,7 +7,6 @@ use {
     sha2::{Digest, Sha256},
     std::{
         collections::HashMap,
-        io,
         io::Read,
         path::{Path, PathBuf},
     },
@@ -59,13 +58,13 @@ fn path_as_bytes(path: &Path) -> Vec<u8> {
 
 impl CryptoHash for Path {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(self)))
+        hex::encode(Sha256::digest(path_as_bytes(self)))
     }
 }
 
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(self)))
+        hex::encode(Sha256::digest(path_as_bytes(self)))
     }
 }
 
@@ -96,7 +95,16 @@ pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> 
 // `crypto_hash`.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
-    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let bytes_read = input
+            .read(&mut buffer)
+            .map_err(failure::system("Unable to compute hash."))?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
     Ok(hex::encode(hasher.finalize()))
 }
 

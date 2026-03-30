@@ -392,62 +392,46 @@ Run `toast` with no arguments to execute the default task, or all the tasks if t
 toast task1 task2 task3…
 ```
 
-Here are all the supported command-line options:
+Here are the supported command-line options:
 
 ```
-USAGE:
-    toast [OPTIONS] [--] [TASKS]...
+Usage: toast [OPTIONS] [TASKS]...
 
-OPTIONS:
-    -c, --config-file <PATH>
-            Sets the path of the config file
+Arguments:
+  [TASKS]...
+          Sets the tasks to run
 
-        --docker-cli <CLI>
-            Sets the Docker CLI binary
-
-    -r, --docker-repo <REPO>
-            Sets the Docker repository for remote caching
-
-    -f, --file <PATH>
-            Sets the path to the toastfile
-
-        --force <TASK>...
-            Runs a task unconditionally, even if it’s cached
-
-        --force-all
-            Pulls the base image and runs all tasks unconditionally
-
-    -h, --help
-            Prints help information
-
-    -l, --list
-            Lists the tasks that have a description
-
-    -o, --output-dir <PATH>
-            Sets the output directory
-
-        --read-local-cache <BOOL>
-            Sets whether local cache reading is enabled
-
-        --read-remote-cache <BOOL>
-            Sets whether remote cache reading is enabled
-
-    -s, --shell
-            Drops you into a containerized shell after the tasks are finished
-
-    -v, --version
-            Prints version information
-
-        --write-local-cache <BOOL>
-            Sets whether local cache writing is enabled
-
-        --write-remote-cache <BOOL>
-            Sets whether remote cache writing is enabled
-
-
-ARGS:
-    <TASKS>...
-            Sets the tasks to run
+Options:
+  -v, --version
+          Print version information
+  -f, --file <PATH>
+          Sets the path to the toastfile
+  -c, --config-file <PATH>
+          Sets the path of the config file
+  -o, --output-dir <PATH>
+          Sets the output directory
+      --read-local-cache <BOOL>
+          Sets whether local cache reading is enabled
+      --write-local-cache <BOOL>
+          Sets whether local cache writing is enabled
+      --read-remote-cache <BOOL>
+          Sets whether remote cache reading is enabled
+      --write-remote-cache <BOOL>
+          Sets whether remote cache writing is enabled
+  -r, --docker-repo <REPO>
+          Sets the Docker repository for remote caching
+      --docker-cli <CLI>
+          Sets the Docker CLI binary
+  -l, --list
+          Lists the tasks that have a description
+  -s, --shell
+          Drops you into a containerized shell after the tasks are finished
+      --force <TASK>
+          Runs a task unconditionally, even if it’s cached
+      --force-all
+          Pulls the base image and runs all tasks unconditionally
+  -h, --help
+          Print help
 ```
 
 ## Installation instructions

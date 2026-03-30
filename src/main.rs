@@ -11,9 +11,8 @@ mod toastfile;
 
 use {
     crate::{failure::Failure, format::CodeStr},
-    atty::Stream,
-    clap::{App, AppSettings, Arg},
-    env_logger::{Builder, fmt::Color},
+    clap::{Arg, ArgAction, Command},
+    env_logger::{Builder, fmt::style::Effects},
     log::{Level, LevelFilter},
     std::{
         collections::{HashMap, HashSet},
@@ -22,7 +21,7 @@ use {
         env,
         env::current_dir,
         fs,
-        io::{Write, stdout},
+        io::{IsTerminal, Write, stdout},
         mem::drop,
         path::Path,
         path::PathBuf,
@@ -78,27 +77,18 @@ fn set_up_logging() {
             .unwrap_or(DEFAULT_LOG_LEVEL),
         )
         .format(|buf, record| {
-            let mut style = buf.style();
-            style.set_bold(true);
-            match record.level() {
-                Level::Error => {
-                    style.set_color(Color::Red);
-                }
-                Level::Warn => {
-                    style.set_color(Color::Yellow);
-                }
-                Level::Info => {
-                    style.set_color(Color::Green);
-                }
-                Level::Debug | Level::Trace => {
-                    style.set_color(Color::Blue);
-                }
-            }
+            let level_for_style = match record.level() {
+                Level::Trace => Level::Debug,
+                level => level,
+            };
+            let style = buf
+                .default_level_style(level_for_style)
+                .effects(Effects::BOLD);
 
             writeln!(
                 buf,
-                "{} {}",
-                style.value(format!("[{}]", record.level())),
+                "{style}[{}]{style:#} {}",
+                record.level(),
                 record.args(),
             )
         })
@@ -122,7 +112,7 @@ fn set_up_signal_handlers(
             // Stop any active containers. The `unwrap` will only fail if a panic already occurred.
             for container in &*active_containers.lock().unwrap() {
                 if let Err(e) = docker::stop_container(&docker_cli, container, &interrupted) {
-                    error!("{}", e);
+                    error!("{e}");
                 }
             }
 
@@ -168,106 +158,115 @@ pub struct Settings {
 // Parse the command-line arguments.
 #[allow(clippy::too_many_lines)]
 fn settings() -> Result<Settings, Failure> {
-    let matches = App::new("Toast")
+    let matches = Command::new("Toast")
         .version(VERSION)
-        .version_short("v")
         .author("Stephan Boyer <stephan@stephanboyer.com>")
         .about("Toast is a containerized build system.")
-        .setting(AppSettings::ColoredHelp)
-        .setting(AppSettings::NextLineHelp)
-        .setting(AppSettings::UnifiedHelpMessage)
+        .disable_version_flag(true)
+        .next_line_help(true)
         .arg(
-            Arg::with_name(TOASTFILE_OPTION)
+            Arg::new("version")
+                .short('v')
+                .long("version")
+                .help("Print version information")
+                .action(ArgAction::Version),
+        )
+        .arg(
+            Arg::new(TOASTFILE_OPTION)
                 .value_name("PATH")
-                .short("f")
+                .short('f')
                 .long(TOASTFILE_OPTION)
                 .help("Sets the path to the toastfile"),
         )
         .arg(
-            Arg::with_name(CONFIG_FILE_OPTION)
+            Arg::new(CONFIG_FILE_OPTION)
                 .value_name("PATH")
-                .short("c")
+                .short('c')
                 .long(CONFIG_FILE_OPTION)
                 .help("Sets the path of the config file"),
         )
         .arg(
-            Arg::with_name(OUTPUT_DIR_OPTION)
+            Arg::new(OUTPUT_DIR_OPTION)
                 .value_name("PATH")
-                .short("o")
+                .short('o')
                 .long(OUTPUT_DIR_OPTION)
                 .help("Sets the output directory"),
         )
         .arg(
-            Arg::with_name(READ_LOCAL_CACHE_OPTION)
+            Arg::new(READ_LOCAL_CACHE_OPTION)
                 .value_name("BOOL")
                 .long(READ_LOCAL_CACHE_OPTION)
                 .help("Sets whether local cache reading is enabled"),
         )
         .arg(
-            Arg::with_name(WRITE_LOCAL_CACHE_OPTION)
+            Arg::new(WRITE_LOCAL_CACHE_OPTION)
                 .value_name("BOOL")
                 .long(WRITE_LOCAL_CACHE_OPTION)
                 .help("Sets whether local cache writing is enabled"),
         )
         .arg(
-            Arg::with_name(READ_REMOTE_CACHE_OPTION)
+            Arg::new(READ_REMOTE_CACHE_OPTION)
                 .value_name("BOOL")
                 .long(READ_REMOTE_CACHE_OPTION)
                 .help("Sets whether remote cache reading is enabled"),
         )
         .arg(
-            Arg::with_name(WRITE_REMOTE_CACHE_OPTION)
+            Arg::new(WRITE_REMOTE_CACHE_OPTION)
                 .value_name("BOOL")
                 .long(WRITE_REMOTE_CACHE_OPTION)
                 .help("Sets whether remote cache writing is enabled"),
         )
         .arg(
-            Arg::with_name(DOCKER_REPO_OPTION)
+            Arg::new(DOCKER_REPO_OPTION)
                 .value_name("REPO")
-                .short("r")
+                .short('r')
                 .long(DOCKER_REPO_OPTION)
                 .help("Sets the Docker repository for remote caching"),
         )
         .arg(
-            Arg::with_name(DOCKER_CLI_OPTION)
+            Arg::new(DOCKER_CLI_OPTION)
                 .value_name("CLI")
                 .long(DOCKER_CLI_OPTION)
                 .help("Sets the Docker CLI binary"),
         )
         .arg(
-            Arg::with_name(LIST_OPTION)
-                .short("l")
+            Arg::new(LIST_OPTION)
+                .short('l')
                 .long(LIST_OPTION)
-                .help("Lists the tasks that have a description"),
+                .help("Lists the tasks that have a description")
+                .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name(SHELL_OPTION)
-                .short("s")
+            Arg::new(SHELL_OPTION)
+                .short('s')
                 .long(SHELL_OPTION)
-                .help("Drops you into a containerized shell after the tasks are finished"),
+                .help("Drops you into a containerized shell after the tasks are finished")
+                .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name(FORCE_OPTION)
+            Arg::new(FORCE_OPTION)
                 .value_name("TASK")
                 .long(FORCE_OPTION)
                 .help("Runs a task unconditionally, even if it\u{2019}s cached")
-                .multiple(true),
+                .action(ArgAction::Append),
         )
         .arg(
-            Arg::with_name(FORCE_ALL_OPTION)
+            Arg::new(FORCE_ALL_OPTION)
                 .long(FORCE_ALL_OPTION)
-                .help("Pulls the base image and runs all tasks unconditionally"),
+                .help("Pulls the base image and runs all tasks unconditionally")
+                .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name(TASKS_OPTION)
+            Arg::new(TASKS_OPTION)
                 .value_name("TASKS")
                 .help("Sets the tasks to run")
-                .multiple(true),
+                .num_args(1..)
+                .action(ArgAction::Append),
         )
         .get_matches();
 
     // Find the toastfile.
-    let toastfile_path = matches.value_of(TOASTFILE_OPTION).map_or_else(
+    let toastfile_path = matches.get_one::<String>(TOASTFILE_OPTION).map_or_else(
         || {
             let mut candidate_dir =
                 current_dir().map_err(failure::system("Unable to determine working directory."))?;
@@ -294,13 +293,13 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the config file path.
     let default_config_file_path = dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
-    let config_file_path = matches.value_of(CONFIG_FILE_OPTION).map_or_else(
+    let config_file_path = matches.get_one::<String>(CONFIG_FILE_OPTION).map_or_else(
         || default_config_file_path,
         |path| Some(PathBuf::from(path)),
     );
 
     // Read the config file path.
-    let output_dir = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
+    let output_dir = matches.get_one::<String>(OUTPUT_DIR_OPTION).map_or_else(
         || {
             let mut candidate_dir = toastfile_path.clone();
             candidate_dir.pop();
@@ -340,40 +339,40 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the local caching switches.
     let read_local_cache = matches
-        .value_of(READ_LOCAL_CACHE_OPTION)
-        .map_or(Ok(config.read_local_cache), parse_bool)?;
+        .get_one::<String>(READ_LOCAL_CACHE_OPTION)
+        .map_or(Ok(config.read_local_cache), |value| parse_bool(value))?;
     let write_local_cache = matches
-        .value_of(WRITE_LOCAL_CACHE_OPTION)
-        .map_or(Ok(config.write_local_cache), parse_bool)?;
+        .get_one::<String>(WRITE_LOCAL_CACHE_OPTION)
+        .map_or(Ok(config.write_local_cache), |value| parse_bool(value))?;
 
     // Read the remote caching switches.
     let read_remote_cache = matches
-        .value_of(READ_REMOTE_CACHE_OPTION)
-        .map_or(Ok(config.read_remote_cache), parse_bool)?;
+        .get_one::<String>(READ_REMOTE_CACHE_OPTION)
+        .map_or(Ok(config.read_remote_cache), |value| parse_bool(value))?;
     let write_remote_cache = matches
-        .value_of(WRITE_REMOTE_CACHE_OPTION)
-        .map_or(Ok(config.write_remote_cache), parse_bool)?;
+        .get_one::<String>(WRITE_REMOTE_CACHE_OPTION)
+        .map_or(Ok(config.write_remote_cache), |value| parse_bool(value))?;
 
     // Read the Docker repo.
     let docker_repo = matches
-        .value_of(DOCKER_REPO_OPTION)
-        .unwrap_or(&config.docker_repo)
+        .get_one::<String>(DOCKER_REPO_OPTION)
+        .map_or(config.docker_repo.as_str(), String::as_str)
         .to_owned();
 
     // Read the Docker CLI.
     let docker_cli = matches
-        .value_of(DOCKER_CLI_OPTION)
-        .unwrap_or(&config.docker_cli)
+        .get_one::<String>(DOCKER_CLI_OPTION)
+        .map_or(config.docker_cli.as_str(), String::as_str)
         .to_owned();
 
     // Read the list switch.
-    let list = matches.is_present(LIST_OPTION);
+    let list = matches.get_flag(LIST_OPTION);
 
     // Read the shell switch.
-    let spawn_shell = matches.is_present(SHELL_OPTION);
+    let spawn_shell = matches.get_flag(SHELL_OPTION);
 
     // Read the list of tasks.
-    let tasks = matches.values_of(TASKS_OPTION).map(|tasks| {
+    let tasks = matches.get_many::<String>(TASKS_OPTION).map(|tasks| {
         tasks
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>()
@@ -381,7 +380,7 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the list of forced tasks.
     let forced_tasks = matches
-        .values_of(FORCE_OPTION)
+        .get_many::<String>(FORCE_OPTION)
         .map_or_else(Vec::new, |tasks| {
             tasks
                 .map(std::borrow::ToOwned::to_owned)
@@ -389,7 +388,7 @@ fn settings() -> Result<Settings, Failure> {
         });
 
     // Read the force all switch.
-    let force_all = matches.is_present(FORCE_ALL_OPTION);
+    let force_all = matches.get_flag(FORCE_ALL_OPTION);
 
     Ok(Settings {
         toastfile_path,
@@ -614,7 +613,7 @@ fn run_tasks(
 #[allow(clippy::too_many_lines)]
 fn entry() -> Result<(), Failure> {
     // Determine whether to print colored output.
-    colored::control::set_override(atty::is(Stream::Stderr));
+    colored::control::set_override(std::io::stderr().is_terminal());
 
     // Set up the logger.
     set_up_logging();
@@ -726,7 +725,7 @@ fn entry() -> Result<(), Failure> {
     if settings.spawn_shell {
         // If one of the tasks failed, tell the user now before we drop into a shell.
         if let Err(e) = &result {
-            error!("{}", e);
+            error!("{e}");
         }
 
         // Inform the user of what's about to happen.
@@ -797,7 +796,7 @@ fn entry() -> Result<(), Failure> {
 fn main() {
     // Jump to the entrypoint and handle any resulting errors.
     if let Err(e) = entry() {
-        error!("{}", e);
+        error!("{e}");
         exit(1);
     }
 }

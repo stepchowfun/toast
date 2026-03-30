@@ -32,7 +32,7 @@ impl Drop for Context {
         if !self.persist
             && let Err(e) = docker::delete_image(&self.docker_cli, &self.image, &self.interrupted)
         {
-            error!("{}", e);
+            error!("{e}");
         }
     }
 }
@@ -175,7 +175,7 @@ pub fn run(
                   &container,
                   interrupted
               ) {
-                error!("{}", e);
+                error!("{e}");
               }
             }}
 
@@ -253,7 +253,7 @@ pub fn run(
 
           // Delete the container.
           if let Err(e) = docker::delete_container(&settings.docker_cli, &container, interrupted) {
-            error!("{}", e);
+            error!("{e}");
           }
         }}
 
