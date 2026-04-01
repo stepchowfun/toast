@@ -4,10 +4,11 @@ use {
         failure::Failure,
         toastfile::{Task, Toastfile, command, location, user},
     },
+    digest_io::IoWrapper,
     sha2::{Digest, Sha256},
     std::{
         collections::HashMap,
-        io::Read,
+        io::{self, Read},
         path::{Path, PathBuf},
     },
     typed_path::{UnixPath, UnixPathBuf},
@@ -94,18 +95,9 @@ pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> 
 // load all the data in memory at the same time. The guarantees are the same as those of
 // `crypto_hash`.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
-    let mut hasher = Sha256::new();
-    let mut buffer = [0_u8; 8192];
-    loop {
-        let bytes_read = input
-            .read(&mut buffer)
-            .map_err(failure::system("Unable to compute hash."))?;
-        if bytes_read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..bytes_read]);
-    }
-    Ok(hex::encode(hasher.finalize()))
+    let mut hasher = IoWrapper(Sha256::new());
+    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
+    Ok(hex::encode(hasher.0.finalize()))
 }
 
 // Determine the image name for a task based on the name of the image for the previous task in the
