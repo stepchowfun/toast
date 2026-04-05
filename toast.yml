@@ -172,6 +172,7 @@ tasks:
     command: |
       # Check references with Tagref.
       tagref
+      tagref list-unused --fail-if-any
 
       # Lint shell files with ShellCheck.
       find . -type f -name '*.sh' | xargs shellcheck
