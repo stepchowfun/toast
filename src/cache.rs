@@ -4,11 +4,11 @@ use {
         failure::Failure,
         toastfile::{Task, Toastfile, command, location, user},
     },
+    digest_io::IoWrapper,
     sha2::{Digest, Sha256},
     std::{
         collections::HashMap,
-        io,
-        io::Read,
+        io::{self, Read},
         path::{Path, PathBuf},
     },
     typed_path::{UnixPath, UnixPathBuf},
@@ -59,13 +59,13 @@ fn path_as_bytes(path: &Path) -> Vec<u8> {
 
 impl CryptoHash for Path {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(self)))
+        hex::encode(Sha256::digest(path_as_bytes(self)))
     }
 }
 
 impl CryptoHash for PathBuf {
     fn crypto_hash(&self) -> String {
-        hex::encode(Sha256::digest(&path_as_bytes(self)))
+        hex::encode(Sha256::digest(path_as_bytes(self)))
     }
 }
 
@@ -95,9 +95,9 @@ pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> 
 // load all the data in memory at the same time. The guarantees are the same as those of
 // `crypto_hash`.
 pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
-    let mut hasher = Sha256::new();
+    let mut hasher = IoWrapper(Sha256::new());
     io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
-    Ok(hex::encode(hasher.finalize()))
+    Ok(hex::encode(hasher.0.finalize()))
 }
 
 // Determine the image name for a task based on the name of the image for the previous task in the

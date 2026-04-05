@@ -17,30 +17,24 @@ clippy.pedantic = { level = "deny", priority = -1 }
 rust.warnings = "deny"
 
 [dependencies]
-atty = "0.2"
-colored = "2"
+clap = { version = "4", features = ["derive", "wrap_help"] }
+colored = "3"
 crossbeam = "0.8"
-dirs = "3"
-env_logger = "0.8"
+digest-io = "0.1"
+dirs = "6"
+env_logger = "0.11"
 hex = "0.4"
-indicatif = "0.16"
+indicatif = "0.18"
 log = "0.4"
 scopeguard = "1"
-serde_yaml = "0.8"
-sha2 = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+sha2 = "0.11"
 tar = "0.4"
 tempfile = "3"
-typed-path = "0.3"
+typed-path = "0.12"
 walkdir = "2"
-
-[dependencies.clap]
-version = "2"
-features = ["wrap_help"]
 
 [dependencies.ctrlc]
 version = "3"
 features = ["termination"] # [tag:ctrlc_term]
-
-[dependencies.serde]
-version = "1"
-features = ["derive"]

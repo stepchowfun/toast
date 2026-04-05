@@ -1,9 +1,9 @@
 use {
-    atty::Stream,
     crossbeam::channel::{Sender, bounded},
     indicatif::{ProgressBar, ProgressStyle},
     scopeguard::guard,
     std::{
+        io::{self, IsTerminal},
         sync::{
             Arc,
             atomic::{AtomicBool, Ordering},
@@ -33,8 +33,8 @@ pub fn spin(message: &str) -> impl Drop {
 
                     // If STDERR is not a TTY, the spinner will be hidden. In that case, just print
                     // the message to STDERR.
-                    if !atty::is(Stream::Stderr) {
-                        info!("{}", message);
+                    if !io::stderr().is_terminal() {
+                        info!("{message}");
                     }
 
                     // Create the spinner!

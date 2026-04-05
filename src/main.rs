@@ -11,9 +11,8 @@ mod toastfile;
 
 use {
     crate::{failure::Failure, format::CodeStr},
-    atty::Stream,
-    clap::{App, AppSettings, Arg},
-    env_logger::{Builder, fmt::Color},
+    clap::{ArgAction, Parser},
+    env_logger::{Builder, fmt::style::Effects},
     log::{Level, LevelFilter},
     std::{
         collections::{HashMap, HashSet},
@@ -22,7 +21,7 @@ use {
         env,
         env::current_dir,
         fs,
-        io::{Write, stdout},
+        io::{IsTerminal, Write, stdout},
         mem::drop,
         path::Path,
         path::PathBuf,
@@ -43,29 +42,10 @@ extern crate log;
 #[macro_use]
 extern crate scopeguard;
 
-// The program version
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 // Defaults
 const TOASTFILE_DEFAULT_NAME: &str = "toast.yml";
 const CONFIG_FILE_XDG_PATH: &str = "toast/toast.yml";
 const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::Info;
-
-// Command-line argument and option names
-const TOASTFILE_OPTION: &str = "file";
-const CONFIG_FILE_OPTION: &str = "config-file";
-const READ_LOCAL_CACHE_OPTION: &str = "read-local-cache";
-const WRITE_LOCAL_CACHE_OPTION: &str = "write-local-cache";
-const READ_REMOTE_CACHE_OPTION: &str = "read-remote-cache";
-const WRITE_REMOTE_CACHE_OPTION: &str = "write-remote-cache";
-const DOCKER_CLI_OPTION: &str = "docker-cli";
-const DOCKER_REPO_OPTION: &str = "docker-repo";
-const LIST_OPTION: &str = "list";
-const SHELL_OPTION: &str = "shell";
-const TASKS_OPTION: &str = "tasks";
-const FORCE_OPTION: &str = "force";
-const FORCE_ALL_OPTION: &str = "force-all";
-const OUTPUT_DIR_OPTION: &str = "output-dir";
 
 // Set up the logger.
 fn set_up_logging() {
@@ -78,27 +58,18 @@ fn set_up_logging() {
             .unwrap_or(DEFAULT_LOG_LEVEL),
         )
         .format(|buf, record| {
-            let mut style = buf.style();
-            style.set_bold(true);
-            match record.level() {
-                Level::Error => {
-                    style.set_color(Color::Red);
-                }
-                Level::Warn => {
-                    style.set_color(Color::Yellow);
-                }
-                Level::Info => {
-                    style.set_color(Color::Green);
-                }
-                Level::Debug | Level::Trace => {
-                    style.set_color(Color::Blue);
-                }
-            }
+            let level_for_style = match record.level() {
+                Level::Trace => Level::Debug,
+                level => level,
+            };
+            let style = buf
+                .default_level_style(level_for_style)
+                .effects(Effects::BOLD);
 
             writeln!(
                 buf,
-                "{} {}",
-                style.value(format!("[{}]", record.level())),
+                "{style}[{}]{style:#} {}",
+                record.level(),
                 record.args(),
             )
         })
@@ -122,7 +93,7 @@ fn set_up_signal_handlers(
             // Stop any active containers. The `unwrap` will only fail if a panic already occurred.
             for container in &*active_containers.lock().unwrap() {
                 if let Err(e) = docker::stop_container(&docker_cli, container, &interrupted) {
-                    error!("{}", e);
+                    error!("{e}");
                 }
             }
 
@@ -147,7 +118,121 @@ fn parse_bool(s: &str) -> Result<bool, Failure> {
     }
 }
 
-// This struct represents the command-line arguments.
+// This struct represents the raw command-line arguments.
+#[derive(Parser)]
+#[allow(clippy::struct_excessive_bools)]
+#[command(
+    about = concat!(
+        env!("CARGO_PKG_DESCRIPTION"),
+        "\n\n",
+        "More information can be found at: ",
+        env!("CARGO_PKG_HOMEPAGE")
+    ),
+    version,
+    disable_version_flag = true
+)]
+struct Cli {
+    #[arg(short, long, help = "Print version", action = ArgAction::Version)]
+    _version: Option<bool>,
+
+    #[arg(
+        short = 'f',
+        long = "file",
+        value_name = "PATH",
+        help = "Set the path to the toastfile"
+    )]
+    toastfile: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        value_name = "PATH",
+        help = "Set the path to the config file"
+    )]
+    config_file: Option<String>,
+
+    #[arg(short, long, value_name = "PATH", help = "Set the output directory")]
+    output_dir: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "BOOL",
+        help = "Set whether local cache reading is enabled"
+    )]
+    read_local_cache: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "BOOL",
+        help = "Set whether local cache writing is enabled"
+    )]
+    write_local_cache: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "BOOL",
+        help = "Set whether remote cache reading is enabled"
+    )]
+    read_remote_cache: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "BOOL",
+        help = "Set whether remote cache writing is enabled"
+    )]
+    write_remote_cache: Option<String>,
+
+    #[arg(
+        short = 'r',
+        long,
+        value_name = "REPO",
+        help = "Set the Docker repository for remote caching"
+    )]
+    docker_repo: Option<String>,
+
+    #[arg(
+        long = "docker-cli",
+        value_name = "CLI",
+        help = "Set the Docker CLI binary"
+    )]
+    docker_binary: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        help = "List the tasks that have a description",
+        action = ArgAction::SetTrue
+    )]
+    list: bool,
+
+    #[arg(
+        short,
+        long = "shell",
+        help = "Drop into a containerized shell after the tasks are finished",
+        action = ArgAction::SetTrue
+    )]
+    spawn_shell: bool,
+
+    #[arg(
+        long = "force",
+        value_name = "TASK",
+        help = "Run a task unconditionally, even if it’s cached",
+        action = ArgAction::Append
+    )]
+    forced_tasks: Vec<String>,
+
+    #[arg(
+        long,
+        help = "Pull the base image and run all tasks unconditionally",
+        action = ArgAction::SetTrue
+    )]
+    force_all: bool,
+
+    #[arg(help = "Set the tasks to run")]
+    tasks: Vec<String>,
+}
+
+// This struct represents the parsed command-line arguments.
 #[allow(clippy::struct_excessive_bools)]
 pub struct Settings {
     toastfile_path: PathBuf,
@@ -168,106 +253,10 @@ pub struct Settings {
 // Parse the command-line arguments.
 #[allow(clippy::too_many_lines)]
 fn settings() -> Result<Settings, Failure> {
-    let matches = App::new("Toast")
-        .version(VERSION)
-        .version_short("v")
-        .author("Stephan Boyer <stephan@stephanboyer.com>")
-        .about("Toast is a containerized build system.")
-        .setting(AppSettings::ColoredHelp)
-        .setting(AppSettings::NextLineHelp)
-        .setting(AppSettings::UnifiedHelpMessage)
-        .arg(
-            Arg::with_name(TOASTFILE_OPTION)
-                .value_name("PATH")
-                .short("f")
-                .long(TOASTFILE_OPTION)
-                .help("Sets the path to the toastfile"),
-        )
-        .arg(
-            Arg::with_name(CONFIG_FILE_OPTION)
-                .value_name("PATH")
-                .short("c")
-                .long(CONFIG_FILE_OPTION)
-                .help("Sets the path of the config file"),
-        )
-        .arg(
-            Arg::with_name(OUTPUT_DIR_OPTION)
-                .value_name("PATH")
-                .short("o")
-                .long(OUTPUT_DIR_OPTION)
-                .help("Sets the output directory"),
-        )
-        .arg(
-            Arg::with_name(READ_LOCAL_CACHE_OPTION)
-                .value_name("BOOL")
-                .long(READ_LOCAL_CACHE_OPTION)
-                .help("Sets whether local cache reading is enabled"),
-        )
-        .arg(
-            Arg::with_name(WRITE_LOCAL_CACHE_OPTION)
-                .value_name("BOOL")
-                .long(WRITE_LOCAL_CACHE_OPTION)
-                .help("Sets whether local cache writing is enabled"),
-        )
-        .arg(
-            Arg::with_name(READ_REMOTE_CACHE_OPTION)
-                .value_name("BOOL")
-                .long(READ_REMOTE_CACHE_OPTION)
-                .help("Sets whether remote cache reading is enabled"),
-        )
-        .arg(
-            Arg::with_name(WRITE_REMOTE_CACHE_OPTION)
-                .value_name("BOOL")
-                .long(WRITE_REMOTE_CACHE_OPTION)
-                .help("Sets whether remote cache writing is enabled"),
-        )
-        .arg(
-            Arg::with_name(DOCKER_REPO_OPTION)
-                .value_name("REPO")
-                .short("r")
-                .long(DOCKER_REPO_OPTION)
-                .help("Sets the Docker repository for remote caching"),
-        )
-        .arg(
-            Arg::with_name(DOCKER_CLI_OPTION)
-                .value_name("CLI")
-                .long(DOCKER_CLI_OPTION)
-                .help("Sets the Docker CLI binary"),
-        )
-        .arg(
-            Arg::with_name(LIST_OPTION)
-                .short("l")
-                .long(LIST_OPTION)
-                .help("Lists the tasks that have a description"),
-        )
-        .arg(
-            Arg::with_name(SHELL_OPTION)
-                .short("s")
-                .long(SHELL_OPTION)
-                .help("Drops you into a containerized shell after the tasks are finished"),
-        )
-        .arg(
-            Arg::with_name(FORCE_OPTION)
-                .value_name("TASK")
-                .long(FORCE_OPTION)
-                .help("Runs a task unconditionally, even if it\u{2019}s cached")
-                .multiple(true),
-        )
-        .arg(
-            Arg::with_name(FORCE_ALL_OPTION)
-                .long(FORCE_ALL_OPTION)
-                .help("Pulls the base image and runs all tasks unconditionally"),
-        )
-        .arg(
-            Arg::with_name(TASKS_OPTION)
-                .value_name("TASKS")
-                .help("Sets the tasks to run")
-                .multiple(true),
-        )
-        .get_matches();
+    let cli = Cli::parse();
 
     // Find the toastfile.
-    let toastfile_path = matches.value_of(TOASTFILE_OPTION).map_or_else(
+    let toastfile_path = cli.toastfile.as_deref().map_or_else(
         || {
             let mut candidate_dir =
                 current_dir().map_err(failure::system("Unable to determine working directory."))?;
@@ -294,13 +283,13 @@ fn settings() -> Result<Settings, Failure> {
 
     // Read the config file path.
     let default_config_file_path = dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
-    let config_file_path = matches.value_of(CONFIG_FILE_OPTION).map_or_else(
+    let config_file_path = cli.config_file.as_deref().map_or_else(
         || default_config_file_path,
         |path| Some(PathBuf::from(path)),
     );
 
     // Read the config file path.
-    let output_dir = matches.value_of(OUTPUT_DIR_OPTION).map_or_else(
+    let output_dir = cli.output_dir.as_deref().map_or_else(
         || {
             let mut candidate_dir = toastfile_path.clone();
             candidate_dir.pop();
@@ -339,57 +328,33 @@ fn settings() -> Result<Settings, Failure> {
     )))?;
 
     // Read the local caching switches.
-    let read_local_cache = matches
-        .value_of(READ_LOCAL_CACHE_OPTION)
+    let read_local_cache = cli
+        .read_local_cache
+        .as_deref()
         .map_or(Ok(config.read_local_cache), parse_bool)?;
-    let write_local_cache = matches
-        .value_of(WRITE_LOCAL_CACHE_OPTION)
+    let write_local_cache = cli
+        .write_local_cache
+        .as_deref()
         .map_or(Ok(config.write_local_cache), parse_bool)?;
 
     // Read the remote caching switches.
-    let read_remote_cache = matches
-        .value_of(READ_REMOTE_CACHE_OPTION)
+    let read_remote_cache = cli
+        .read_remote_cache
+        .as_deref()
         .map_or(Ok(config.read_remote_cache), parse_bool)?;
-    let write_remote_cache = matches
-        .value_of(WRITE_REMOTE_CACHE_OPTION)
+    let write_remote_cache = cli
+        .write_remote_cache
+        .as_deref()
         .map_or(Ok(config.write_remote_cache), parse_bool)?;
 
     // Read the Docker repo.
-    let docker_repo = matches
-        .value_of(DOCKER_REPO_OPTION)
-        .unwrap_or(&config.docker_repo)
-        .to_owned();
+    let docker_repo = cli.docker_repo.unwrap_or(config.docker_repo);
 
     // Read the Docker CLI.
-    let docker_cli = matches
-        .value_of(DOCKER_CLI_OPTION)
-        .unwrap_or(&config.docker_cli)
-        .to_owned();
-
-    // Read the list switch.
-    let list = matches.is_present(LIST_OPTION);
-
-    // Read the shell switch.
-    let spawn_shell = matches.is_present(SHELL_OPTION);
+    let docker_cli = cli.docker_binary.unwrap_or(config.docker_cli);
 
     // Read the list of tasks.
-    let tasks = matches.values_of(TASKS_OPTION).map(|tasks| {
-        tasks
-            .map(std::borrow::ToOwned::to_owned)
-            .collect::<Vec<_>>()
-    });
-
-    // Read the list of forced tasks.
-    let forced_tasks = matches
-        .values_of(FORCE_OPTION)
-        .map_or_else(Vec::new, |tasks| {
-            tasks
-                .map(std::borrow::ToOwned::to_owned)
-                .collect::<Vec<_>>()
-        });
-
-    // Read the force all switch.
-    let force_all = matches.is_present(FORCE_ALL_OPTION);
+    let tasks = (!cli.tasks.is_empty()).then_some(cli.tasks);
 
     Ok(Settings {
         toastfile_path,
@@ -399,11 +364,11 @@ fn settings() -> Result<Settings, Failure> {
         write_local_cache,
         read_remote_cache,
         write_remote_cache,
-        list,
-        spawn_shell,
+        list: cli.list,
+        spawn_shell: cli.spawn_shell,
         tasks,
-        forced_tasks,
-        force_all,
+        forced_tasks: cli.forced_tasks,
+        force_all: cli.force_all,
         output_dir,
     })
 }
@@ -614,7 +579,7 @@ fn run_tasks(
 #[allow(clippy::too_many_lines)]
 fn entry() -> Result<(), Failure> {
     // Determine whether to print colored output.
-    colored::control::set_override(atty::is(Stream::Stderr));
+    colored::control::set_override(std::io::stderr().is_terminal());
 
     // Set up the logger.
     set_up_logging();
@@ -726,7 +691,7 @@ fn entry() -> Result<(), Failure> {
     if settings.spawn_shell {
         // If one of the tasks failed, tell the user now before we drop into a shell.
         if let Err(e) = &result {
-            error!("{}", e);
+            error!("{e}");
         }
 
         // Inform the user of what's about to happen.
@@ -797,7 +762,18 @@ fn entry() -> Result<(), Failure> {
 fn main() {
     // Jump to the entrypoint and handle any resulting errors.
     if let Err(e) = entry() {
-        error!("{}", e);
+        error!("{e}");
         exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Cli;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
     }
 }

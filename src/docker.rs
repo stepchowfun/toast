@@ -2,6 +2,7 @@ use {
     crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
     std::{
         collections::HashMap,
+        convert::TryFrom,
         env::current_dir,
         fs::{Metadata, copy, create_dir_all, rename, symlink_metadata},
         io,
@@ -15,7 +16,7 @@ use {
         },
     },
     tempfile::tempdir,
-    typed_path::{TryAsRef, UnixPath, UnixPathBuf},
+    typed_path::{UnixPath, UnixPathBuf},
     walkdir::WalkDir,
 };
 
@@ -284,12 +285,13 @@ pub fn copy_from_container(
         // Figure out what needs to go where.
         let source = source_dir.join(path);
         let intermediate = temp_dir.path().join("data");
-        let destination = destination_dir.join(path.try_as_ref().ok_or_else(|| {
-            Failure::User(
-                format!("Invalid path {}", path.to_string_lossy().code_str()),
-                None,
-            )
-        })?);
+        let destination =
+            destination_dir.join(std::path::PathBuf::try_from(path.clone()).map_err(|_| {
+                Failure::User(
+                    format!("Invalid path {}", path.to_string_lossy().code_str()),
+                    None,
+                )
+            })?);
 
         // Get the path from the container.
         run_quiet(
