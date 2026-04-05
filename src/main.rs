@@ -197,35 +197,24 @@ struct Cli {
     )]
     docker_binary: Option<String>,
 
-    #[arg(
-        short,
-        long,
-        help = "List the tasks that have a description",
-        action = ArgAction::SetTrue
-    )]
+    #[arg(short, long, help = "List the tasks that have a description")]
     list: bool,
 
     #[arg(
         short,
         long = "shell",
-        help = "Drop into a containerized shell after the tasks are finished",
-        action = ArgAction::SetTrue
+        help = "Drop into a containerized shell after the tasks are finished"
     )]
     spawn_shell: bool,
 
     #[arg(
         long = "force",
         value_name = "TASK",
-        help = "Run a task unconditionally, even if it’s cached",
-        action = ArgAction::Append
+        help = "Run a task unconditionally, even if it’s cached"
     )]
     forced_tasks: Vec<String>,
 
-    #[arg(
-        long,
-        help = "Pull the base image and run all tasks unconditionally",
-        action = ArgAction::SetTrue
-    )]
+    #[arg(long, help = "Pull the base image and run all tasks unconditionally")]
     force_all: bool,
 
     #[arg(help = "Set the tasks to run")]
