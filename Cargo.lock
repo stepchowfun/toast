@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "toast"
-version = "0.47.7"
+version = "0.48.0"
 dependencies = [
  "clap",
  "colored",
