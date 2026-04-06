@@ -1,14 +1,8 @@
 use {
-    crate::{
-        failure,
-        failure::Failure,
-        toastfile::{Task, Toastfile, command, location, user},
-    },
-    digest_io::IoWrapper,
+    crate::toastfile::{Task, Toastfile, command, location, user},
     sha2::{Digest, Sha256},
     std::{
         collections::HashMap,
-        io::{self, Read},
         path::{Path, PathBuf},
     },
     typed_path::{UnixPath, UnixPathBuf},
@@ -91,15 +85,6 @@ pub fn combine<X: CryptoHash + ?Sized, Y: CryptoHash + ?Sized>(x: &X, y: &Y) -> 
     format!("{}{}", x.crypto_hash(), y.crypto_hash()).crypto_hash()
 }
 
-// Compute a cryptographic hash of a readable object (e.g., a file). This function does not need to
-// load all the data in memory at the same time. The guarantees are the same as those of
-// `crypto_hash`.
-pub fn hash_read<R: Read>(input: &mut R) -> Result<String, Failure> {
-    let mut hasher = IoWrapper(Sha256::new());
-    io::copy(input, &mut hasher).map_err(failure::system("Unable to compute hash."))?;
-    Ok(hex::encode(hasher.0.finalize()))
-}
-
 // Determine the image name for a task based on the name of the image for the previous task in the
 // schedule (or the base image, if this is the first task).
 pub fn image_name(
@@ -159,7 +144,7 @@ pub fn image_name(
 mod tests {
     use {
         crate::{
-            cache::{CryptoHash, combine, hash_read, image_name},
+            cache::{CryptoHash, combine, image_name},
             toastfile::{DEFAULT_LOCATION, DEFAULT_USER, Task, Toastfile},
         },
         std::{collections::HashMap, path::Path},
@@ -255,20 +240,6 @@ mod tests {
     #[test]
     fn combine_concat() {
         assert_ne!(combine("foo", "bar"), combine("foob", "ar"));
-    }
-
-    #[test]
-    fn hash_read_pure() {
-        let mut str1 = b"foo" as &[u8];
-        let mut str2 = b"foo" as &[u8];
-        assert_eq!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
-    }
-
-    #[test]
-    fn hash_read_not_constant() {
-        let mut str1 = b"foo" as &[u8];
-        let mut str2 = b"bar" as &[u8];
-        assert_ne!(hash_read(&mut str1).unwrap(), hash_read(&mut str2).unwrap());
     }
 
     #[test]
