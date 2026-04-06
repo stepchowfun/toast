@@ -1,10 +1,11 @@
 use {
     crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin},
+    sha2::{Digest, Sha256},
     std::{
         collections::HashSet,
         convert::TryFrom,
         fs::{File, Metadata, read_link, symlink_metadata},
-        io::{Read, Seek, SeekFrom, Write, empty},
+        io::{Read, Seek, Write, empty},
         path::Path,
         sync::{
             Arc,
@@ -27,6 +28,9 @@ use {
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+
+// Number of bytes to read from a file at a time
+const FILE_READ_BUFFER_SIZE: usize = 1_048_576;
 
 #[cfg(unix)]
 fn is_file_executable(metadata: &Metadata) -> bool {
@@ -79,23 +83,21 @@ fn can_add_path(
     true
 }
 
-// Add a file to a tar archive.
-fn add_file<R: Read, W: Write>(
+// Add a file to a tar archive, returning a hash of the contents of the file.
+fn add_file<W: Write + Seek>(
     builder: &mut Builder<W>,
     path_rcr: &UnixPath,
-    data: R,
-    size: u64,
+    mut data: File,
     executable: bool,
-) -> Result<(), Failure> {
+) -> Result<String, Failure> {
     // Construct a tar header for this entry.
     let mut header = Header::new_gnu();
     header.set_entry_type(EntryType::Regular);
     header.set_mode(if executable { 0o777 } else { 0o666 });
-    header.set_size(size);
 
-    // Add the entry to the archive.
-    builder
-        .append_data(
+    // Stream the file into the archive and compute the hash of the contents.
+    let mut entry = builder
+        .append_writer(
             &mut header,
             std::path::PathBuf::try_from(path_rcr.to_path_buf()).map_err(|_| {
                 Failure::User(
@@ -103,12 +105,29 @@ fn add_file<R: Read, W: Write>(
                     None,
                 )
             })?,
-            data,
         )
+        .map_err(failure::system("Error appending data to tar archive."))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0; FILE_READ_BUFFER_SIZE].into_boxed_slice();
+    loop {
+        let bytes_read = data
+            .read(&mut buffer)
+            .map_err(failure::system("Error reading file."))?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        hasher.update(&buffer[..bytes_read]);
+        entry
+            .write_all(&buffer[..bytes_read])
+            .map_err(failure::system("Error appending data to tar archive."))?;
+    }
+    entry
+        .finish()
         .map_err(failure::system("Error appending data to tar archive."))?;
 
     // Everything succeeded.
-    Ok(())
+    Ok(hex::encode(hasher.finalize()))
 }
 
 // Add a symlink to a tar archive.
@@ -187,7 +206,7 @@ fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &UnixPath) -> Res
 }
 
 // Add a file, symlink, or directory to a tar archive.
-fn add_path<W: Write>(
+fn add_path<W: Write + Seek>(
     builder: &mut Builder<W>,
     content_hashes: &mut Vec<String>,
     visited_paths_rcr: &mut HashSet<UnixPathBuf>,
@@ -217,26 +236,21 @@ fn add_path<W: Write>(
 
         // It's a file. Open it so we can compute the hash of its contents and add it to the
         // archive.
-        let mut file = File::open(path_cd).map_err(failure::system(format!(
+        let file = File::open(path_cd).map_err(failure::system(format!(
             "Unable to open file {}.",
             path_cd.to_string_lossy().code_str(),
         )))?;
 
-        // Compute the hash of the file contents and metadata.
+        // Add the file to the archive and compute the hash from the exact bytes we archived.
+        let content_hash = add_file(builder, path_rcr, file, executable)?;
         content_hashes.push(cache::combine(
-            &cache::combine(&path_rcr.crypto_hash(), &cache::hash_read(&mut file)?),
-            if executable { "+x" } else { "-x" },
+            "file",
+            &cache::combine(
+                &path_rcr.crypto_hash(),
+                &cache::combine(if executable { "+x" } else { "-x" }, &content_hash),
+            ),
         ));
-
-        // Jump back to the beginning of the file so the tar builder can read it.
-        file.seek(SeekFrom::Start(0))
-            .map_err(failure::system(format!(
-                "Unable to seek file {}.",
-                path_cd.to_string_lossy().code_str(),
-            )))?;
-
-        // Add the file to the archive and return.
-        add_file(builder, path_rcr, file, metadata.len(), executable)
+        Ok(())
     } else if metadata.file_type().is_symlink() {
         // It's a symlink. Read the target path.
         let target_path_std = read_link(path_cd).map_err(failure::system(format!(
@@ -251,13 +265,16 @@ fn add_path<W: Write>(
         })?;
 
         // Compute the hash of the symlink path and the target path.
-        content_hashes.push(cache::combine(path_rcr, &target_path));
+        content_hashes.push(cache::combine(
+            "symlink",
+            &cache::combine(path_rcr, &target_path),
+        ));
 
         // Add the symlink to the archive.
         add_symlink(builder, path_rcr, &target_path)
     } else if metadata.file_type().is_dir() {
         // It's a directory. Only its name is relevant for the cache key.
-        content_hashes.push(path_rcr.crypto_hash());
+        content_hashes.push(cache::combine("directory", &path_rcr.crypto_hash()));
 
         // Add the directory to the archive.
         add_directory(builder, path_rcr)
@@ -275,7 +292,7 @@ fn add_path<W: Write>(
 // Construct a tar archive and return a hash of its contents. This function does not follow symbolic
 // links.
 #[allow(clippy::similar_names, clippy::too_many_lines)]
-pub fn create<W: Write>(
+pub fn create<W: Write + Seek>(
     spinner_message: &str,
     writer: W,
     input_paths_rsd: &[UnixPathBuf],
