@@ -1,21 +1,19 @@
-use {
-    crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin},
-    sha2::{Digest, Sha256},
-    std::{
-        collections::HashSet,
-        convert::TryFrom,
-        fs::{File, Metadata, read_link, symlink_metadata},
-        io::{Read, Seek, Write, empty},
-        path::Path,
-        sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        },
+use crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::HashSet,
+    convert::TryFrom,
+    fs::{File, Metadata, read_link, symlink_metadata},
+    io::{Read, Seek, Write, empty},
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
     },
-    tar::{Builder, EntryType, Header},
-    typed_path::{UnixPath, UnixPathBuf},
-    walkdir::WalkDir,
 };
+use tar::{Builder, EntryType, Header};
+use typed_path::{UnixPath, UnixPathBuf};
+use walkdir::WalkDir;
 
 // To help keep track of the various types of paths, we will adopt the following variable suffixes:
 //

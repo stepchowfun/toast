@@ -1,24 +1,22 @@
-use {
-    crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath},
-    std::{
-        collections::HashMap,
-        convert::TryFrom,
-        env::current_dir,
-        fs::{Metadata, copy, create_dir_all, rename, symlink_metadata},
-        io,
-        io::Read,
-        path::Path,
-        process::{ChildStdin, Command, Stdio},
-        string::ToString,
-        sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        },
+use crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    env::current_dir,
+    fs::{Metadata, copy, create_dir_all, rename, symlink_metadata},
+    io,
+    io::Read,
+    path::Path,
+    process::{ChildStdin, Command, Stdio},
+    string::ToString,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
     },
-    tempfile::tempdir,
-    typed_path::{UnixPath, UnixPathBuf},
-    walkdir::WalkDir,
 };
+use tempfile::tempdir;
+use typed_path::{UnixPath, UnixPathBuf};
+use walkdir::WalkDir;
 
 #[cfg(unix)]
 use std::fs::read_link;

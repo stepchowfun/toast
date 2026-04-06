@@ -1,12 +1,10 @@
-use {
-    crate::toastfile::{Task, Toastfile, command, location, user},
-    sha2::{Digest, Sha256},
-    std::{
-        collections::HashMap,
-        path::{Path, PathBuf},
-    },
-    typed_path::{UnixPath, UnixPathBuf},
+use crate::toastfile::{Task, Toastfile, command, location, user};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
 };
+use typed_path::{UnixPath, UnixPathBuf};
 
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
@@ -142,14 +140,12 @@ pub fn image_name(
 
 #[cfg(test)]
 mod tests {
-    use {
-        crate::{
-            cache::{CryptoHash, combine, image_name},
-            toastfile::{DEFAULT_LOCATION, DEFAULT_USER, Task, Toastfile},
-        },
-        std::{collections::HashMap, path::Path},
-        typed_path::UnixPath,
+    use crate::{
+        cache::{CryptoHash, combine, image_name},
+        toastfile::{DEFAULT_LOCATION, DEFAULT_USER, Task, Toastfile},
     };
+    use std::{collections::HashMap, path::Path};
+    use typed_path::UnixPath;
 
     fn toastfile_with_task(foo_task: Task) -> Toastfile {
         let mut tasks = HashMap::new();

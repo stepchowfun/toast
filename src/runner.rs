@@ -1,21 +1,19 @@
-use {
-    crate::{
-        cache, docker, failure,
-        failure::Failure,
-        tar,
-        toastfile::{Task, Toastfile, command, location, user},
-    },
-    std::{
-        collections::{HashMap, HashSet},
-        io::{Seek, SeekFrom},
-        path::PathBuf,
-        sync::{
-            Arc, Mutex,
-            atomic::{AtomicBool, Ordering},
-        },
-    },
-    tempfile::tempfile,
+use crate::{
+    cache, docker, failure,
+    failure::Failure,
+    tar,
+    toastfile::{Task, Toastfile, command, location, user},
 };
+use std::{
+    collections::{HashMap, HashSet},
+    io::{Seek, SeekFrom},
+    path::PathBuf,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+};
+use tempfile::tempfile;
 
 // A context is an image that may need to be cleaned up.
 #[derive(Clone)]
