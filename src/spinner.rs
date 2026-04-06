@@ -1,17 +1,15 @@
-use {
-    crossbeam::channel::{Sender, bounded},
-    indicatif::{ProgressBar, ProgressStyle},
-    scopeguard::guard,
-    std::{
-        io::{self, IsTerminal},
-        sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        },
-        thread,
-        thread::sleep,
-        time::{Duration, Instant},
+use crossbeam::channel::{Sender, bounded};
+use indicatif::{ProgressBar, ProgressStyle};
+use scopeguard::guard;
+use std::{
+    io::{self, IsTerminal},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
     },
+    thread,
+    thread::sleep,
+    time::{Duration, Instant},
 };
 
 // Render a spinner in the terminal. When the returned value is dropped, the spinner is stopped.

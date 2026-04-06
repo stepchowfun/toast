@@ -9,32 +9,29 @@ mod spinner;
 mod tar;
 mod toastfile;
 
-use {
-    crate::{failure::Failure, format::CodeStr},
-    clap::{ArgAction, Parser},
-    env_logger::{Builder, fmt::style::Effects},
-    log::{Level, LevelFilter},
-    std::{
-        collections::{HashMap, HashSet},
-        convert::AsRef,
-        default::Default,
-        env,
-        env::current_dir,
-        fs,
-        io::{IsTerminal, Write, stdout},
-        mem::drop,
-        path::Path,
-        path::PathBuf,
-        process::exit,
-        str::FromStr,
-        sync::{
-            Arc, Mutex,
-            atomic::{AtomicBool, Ordering},
-        },
+use crate::{failure::Failure, format::CodeStr};
+use clap::{ArgAction, Parser};
+use env_logger::{Builder, fmt::style::Effects};
+use log::{Level, LevelFilter};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::AsRef,
+    default::Default,
+    env,
+    env::current_dir,
+    fs,
+    io::{IsTerminal, Write, stdout},
+    mem::drop,
+    path::{Path, PathBuf},
+    process::exit,
+    str::FromStr,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
     },
-    toastfile::{DEFAULT_USER, default_task_mount_readonly, location, user},
-    typed_path::UnixPath,
 };
+use toastfile::{DEFAULT_USER, default_task_mount_readonly, location, user};
+use typed_path::UnixPath;
 
 #[macro_use]
 extern crate log;

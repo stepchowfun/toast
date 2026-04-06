@@ -1,14 +1,12 @@
-use {
-    crate::{failure::Failure, format, format::CodeStr},
-    serde::{Deserialize, Deserializer, de::Error},
-    std::{
-        collections::{HashMap, HashSet},
-        env,
-        fmt::{self, Display, Formatter},
-        path::PathBuf,
-    },
-    typed_path::{UnixPath, UnixPathBuf},
+use crate::{failure::Failure, format, format::CodeStr};
+use serde::{Deserialize, Deserializer, de::Error};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    fmt::{self, Display, Formatter},
+    path::PathBuf,
 };
+use typed_path::{UnixPath, UnixPathBuf};
 
 // The default location for commands and files copied into the container
 pub const DEFAULT_LOCATION: &str = "/scratch";
@@ -639,14 +637,12 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
 #[cfg(test)]
 mod tests {
-    use {
-        crate::toastfile::{
-            DEFAULT_LOCATION, DEFAULT_USER, MappingPath, Task, Toastfile, check_dependencies,
-            check_task, command, environment, location, parse, user,
-        },
-        std::{collections::HashMap, env, path::Path},
-        typed_path::UnixPath,
+    use crate::toastfile::{
+        DEFAULT_LOCATION, DEFAULT_USER, MappingPath, Task, Toastfile, check_dependencies,
+        check_task, command, environment, location, parse, user,
     };
+    use std::{collections::HashMap, env, path::Path};
+    use typed_path::UnixPath;
 
     #[test]
     fn parse_empty() {
