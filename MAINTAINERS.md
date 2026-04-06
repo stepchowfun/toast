@@ -26,7 +26,7 @@ When setting up the repository on GitHub, configure the following settings:
       - `Install on macOS`
       - `Publish a release if applicable`
 
-The GitHub workflow will fail initially because the jobs which test the installer script will not find any release to download. You'll need to bootstrap a release by temporarily removing those jobs or changing them to no-ops. Be aware that the `create-release` job is configured to only run on the `main` branch, so you may also need to temporarily change that depending on which branch you're working on.
+The GitHub workflow will fail initially because the jobs which test the installer script will not find any release to download. You'll need to bootstrap a release by temporarily removing those jobs or changing them to no-ops. Be aware that the `publish-release` job is configured to only run on the `main` branch, so you may also need to temporarily change that depending on which branch you're working on.
 
 ### Release instructions
 
