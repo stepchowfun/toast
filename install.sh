@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# This installer script supports Linux and macOS machines running on x86-64 only.
+# This installer script supports Linux and macOS machines running on AArch64 or x86-64.
 
 # Usage examples:
 #   ./install.sh
