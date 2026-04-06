@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.0] - 2026-04-05
+
+### Fixed
+- Fixed a race condition in the tar building logic.
+- The installation script now handles SELinux correctly and no longer redirects some output incorrectly.
+
+### Changed
+- Dependencies have been updated.
+
 ## [0.47.7] - 2025-01-22
 
 No-op release.
