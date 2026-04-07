@@ -138,7 +138,7 @@ struct Cli {
         value_name = "PATH",
         help = "Set the path to the toastfile"
     )]
-    toastfile: Option<String>,
+    toastfile: Option<PathBuf>,
 
     #[arg(
         short,
@@ -146,10 +146,10 @@ struct Cli {
         value_name = "PATH",
         help = "Set the path to the config file"
     )]
-    config_file: Option<String>,
+    config_file: Option<PathBuf>,
 
     #[arg(short, long, value_name = "PATH", help = "Set the output directory")]
-    output_dir: Option<String>,
+    output_dir: Option<PathBuf>,
 
     #[arg(
         long,
@@ -242,7 +242,7 @@ fn settings() -> Result<Settings, Failure> {
     let cli = Cli::parse();
 
     // Find the toastfile.
-    let toastfile_path = cli.toastfile.as_deref().map_or_else(
+    let toastfile_path = cli.toastfile.map_or_else(
         || {
             let mut candidate_dir =
                 current_dir().map_err(failure::system("Unable to determine working directory."))?;
@@ -264,25 +264,19 @@ fn settings() -> Result<Settings, Failure> {
                 }
             }
         },
-        |x| Ok(Path::new(x).to_owned()),
+        Ok,
     )?;
 
     // Read the config file path.
     let default_config_file_path = dirs::config_dir().map(|path| path.join(CONFIG_FILE_XDG_PATH));
-    let config_file_path = cli.config_file.as_deref().map_or_else(
-        || default_config_file_path,
-        |path| Some(PathBuf::from(path)),
-    );
+    let config_file_path = cli.config_file.or(default_config_file_path);
 
     // Read the config file path.
-    let output_dir = cli.output_dir.as_deref().map_or_else(
-        || {
-            let mut candidate_dir = toastfile_path.clone();
-            candidate_dir.pop();
-            candidate_dir
-        },
-        |path| Path::new(path).to_owned(),
-    );
+    let output_dir = cli.output_dir.unwrap_or_else(|| {
+        let mut candidate_dir = toastfile_path.clone();
+        candidate_dir.pop();
+        candidate_dir
+    });
 
     // Parse the config file.
     let config_data = config_file_path
