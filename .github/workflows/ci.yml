@@ -190,6 +190,10 @@ jobs:
       contents: write
     steps:
     - uses: actions/checkout@v4
+    - uses: docker/login-action@v3
+      with:
+        username: stephanmisc
+        password: ${{ secrets.DOCKER_PASSWORD }}
     - uses: actions/download-artifact@v4
       with:
         path: artifacts/
