@@ -253,5 +253,7 @@ jobs:
       with:
         tasks: publish
         docker_repo: stephanmisc/toast
+        read_remote_cache: true
+        write_remote_cache: true
       env:
         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
