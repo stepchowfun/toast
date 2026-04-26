@@ -1,17 +1,8 @@
-image: fedora:45
+image: fedora:34 # Later versions of Fedora don't seem to have `su`, which is needed by Toast.
 tasks:
   i_am_root:
     command: touch /i-am-root.txt
-  install_su:
-    command: |
-      set -euxo pipefail
-      dnf install -y util-linux
-      if [ ! -e /bin/su ]; then
-        ln -s /usr/sbin/su /bin/su
-      fi
   create_user:
-    dependencies:
-      - install_su
     command: useradd user --create-home --shell /bin/bash
   greet:
     dependencies:

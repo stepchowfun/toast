@@ -145,31 +145,12 @@ pub fn create_container(
         extra_args,
     )?);
 
-    if user == "root" {
-        args.extend(
-            vec![
-                image,
-                "/bin/sh",
-                "-c",
-                concat!(
-                    "if [ -x /bin/bash ]; then exec /bin/bash -c \"$1\"; ",
-                    "else exec /bin/sh -c \"$1\"; fi",
-                ),
-                "toast",
-                command,
-            ]
+    args.extend(
+        vec![image, "/bin/su", "-c", command, user]
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
-        );
-    } else {
-        args.extend(
-            vec![image, "/bin/su", "-c", command, user]
-                .into_iter()
-                .map(std::borrow::ToOwned::to_owned)
-                .collect::<Vec<_>>(),
-        );
-    }
+    );
 
     Ok(run_quiet(
         docker_cli,
@@ -516,26 +497,12 @@ pub fn spawn_shell(
         extra_args,
     )?);
 
-    if user == "root" {
-        args.extend(
-            vec![
-                image,
-                "/bin/sh",
-                "-c",
-                "if [ -x /bin/bash ]; then exec /bin/bash; else exec /bin/sh; fi",
-            ]
+    args.extend(
+        vec![image, "/bin/su", user]
             .into_iter()
             .map(std::borrow::ToOwned::to_owned)
             .collect::<Vec<_>>(),
-        );
-    } else {
-        args.extend(
-            vec![image, "/bin/su", user]
-                .into_iter()
-                .map(std::borrow::ToOwned::to_owned)
-                .collect::<Vec<_>>(),
-        );
-    }
+    );
 
     run_attach(
         docker_cli,
@@ -565,9 +532,10 @@ fn container_args(
     // signal handling behavior of the child process (in our case, `/bin/sh`) works normally.
     let mut args = vec!["--init".to_owned()];
 
-    // Run as the `root` user. Root tasks run directly in the container, while non-root tasks use
-    // `/bin/su` to switch users without requiring a password. Most Docker images already use `root`
-    // as the default user, but not all.
+    // Run as the `root` user. We always run `/bin/su` in the container, which switches to the user
+    // specified in the toastfile. We want to run `/bin/su` as root so it can switch users without
+    // requiring a password. Most Docker images already use `root` as the default user, but not
+    // all.
     args.extend(vec!["--user".to_owned(), "root".to_owned()]);
 
     // Environment
