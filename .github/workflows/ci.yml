@@ -12,9 +12,9 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - if: ${{ github.event_name == 'push' }}
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4.1.0
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
@@ -30,7 +30,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: x86_64-unknown-linux-gnu
         path: artifacts/toast
@@ -41,7 +41,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: x86_64-unknown-linux-musl
         path: artifacts/toast
@@ -52,7 +52,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: aarch64-unknown-linux-gnu
         path: artifacts/toast
@@ -63,7 +63,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: aarch64-unknown-linux-musl
         path: artifacts/toast
@@ -72,7 +72,7 @@ jobs:
     name: Build for Windows
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - run: |
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
@@ -104,12 +104,12 @@ jobs:
 
         # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: x86_64-pc-windows-msvc
         path: target/x86_64-pc-windows-msvc/release/toast.exe
         if-no-files-found: error
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: aarch64-pc-windows-msvc
         path: target/aarch64-pc-windows-msvc/release/toast.exe
@@ -118,7 +118,7 @@ jobs:
     name: Build for macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - run: |
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
@@ -143,12 +143,12 @@ jobs:
 
         # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: x86_64-apple-darwin
         path: target/x86_64-apple-darwin/release/toast
         if-no-files-found: error
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7.0.1
       with:
         name: aarch64-apple-darwin
         path: target/aarch64-apple-darwin/release/toast
@@ -157,7 +157,7 @@ jobs:
     name: Install on macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - run: |
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
@@ -171,7 +171,7 @@ jobs:
     name: Install on Ubuntu
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - run: |
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
@@ -189,12 +189,12 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
-    - uses: docker/login-action@v3
+    - uses: actions/checkout@v6.0.2
+    - uses: docker/login-action@v4.1.0
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8.0.1
       with:
         path: artifacts/
     - env:

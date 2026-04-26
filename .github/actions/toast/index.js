@@ -1,7 +1,7 @@
 const childProcess = require('child_process');
+const crypto = require('crypto');
 const core = require('@actions/core');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
@@ -25,7 +25,7 @@ const toastPrefix = process.env.HOME;
 // - https://bugs.chromium.org/p/project-zero/issues/detail?id=2070&can=2&q=&colspec=ID%20Type%20Status%20Priority%20Milestone%20Owner%20Summary&cells=ids
 // - https://github.blog/changelog/2020-10-01-github-actions-deprecating-set-env-and-add-path-commands/
 // - https://github.com/actions/toolkit/security/advisories/GHSA-mfwh-5m23-j46w
-const token = uuidv4();
+const token = crypto.randomUUID();
 console.log(`::stop-commands::${token}`);
 
 // Install Toast.

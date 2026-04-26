@@ -11,7 +11,6 @@
   "author": "Stephan Boyer",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "uuid": "^14.0.0"
+    "@actions/core": "^3.0.1"
   }
 }
