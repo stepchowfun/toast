@@ -4,6 +4,7 @@
   "description": "A GitHub action for running Toast",
   "repository": "https://github.com/stepchowfun/toast",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,7 +12,6 @@
   "author": "Stephan Boyer",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "uuid": "^14.0.0"
+    "@actions/core": "^3.0.1"
   }
 }

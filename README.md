@@ -502,7 +502,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - uses: stepchowfun/toast/.github/actions/toast@main
 ```
 
@@ -520,9 +520,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6.0.2
     - if: github.event_name == 'push'
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4.1.0
       with:
         username: DOCKER_USERNAME
         password: ${{ secrets.DOCKER_PASSWORD }}
