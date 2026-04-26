@@ -306,7 +306,7 @@ The topological sort of an arbitrary DAG isn't necessarily unique. Toast uses an
 
 For each task in the schedule, Toast first computes a cache key based on a hash of the shell command, the contents of the `input_paths`, the cache key of the previous task in the schedule, etc. Toast will then look for a Docker image tagged with that cache key. If the image is found, Toast will skip the task. Otherwise, Toast will create a container, copy any `input_paths` into it, run the shell command, copy any `output_paths` from the container to the host, commit the container to an image, and delete the container. The image is tagged with the cache key so the task can be skipped for subsequent runs.
 
-Toast aims to make as few assumptions about the container environment as possible. Toast only assumes root tasks can run with `/bin/sh`. Non-root tasks additionally require a program at `/bin/su` which can be invoked as `su -c COMMAND USER`. This program is used to run commands in the container as the appropriate user with their preferred shell. Toast has integration tests to ensure it works with popular base images such as `debian`, `alpine`, `busybox`, etc.
+Toast aims to make as few assumptions about the container environment as possible. Toast only assumes there is a program at `/bin/su` which can be invoked as `su -c COMMAND USER`. This program is used to run commands for tasks in the container as the appropriate user with their preferred shell. Every popular Linux distribution has a `su` utility that supports this usage. Toast has integration tests to ensure it works with popular base images such as `debian`, `alpine`, `busybox`, etc.
 
 ## Toastfile reference
 
