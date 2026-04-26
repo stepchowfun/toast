@@ -1,7 +1,7 @@
-const childProcess = require('child_process');
-const crypto = require('crypto');
-const core = require('@actions/core');
-const path = require('path');
+import * as childProcess from 'node:child_process';
+import * as crypto from 'node:crypto';
+import * as path from 'node:path';
+import * as core from '@actions/core';
 
 // Read the action inputs.
 const tasksInput = core.getInput('tasks').trim();
