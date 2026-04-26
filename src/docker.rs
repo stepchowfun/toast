@@ -151,7 +151,10 @@ pub fn create_container(
                 image,
                 "/bin/sh",
                 "-c",
-                "if [ -x /bin/bash ]; then exec /bin/bash -c \"$1\"; else exec /bin/sh -c \"$1\"; fi",
+                concat!(
+                    "if [ -x /bin/bash ]; then exec /bin/bash -c \"$1\"; ",
+                    "else exec /bin/sh -c \"$1\"; fi",
+                ),
                 "toast",
                 command,
             ]
