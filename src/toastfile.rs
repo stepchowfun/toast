@@ -238,7 +238,7 @@ fn default_user() -> String {
 pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
     // Deserialize the data.
     let toastfile: Toastfile =
-        serde_yaml::from_str(toastfile_data).map_err(|e| Failure::User(format!("{e}"), None))?;
+        yaml_serde::from_str(toastfile_data).map_err(|e| Failure::User(format!("{e}"), None))?;
 
     // Make sure the dependencies are valid.
     check_dependencies(&toastfile)?;
