@@ -55,7 +55,7 @@ fn default_write_remote_cache() -> bool {
 
 // Parse a program configuration.
 pub fn parse(config: &str) -> Result<Config, Failure> {
-    serde_yaml::from_str(config).map_err(failure::user("Syntax error."))
+    yaml_serde::from_str(config).map_err(failure::user("Syntax error."))
 }
 
 #[cfg(test)]

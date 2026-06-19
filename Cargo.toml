@@ -28,7 +28,7 @@ indicatif = "0.18"
 log = "0.4"
 scopeguard = "1"
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+yaml_serde = "0.10"
 sha2 = "0.11"
 tar = "0.4"
 tempfile = "3"
