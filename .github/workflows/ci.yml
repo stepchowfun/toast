@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7.0.0
     - if: ${{ github.event_name == 'push' }}
-      uses: docker/login-action@v4.2.0
+      uses: docker/login-action@v4.4.0
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
@@ -190,7 +190,7 @@ jobs:
       contents: write
     steps:
     - uses: actions/checkout@v7.0.0
-    - uses: docker/login-action@v4.2.0
+    - uses: docker/login-action@v4.4.0
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
