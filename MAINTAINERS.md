@@ -30,8 +30,7 @@ The GitHub workflow will fail initially because the jobs which test the installe
 
 ### Release instructions
 
-Releasing a new version is a three-step process:
+Releasing a new version is a two-step process:
 
-1. Bump the version in `[file:Cargo.toml]`, run `cargo build` to update `[file:Cargo.lock]`, and update `[file:CHANGELOG.md]` with information about the new version. Ship those changes as a single commit.
-2. Once the GitHub workflow has finished on the `main` branch, update the version in `[file:install.sh]` to point to the new release.
-3. Create a pull request in the `Homebrew/homebrew-core` repository on GitHub to bump the version in [this file](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/t/toast.rb).
+1. Bump the version in `[file:Cargo.toml]`, run `cargo build` to update `[file:Cargo.lock]`, and update `[file:CHANGELOG.md]` with information about the new version. Ship those changes as a single commit. Once the GitHub workflow publishes the release, the installation script will begin installing it by default.
+2. Create a pull request in the `Homebrew/homebrew-core` repository on GitHub to bump the version in [this file](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/t/toast.rb).
