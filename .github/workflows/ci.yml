@@ -162,11 +162,16 @@ jobs:
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
 
-        # Run the installer script.
-        PREFIX=/tmp ./install.sh
+        # Verify the installation procedure if there is a release.
+        if [ -n "$(gh release list 2>&1)" ]; then
+          # Run the installer script.
+          PREFIX=/tmp ./install.sh
 
-        # Run the installed binary.
-        /tmp/toast --help
+          # Run the installed binary.
+          /tmp/toast --help
+        else
+          echo 'No release found; installer verification skipped.'
+        fi
   install-ubuntu:
     name: Install on Ubuntu
     runs-on: ubuntu-latest
@@ -176,11 +181,16 @@ jobs:
         # Make Bash log commands and not silently ignore errors.
         set -euxo pipefail
 
-        # Run the installer script.
-        PREFIX=/tmp ./install.sh
+        # Verify the installation procedure if there is a release.
+        if [ -n "$(gh release list 2>&1)" ]; then
+          # Run the installer script.
+          PREFIX=/tmp ./install.sh
 
-        # Run the installed binary.
-        /tmp/toast --help
+          # Run the installed binary.
+          /tmp/toast --help
+        else
+          echo 'No release found; installer verification skipped.'
+        fi
   publish-release:
     name: Publish a release if applicable
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
