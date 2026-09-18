@@ -9,9 +9,9 @@ pub trait CodeStr {
 
 impl CodeStr for str {
     fn code_str(&self) -> ColoredString {
-        // If colored output is enabled, format the text in magenta. Otherwise, surround it in
-        // backticks.
-        if SHOULD_COLORIZE.should_colorize() {
+        // If colored output is enabled, format nonempty text in magenta. Otherwise, surround it in
+        // backticks so even an empty string remains visible.
+        if !self.is_empty() && SHOULD_COLORIZE.should_colorize() {
             self.magenta()
         } else {
             ColoredString::from(&format!("`{self}`") as &Self)
