@@ -1,4 +1,8 @@
-use crate::{failure::Failure, format, format::CodeStr};
+use crate::{
+    failure::Failure,
+    format,
+    format::{CodePath, CodeStr},
+};
 use serde::{Deserialize, Deserializer, de::Error};
 use std::{
     collections::{HashMap, HashSet},
@@ -69,8 +73,8 @@ impl Display for MappingPath {
         write!(
             f,
             "{}:{}",
-            self.host_path.to_string_lossy(),
-            self.container_path.to_string_lossy(),
+            self.host_path.display(),
+            self.container_path.display(),
         )
     }
 }
@@ -249,7 +253,7 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
             format!(
                 "Toastfile has a relative {}: {}.",
                 "location".code_str(),
-                toastfile.location.to_string_lossy().code_str(),
+                toastfile.location.code_path(),
             ),
             None,
         ));
@@ -505,7 +509,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "input_path".code_str(),
-                    path.to_string_lossy().code_str(),
+                    path.code_path(),
                 ),
                 None,
             ));
@@ -520,7 +524,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "excluded_input_path".code_str(),
-                    path.to_string_lossy().code_str(),
+                    path.code_path(),
                 ),
                 None,
             ));
@@ -535,7 +539,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths".code_str(),
-                    path.to_string_lossy().code_str(),
+                    path.code_path(),
                 ),
                 None,
             ));
@@ -550,7 +554,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths_on_failure".code_str(),
-                    path.to_string_lossy().code_str(),
+                    path.code_path(),
                 ),
                 None,
             ));
@@ -559,10 +563,22 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
 
     // Check `mount_paths`.
     for path in &task.mount_paths {
+        // Mount specifications are passed to Docker as UTF-8 command-line arguments.
+        let Some(container_path) = path.container_path.to_str() else {
+            return Err(Failure::User(
+                "Container mount paths must be valid UTF-8.".to_owned(),
+                None,
+            ));
+        };
+        let Some(host_path) = path.host_path.to_str() else {
+            return Err(Failure::User(
+                "Host mount paths must be valid UTF-8.".to_owned(),
+                None,
+            ));
+        };
+
         // Check that the path doesn't contain any commas [tag:mount_paths_no_commas].
-        if path.container_path.to_string_lossy().contains(',')
-            || path.host_path.to_string_lossy().contains(',')
-        {
+        if container_path.contains(',') || host_path.contains(',') {
             return Err(Failure::User(
                 format!(
                     "Mount path {} of task {} has a {}.",
@@ -584,7 +600,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                 "Task {} has a relative {}: {}.",
                 name.code_str(),
                 "location".code_str(),
-                location.to_string_lossy().code_str(),
+                location.code_path(),
             ),
             None,
         ));
