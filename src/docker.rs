@@ -1,4 +1,10 @@
-use crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath};
+use crate::{
+    failure,
+    failure::Failure,
+    format::{CodePath, CodeStr},
+    spinner::spin,
+    toastfile::MappingPath,
+};
 use std::{
     collections::HashMap,
     convert::TryFrom,
@@ -217,7 +223,7 @@ fn rename_or_copy_file_or_symlink(
             #[cfg(unix)]
             let target_path = read_link(source_path).map_err(failure::system(format!(
                 "Unable to read target of symbolic link {}.",
-                source_path.to_string_lossy().code_str(),
+                source_path.code_path(),
             )))?;
 
             // Create a copy of the symlink at the destination.
@@ -225,7 +231,7 @@ fn rename_or_copy_file_or_symlink(
             std::os::unix::fs::symlink(target_path, destination_path).map_err(failure::system(
                 format!(
                     "Unable to create symbolic link at {}.",
-                    destination_path.to_string_lossy().code_str(),
+                    destination_path.code_path(),
                 ),
             ))?;
 
@@ -234,7 +240,7 @@ fn rename_or_copy_file_or_symlink(
                 format!(
                     "Unable to create symbolic link at {}, because symlinks are not currently \
                     supported on Windows.",
-                    destination_path.to_string_lossy().code_str(),
+                    destination_path.code_path(),
                 ),
                 None,
             ));
@@ -242,8 +248,8 @@ fn rename_or_copy_file_or_symlink(
             // It's a file. Copy it to the destination.
             copy(source_path, destination_path).map_err(failure::system(format!(
                 "Unable to move or copy file {} to destination {}.",
-                source_path.to_string_lossy().code_str(),
-                destination_path.to_string_lossy().code_str(),
+                source_path.code_path(),
+                destination_path.code_path(),
             )))?;
         }
     }
@@ -265,7 +271,7 @@ pub fn copy_from_container(
     for path in paths {
         debug!(
             "Copying {} from container {}\u{2026}",
-            path.to_string_lossy().code_str(),
+            path.code_path(),
             container.code_str(),
         );
 
@@ -283,13 +289,18 @@ pub fn copy_from_container(
         // Figure out what needs to go where.
         let source = source_dir.join(path);
         let intermediate = temp_dir.path().join("data");
-        let destination =
-            destination_dir.join(std::path::PathBuf::try_from(path.clone()).map_err(|_| {
-                Failure::User(
-                    format!("Invalid path {}", path.to_string_lossy().code_str()),
-                    None,
-                )
-            })?);
+        let destination = destination_dir.join(
+            std::path::PathBuf::try_from(path.clone())
+                .map_err(|_| Failure::User(format!("Invalid path {}", path.code_path()), None))?,
+        );
+
+        // Docker's composite copy arguments require paths that can be represented as UTF-8.
+        let source_str = source.to_str().ok_or_else(|| {
+            Failure::User("Container paths must be valid UTF-8.".to_owned(), None)
+        })?;
+        let intermediate_str = intermediate
+            .to_str()
+            .ok_or_else(|| Failure::User("Host paths must be valid UTF-8.".to_owned(), None))?;
 
         // Get the path from the container.
         run_quiet(
@@ -299,8 +310,8 @@ pub fn copy_from_container(
             &[
                 "container".to_owned(),
                 "cp".to_owned(),
-                format!("{}:{}", container, source.to_string_lossy()),
-                intermediate.to_string_lossy().into_owned(),
+                format!("{container}:{source_str}"),
+                intermediate_str.to_owned(),
             ],
             true,
             interrupted,
@@ -311,7 +322,7 @@ pub fn copy_from_container(
         let intermediate_metadata =
             symlink_metadata(&intermediate).map_err(failure::system(format!(
                 "Unable to fetch filesystem metadata for {}.",
-                intermediate.to_string_lossy().code_str(),
+                intermediate.code_path(),
             )))?;
 
         // Determine what we got from the container.
@@ -321,13 +332,13 @@ pub fn copy_from_container(
                 // If we run into an error traversing the filesystem, report it.
                 let entry = entry.map_err(failure::system(format!(
                     "Unable to traverse directory {}.",
-                    intermediate.to_string_lossy().code_str(),
+                    intermediate.code_path(),
                 )))?;
 
                 // Fetch the metadata for this entry.
                 let entry_metadata = entry.metadata().map_err(failure::system(format!(
                     "Unable to fetch filesystem metadata for {}.",
-                    entry.path().to_string_lossy().code_str(),
+                    entry.path().code_path(),
                 )))?;
 
                 // Figure out what needs to go where. The `unwrap` is safe because `entry` is
@@ -341,7 +352,7 @@ pub fn copy_from_container(
                     // It's a directory. Create a directory at the destination.
                     create_dir_all(&entry_destination_path).map_err(failure::system(format!(
                         "Unable to create directory {}.",
-                        entry_destination_path.to_string_lossy().code_str(),
+                        entry_destination_path.code_path(),
                     )))?;
                 } else {
                     // It's a file or symlink. Move or copy it to the destination.
@@ -360,7 +371,7 @@ pub fn copy_from_container(
             // Make sure the destination directory exists.
             create_dir_all(&destination_parent).map_err(failure::system(format!(
                 "Unable to create directory {}.",
-                destination_parent.to_string_lossy().code_str(),
+                destination_parent.code_path(),
             )))?;
 
             // Move or copy it to the destination.
@@ -546,10 +557,10 @@ fn container_args(
     );
 
     // Location
-    args.extend(vec![
-        "--workdir".to_owned(),
-        location.to_string_lossy().into_owned(),
-    ]);
+    let location = location.to_str().ok_or_else(|| {
+        Failure::User("Container locations must be valid UTF-8.".to_owned(), None)
+    })?;
+    args.extend(vec!["--workdir".to_owned(), location.to_owned()]);
 
     // For bind mounts, Docker requires the host path to be absolute. We can't
     // use `std::fs::canonicalize` here, since on Windows that generates an
@@ -562,29 +573,30 @@ fn container_args(
         .join(source_dir);
 
     // Mount paths
-    args.extend(mount_paths.iter().flat_map(|mount_path| {
+    for mount_path in mount_paths {
+        // Docker's composite mount arguments require paths that can be represented as UTF-8.
+        let source = absolute_source_dir.join(&mount_path.host_path);
+        let source = source.to_str().ok_or_else(|| {
+            Failure::User("Host mount paths must be valid UTF-8.".to_owned(), None)
+        })?;
+        let target = UnixPath::new(location).join(&mount_path.container_path);
+        let target = target.to_str().ok_or_else(|| {
+            Failure::User(
+                "Container mount paths must be valid UTF-8.".to_owned(),
+                None,
+            )
+        })?;
+
         // [ref:mount_paths_no_commas]
-        vec![
+        args.extend(vec![
             "--mount".to_owned(),
             if mount_readonly {
-                format!(
-                    "type=bind,source={},target={},readonly",
-                    absolute_source_dir
-                        .join(&mount_path.host_path)
-                        .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_string_lossy(),
-                )
+                format!("type=bind,source={source},target={target},readonly")
             } else {
-                format!(
-                    "type=bind,source={},target={}",
-                    absolute_source_dir
-                        .join(&mount_path.host_path)
-                        .to_string_lossy(),
-                    location.join(&mount_path.container_path).to_string_lossy(),
-                )
+                format!("type=bind,source={source},target={target}")
             },
-        ]
-    }));
+        ]);
+    }
 
     // Ports
     args.extend(

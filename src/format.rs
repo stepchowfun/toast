@@ -1,4 +1,23 @@
 use colored::{ColoredString, Colorize, control::SHOULD_COLORIZE};
+use std::path::Path;
+use typed_path::UnixPath;
+
+// This trait formats a filesystem path for human-facing diagnostic output.
+pub trait CodePath {
+    fn code_path(&self) -> ColoredString;
+}
+
+impl CodePath for Path {
+    fn code_path(&self) -> ColoredString {
+        self.to_string_lossy().code_str()
+    }
+}
+
+impl CodePath for UnixPath {
+    fn code_path(&self) -> ColoredString {
+        self.to_string_lossy().code_str()
+    }
+}
 
 // This trait has a function for formatting "code-like" text, such as a file path. The reason it's
 // implemented as a trait and not just a function is so we can use it with method syntax, as in

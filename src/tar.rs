@@ -1,4 +1,4 @@
-use crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodeStr, spinner::spin};
+use crate::{cache, cache::CryptoHash, failure, failure::Failure, format::CodePath, spinner::spin};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
@@ -98,10 +98,7 @@ fn add_file<W: Write + Seek>(
         .append_writer(
             &mut header,
             std::path::PathBuf::try_from(path_rcr.to_path_buf()).map_err(|_| {
-                Failure::User(
-                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
-                    None,
-                )
+                Failure::User(format!("Invalid path {}", path_rcr.code_path()), None)
             })?,
         )
         .map_err(failure::system("Error appending data to tar archive."))?;
@@ -139,12 +136,8 @@ fn add_symlink<W: Write>(
     header.set_entry_type(EntryType::Symlink);
     header
         .set_link_name(
-            std::path::PathBuf::try_from(target.to_path_buf()).map_err(|_| {
-                Failure::User(
-                    format!("Invalid path {}", target.to_string_lossy().code_str()),
-                    None,
-                )
-            })?,
+            std::path::PathBuf::try_from(target.to_path_buf())
+                .map_err(|_| Failure::User(format!("Invalid path {}", target.code_path()), None))?,
         )
         .map_err(failure::system(
             "Error appending symbolic link to tar archive.",
@@ -157,10 +150,7 @@ fn add_symlink<W: Write>(
         .append_data(
             &mut header,
             std::path::PathBuf::try_from(path_rcr.to_path_buf()).map_err(|_| {
-                Failure::User(
-                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
-                    None,
-                )
+                Failure::User(format!("Invalid path {}", path_rcr.code_path()), None)
             })?,
             empty(),
         )
@@ -190,10 +180,7 @@ fn add_directory<W: Write>(builder: &mut Builder<W>, path_rcr: &UnixPath) -> Res
         .append_data(
             &mut header,
             std::path::PathBuf::try_from(path_rcr.to_path_buf()).map_err(|_| {
-                Failure::User(
-                    format!("Invalid path {}", path_rcr.to_string_lossy().code_str()),
-                    None,
-                )
+                Failure::User(format!("Invalid path {}", path_rcr.code_path()), None)
             })?,
             empty(),
         )
@@ -236,7 +223,7 @@ fn add_path<W: Write + Seek>(
         // archive.
         let file = File::open(path_cd).map_err(failure::system(format!(
             "Unable to open file {}.",
-            path_cd.to_string_lossy().code_str(),
+            path_cd.code_path(),
         )))?;
 
         // Add the file to the archive and compute the hash from the exact bytes we archived.
@@ -253,14 +240,10 @@ fn add_path<W: Write + Seek>(
         // It's a symlink. Read the target path.
         let target_path_std = read_link(path_cd).map_err(failure::system(format!(
             "Unable to read target of symbolic link {}.",
-            path_cd.to_string_lossy().code_str(),
+            path_cd.code_path(),
         )))?;
-        let target_path = UnixPathBuf::try_from(target_path_std).map_err(|_| {
-            Failure::User(
-                format!("Invalid path {}.", path_cd.to_string_lossy().code_str()),
-                None,
-            )
-        })?;
+        let target_path = UnixPathBuf::try_from(target_path_std)
+            .map_err(|_| Failure::User(format!("Invalid path {}.", path_cd.code_path()), None))?;
 
         // Compute the hash of the symlink path and the target path.
         content_hashes.push(cache::combine(
@@ -280,7 +263,7 @@ fn add_path<W: Write + Seek>(
         Err(Failure::User(
             format!(
                 "{} is not a file, directory, or symbolic link.",
-                path_cd.to_string_lossy().code_str(),
+                path_cd.code_path(),
             ),
             None,
         ))
@@ -332,13 +315,7 @@ pub fn create<W: Write + Seek>(
         // current working directory instead.
         let input_path_cd = source_dir_cd.join(
             std::path::PathBuf::try_from(input_path_rsd.clone()).map_err(|_| {
-                Failure::User(
-                    format!(
-                        "Invalid path {}",
-                        input_path_rsd.to_string_lossy().code_str(),
-                    ),
-                    None,
-                )
+                Failure::User(format!("Invalid path {}", input_path_rsd.code_path()), None)
             })?,
         );
 
@@ -346,7 +323,7 @@ pub fn create<W: Write + Seek>(
         let input_path_metadata =
             symlink_metadata(&input_path_cd).map_err(failure::system(format!(
                 "Unable to fetch filesystem metadata for {}.",
-                input_path_cd.to_string_lossy().code_str(),
+                input_path_cd.code_path(),
             )))?;
 
         // Check what type of filesystem object the path corresponds to.
@@ -367,7 +344,7 @@ pub fn create<W: Write + Seek>(
                 }
                 .map_err(failure::user(format!(
                     "Unable to traverse directory {}.",
-                    input_path_cd.to_string_lossy().code_str(),
+                    input_path_cd.code_path(),
                 )))?;
 
                 // Compute the path relative to the container filesystem root.
@@ -377,18 +354,12 @@ pub fn create<W: Write + Seek>(
                         .strip_prefix(source_dir_cd)
                         .map_err(failure::system(format!(
                             "Unable to relativize path {} with respect to {}.",
-                            entry.path().to_string_lossy().code_str(),
-                            source_dir_cd.to_string_lossy().code_str(),
+                            entry.path().code_path(),
+                            source_dir_cd.code_path(),
                         )))?;
                 let entry_path_acr = destination_dir_acr.join(
                     UnixPathBuf::try_from(entry_path_rsd.to_path_buf()).map_err(|_| {
-                        Failure::User(
-                            format!(
-                                "Invalid path {}",
-                                entry_path_rsd.to_string_lossy().code_str(),
-                            ),
-                            None,
-                        )
+                        Failure::User(format!("Invalid path {}", entry_path_rsd.code_path()), None)
                     })?,
                 );
                 let entry_path_rcr = strip_root_rcr(&entry_path_acr);
@@ -396,7 +367,7 @@ pub fn create<W: Write + Seek>(
                 // Fetch the metadata for this entry.
                 let entry_metadata = entry.metadata().map_err(failure::system(format!(
                     "Unable to fetch filesystem metadata for {}.",
-                    entry.path().to_string_lossy().code_str(),
+                    entry.path().code_path(),
                 )))?;
 
                 // Skip descending into directories which are denied by `excluded_input_paths`.
