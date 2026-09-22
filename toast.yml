@@ -92,7 +92,7 @@ tasks:
       - install_packages
       - create_user
     command: |
-      # Install stable Rust [tag:rust_1.98.1].
+      # Install stable Rust [group:rust_1.98.1].
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- \
         -y \
         --default-toolchain 1.98.1 \
@@ -166,7 +166,7 @@ tasks:
     excluded_input_paths:
       - .git
 
-      # [tag:excluded_input_paths] Keep this in sync with [file:.gitignore].
+      # [group:excluded_input_paths] Keep this in sync with [file:.gitignore].
       - artifacts
       - target
     command: |
