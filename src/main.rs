@@ -129,6 +129,7 @@ fn parse_bool(s: &str) -> Result<bool, Failure> {
         env!("CARGO_PKG_HOMEPAGE")
     ),
     version,
+    display_name = "Toast",
     disable_version_flag = true
 )]
 struct Cli {
