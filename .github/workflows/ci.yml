@@ -218,7 +218,8 @@ jobs:
         rustup default 1.98.1 # [group:rust_1.98.1]
 
         # Fetch the program version.
-        VERSION="$(cargo pkgid | cut -d# -f2 | cut -d: -f2)"
+        PKGID="$(cargo pkgid)"
+        VERSION="${PKGID##*[#@:]}"
 
         # If the release already exists, exit early.
         if gh release view "v$VERSION" &> /dev/null; then
