@@ -1,10 +1,4 @@
-use crate::{
-    failure,
-    failure::Failure,
-    format::{CodePath, CodeStr},
-    spinner::spin,
-    toastfile::MappingPath,
-};
+use crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath};
 use std::{
     collections::HashMap,
     convert::TryFrom,
@@ -223,7 +217,7 @@ fn rename_or_copy_file_or_symlink(
             #[cfg(unix)]
             let target_path = read_link(source_path).map_err(failure::system(format!(
                 "Unable to read target of symbolic link {}.",
-                source_path.code_path(),
+                source_path.code_str(),
             )))?;
 
             // Create a copy of the symlink at the destination.
@@ -231,7 +225,7 @@ fn rename_or_copy_file_or_symlink(
             std::os::unix::fs::symlink(target_path, destination_path).map_err(failure::system(
                 format!(
                     "Unable to create symbolic link at {}.",
-                    destination_path.code_path(),
+                    destination_path.code_str(),
                 ),
             ))?;
 
@@ -240,7 +234,7 @@ fn rename_or_copy_file_or_symlink(
                 format!(
                     "Unable to create symbolic link at {}, because symlinks are not currently \
                     supported on Windows.",
-                    destination_path.code_path(),
+                    destination_path.code_str(),
                 ),
                 None,
             ));
@@ -248,8 +242,8 @@ fn rename_or_copy_file_or_symlink(
             // It's a file. Copy it to the destination.
             copy(source_path, destination_path).map_err(failure::system(format!(
                 "Unable to move or copy file {} to destination {}.",
-                source_path.code_path(),
-                destination_path.code_path(),
+                source_path.code_str(),
+                destination_path.code_str(),
             )))?;
         }
     }
@@ -271,7 +265,7 @@ pub fn copy_from_container(
     for path in paths {
         debug!(
             "Copying {} from container {}\u{2026}",
-            path.code_path(),
+            path.code_str(),
             container.code_str(),
         );
 
@@ -291,7 +285,7 @@ pub fn copy_from_container(
         let intermediate = temp_dir.path().join("data");
         let destination = destination_dir.join(
             std::path::PathBuf::try_from(path.clone())
-                .map_err(|_| Failure::User(format!("Invalid path {}", path.code_path()), None))?,
+                .map_err(|_| Failure::User(format!("Invalid path {}", path.code_str()), None))?,
         );
 
         // Docker's composite copy arguments require paths that can be represented as UTF-8.
@@ -322,7 +316,7 @@ pub fn copy_from_container(
         let intermediate_metadata =
             symlink_metadata(&intermediate).map_err(failure::system(format!(
                 "Unable to fetch filesystem metadata for {}.",
-                intermediate.code_path(),
+                intermediate.code_str(),
             )))?;
 
         // Determine what we got from the container.
@@ -332,13 +326,13 @@ pub fn copy_from_container(
                 // If we run into an error traversing the filesystem, report it.
                 let entry = entry.map_err(failure::system(format!(
                     "Unable to traverse directory {}.",
-                    intermediate.code_path(),
+                    intermediate.code_str(),
                 )))?;
 
                 // Fetch the metadata for this entry.
                 let entry_metadata = entry.metadata().map_err(failure::system(format!(
                     "Unable to fetch filesystem metadata for {}.",
-                    entry.path().code_path(),
+                    entry.path().code_str(),
                 )))?;
 
                 // Figure out what needs to go where. The `unwrap` is safe because `entry` is
@@ -352,7 +346,7 @@ pub fn copy_from_container(
                     // It's a directory. Create a directory at the destination.
                     create_dir_all(&entry_destination_path).map_err(failure::system(format!(
                         "Unable to create directory {}.",
-                        entry_destination_path.code_path(),
+                        entry_destination_path.code_str(),
                     )))?;
                 } else {
                     // It's a file or symlink. Move or copy it to the destination.
@@ -371,7 +365,7 @@ pub fn copy_from_container(
             // Make sure the destination directory exists.
             create_dir_all(&destination_parent).map_err(failure::system(format!(
                 "Unable to create directory {}.",
-                destination_parent.code_path(),
+                destination_parent.code_str(),
             )))?;
 
             // Move or copy it to the destination.

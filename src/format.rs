@@ -2,23 +2,6 @@ use colored::{ColoredString, Colorize, control::SHOULD_COLORIZE};
 use std::path::Path;
 use typed_path::UnixPath;
 
-// This trait formats a filesystem path for human-facing diagnostic output.
-pub trait CodePath {
-    fn code_path(&self) -> ColoredString;
-}
-
-impl CodePath for Path {
-    fn code_path(&self) -> ColoredString {
-        self.to_string_lossy().code_str()
-    }
-}
-
-impl CodePath for UnixPath {
-    fn code_path(&self) -> ColoredString {
-        self.to_string_lossy().code_str()
-    }
-}
-
 // This trait has a function for formatting "code-like" text, such as a file path. The reason it's
 // implemented as a trait and not just a function is so we can use it with method syntax, as in
 // `x.code_str()`. Rust does not allow us to implement methods on primitive types such as `str`.
@@ -35,6 +18,18 @@ impl CodeStr for str {
         } else {
             ColoredString::from(&format!("`{self}`") as &Self)
         }
+    }
+}
+
+impl CodeStr for Path {
+    fn code_str(&self) -> ColoredString {
+        self.to_string_lossy().code_str()
+    }
+}
+
+impl CodeStr for UnixPath {
+    fn code_str(&self) -> ColoredString {
+        self.to_string_lossy().code_str()
     }
 }
 

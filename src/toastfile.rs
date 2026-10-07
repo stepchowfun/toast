@@ -1,8 +1,4 @@
-use crate::{
-    failure::Failure,
-    format,
-    format::{CodePath, CodeStr},
-};
+use crate::{failure::Failure, format, format::CodeStr};
 use serde::{Deserialize, Deserializer, de::Error};
 use std::{
     collections::{HashMap, HashSet},
@@ -253,7 +249,7 @@ pub fn parse(toastfile_data: &str) -> Result<Toastfile, Failure> {
             format!(
                 "Toastfile has a relative {}: {}.",
                 "location".code_str(),
-                toastfile.location.code_path(),
+                toastfile.location.code_str(),
             ),
             None,
         ));
@@ -509,7 +505,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "input_path".code_str(),
-                    path.code_path(),
+                    path.code_str(),
                 ),
                 None,
             ));
@@ -524,7 +520,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute {}: {}.",
                     name.code_str(),
                     "excluded_input_path".code_str(),
-                    path.code_path(),
+                    path.code_str(),
                 ),
                 None,
             ));
@@ -539,7 +535,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths".code_str(),
-                    path.code_path(),
+                    path.code_str(),
                 ),
                 None,
             ));
@@ -554,7 +550,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                     "Task {} has an absolute path in {}: {}.",
                     name.code_str(),
                     "output_paths_on_failure".code_str(),
-                    path.code_path(),
+                    path.code_str(),
                 ),
                 None,
             ));
@@ -600,7 +596,7 @@ fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
                 "Task {} has a relative {}: {}.",
                 name.code_str(),
                 "location".code_str(),
-                location.code_path(),
+                location.code_str(),
             ),
             None,
         ));

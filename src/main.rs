@@ -9,10 +9,7 @@ mod spinner;
 mod tar;
 mod toastfile;
 
-use crate::{
-    failure::Failure,
-    format::{CodePath, CodeStr},
-};
+use crate::{failure::Failure, format::CodeStr};
 use clap::{ArgAction, Parser};
 use env_logger::{Builder, fmt::style::Effects};
 use log::{Level, LevelFilter};
@@ -288,7 +285,7 @@ fn settings() -> Result<Settings, Failure> {
         .and_then(|path| {
             debug!(
                 "Attempting to load configuration file {}\u{2026}",
-                path.code_path(),
+                path.code_str(),
             );
             fs::read_to_string(path).ok()
         })
@@ -307,7 +304,7 @@ fn settings() -> Result<Settings, Failure> {
         config_file_path
             .as_ref()
             .unwrap() // Manually verified safe
-            .code_path(),
+            .code_str(),
     )))?;
 
     // Read the local caching switches.
@@ -361,13 +358,13 @@ fn parse_toastfile(toastfile_path: &Path) -> Result<toastfile::Toastfile, Failur
     // Read the file from disk.
     let toastfile_data = fs::read_to_string(toastfile_path).map_err(failure::user(format!(
         "Unable to read file {}.",
-        toastfile_path.code_path(),
+        toastfile_path.code_str(),
     )))?;
 
     // Parse it.
     toastfile::parse(&toastfile_data).map_err(failure::user(format!(
         "Unable to parse file {}.",
-        toastfile_path.code_path(),
+        toastfile_path.code_str(),
     )))
 }
 
@@ -414,7 +411,7 @@ fn get_roots<'a>(
                     format!(
                         "No task named {} in {}.",
                         task.code_str(),
-                        settings.toastfile_path.code_path(),
+                        settings.toastfile_path.code_str(),
                     ),
                     None,
                 ));
