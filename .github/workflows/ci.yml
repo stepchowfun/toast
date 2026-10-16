@@ -30,7 +30,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: x86_64-unknown-linux-gnu
         path: artifacts/toast
@@ -41,7 +41,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-x86_64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: x86_64-unknown-linux-musl
         path: artifacts/toast
@@ -52,7 +52,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-gnu artifacts/toast
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: aarch64-unknown-linux-gnu
         path: artifacts/toast
@@ -63,7 +63,7 @@ jobs:
 
         # The artifact name will contain the target triple, so the file name doesn't need to.
         mv artifacts/toast-aarch64-unknown-linux-musl artifacts/toast
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: aarch64-unknown-linux-musl
         path: artifacts/toast
@@ -83,8 +83,8 @@ jobs:
         #   https://github.com/rust-lang/rustup/issues/2441
         #
         # for more information.
-        rustup toolchain install 1.98.1 --no-self-update # [group:rust_1.98.1]
-        rustup default 1.98.1 # [group:rust_1.98.1]
+        rustup toolchain install 1.99.1 --no-self-update # [group:rust_1.99.1]
+        rustup default 1.99.1 # [group:rust_1.99.1]
 
         # Add the targets.
         rustup target add x86_64-pc-windows-msvc
@@ -104,12 +104,12 @@ jobs:
 
         # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: x86_64-pc-windows-msvc
         path: target/x86_64-pc-windows-msvc/release/toast.exe
         if-no-files-found: error
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: aarch64-pc-windows-msvc
         path: target/aarch64-pc-windows-msvc/release/toast.exe
@@ -124,8 +124,8 @@ jobs:
         set -euxo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.98.1 # [group:rust_1.98.1]
-        rustup default 1.98.1 # [group:rust_1.98.1]
+        rustup toolchain install 1.99.1 # [group:rust_1.99.1]
+        rustup default 1.99.1 # [group:rust_1.99.1]
 
         # Add the targets.
         rustup target add x86_64-apple-darwin
@@ -143,12 +143,12 @@ jobs:
 
         # Run the tests.
         NO_COLOR=true cargo test --locked # [ref:colorless_tests]
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: x86_64-apple-darwin
         path: target/x86_64-apple-darwin/release/toast
         if-no-files-found: error
-    - uses: actions/upload-artifact@v7.0.1
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: aarch64-apple-darwin
         path: target/aarch64-apple-darwin/release/toast
@@ -204,7 +204,7 @@ jobs:
       with:
         username: stephanmisc
         password: ${{ secrets.DOCKER_PASSWORD }}
-    - uses: actions/download-artifact@v8.0.1
+    - uses: actions/download-artifact@v8.0.2
       with:
         path: artifacts/
     - env:
@@ -214,8 +214,8 @@ jobs:
         set -euxo pipefail
 
         # Install the appropriate version of Rust.
-        rustup toolchain install 1.98.1 # [group:rust_1.98.1]
-        rustup default 1.98.1 # [group:rust_1.98.1]
+        rustup toolchain install 1.99.1 # [group:rust_1.99.1]
+        rustup default 1.99.1 # [group:rust_1.99.1]
 
         # Fetch the program version.
         PKGID="$(cargo pkgid)"
