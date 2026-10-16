@@ -187,8 +187,8 @@ pub fn copy_into_container<R: Read>(
             format!("{container}:/"),
         ],
         false,
-        |mut stdin| {
-            io::copy(&mut tar, &mut stdin)
+        |stdin| {
+            io::copy(&mut tar, stdin)
                 .map_err(failure::system("Unable to copy files into the container."))?;
 
             Ok(())
