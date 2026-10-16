@@ -29,7 +29,7 @@ log = "0.4.34"
 scopeguard = "1.2.0"
 serde = { version = "1.0.229", features = ["derive"] }
 yaml_serde = "0.10.7"
-sha2 = "0.11.0"
+sha2 = "0.11.1"
 tar = "0.4.46"
 tempfile = "3.27.0"
 typed-path = "0.12.3"
