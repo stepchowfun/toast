@@ -267,7 +267,7 @@ tasks:
     dependencies:
       - release
     input_paths:
-      - integration-tests
+      - integration_tests
     cache: false
     mount_paths:
       - /var/run/docker.sock
@@ -286,7 +286,7 @@ tasks:
           cd "$(dirname "$TEST")" > /dev/null
           ./run.sh
         )
-      done < <(find integration-tests -name run.sh -print0)
+      done < <(find integration_tests -name run.sh -print0)
 
   publish:
     description: Publish the crate to crates.io.
