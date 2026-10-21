@@ -1,5 +1,5 @@
 use crate::{failure::Failure, format, format::CodeStr};
-use serde::{Deserialize, Deserializer, de::Error};
+use serde::{Deserialize, Deserializer};
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -13,49 +13,6 @@ pub const DEFAULT_LOCATION: &str = "/scratch";
 
 // The default user for commands and files copied into the container
 pub const DEFAULT_USER: &str = "root";
-
-// Deserializer for `UnixPathBuf`
-fn deserialize_unix_path_buf<'de, D>(deserializer: D) -> Result<UnixPathBuf, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    UnixPathBuf::try_from(PathBuf::deserialize(deserializer)?)
-        .map_err(|_| D::Error::custom("invalid path"))
-}
-
-// Deserializer for `Option<UnixPathBuf>`
-fn deserialize_option_unix_path_buf<'de, D>(
-    deserializer: D,
-) -> Result<Option<UnixPathBuf>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    if let Some(path) = Option::<PathBuf>::deserialize(deserializer)? {
-        match UnixPathBuf::try_from(path) {
-            Ok(path) => Ok(Some(path)),
-            Err(_) => Err(D::Error::custom("invalid path")),
-        }
-    } else {
-        Ok(None)
-    }
-}
-
-// Deserializer for `Vec<UnixPathBuf>`
-fn deserialize_vec_unix_path_buf<'de, D>(deserializer: D) -> Result<Vec<UnixPathBuf>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let mut result = Vec::new();
-    for path in Vec::<PathBuf>::deserialize(deserializer)? {
-        match UnixPathBuf::try_from(path) {
-            Ok(path) => {
-                result.push(path);
-            }
-            Err(_) => return Err(D::Error::custom("invalid path")),
-        }
-    }
-    Ok(result)
-}
 
 // This struct represents a path on the host and a corresponding path in the container.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,19 +95,19 @@ pub struct Task {
     pub environment: HashMap<String, Option<String>>,
 
     // Must be relative [ref:input_paths_relative]
-    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    #[serde(default)]
     pub input_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:excluded_input_paths_relative]
-    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    #[serde(default)]
     pub excluded_input_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:output_paths_relative]
-    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    #[serde(default)]
     pub output_paths: Vec<UnixPathBuf>,
 
     // Must be relative [ref:output_paths_on_failure_relative]
-    #[serde(default, deserialize_with = "deserialize_vec_unix_path_buf")]
+    #[serde(default)]
     pub output_paths_on_failure: Vec<UnixPathBuf>,
 
     // Can be relative or absolute (absolute paths are allowed in order to support mounting the
@@ -172,7 +129,7 @@ pub struct Task {
     // If `None`, the corresponding top-level value in the toastfile should be used. There is a
     // helper function [ref:location_helper] which implements that logic. This path must be absolute
     // [ref:task_location_absolute].
-    #[serde(default, deserialize_with = "deserialize_option_unix_path_buf")]
+    #[serde(default)]
     pub location: Option<UnixPathBuf>,
 
     // If `None`, the corresponding top-level value in the toastfile should be used. There is a
@@ -213,7 +170,6 @@ pub struct Toastfile {
 
     // Must be absolute [ref:toastfile_location_absolute]
     #[serde(default = "default_location")]
-    #[serde(deserialize_with = "deserialize_unix_path_buf")]
     pub location: UnixPathBuf,
 
     #[serde(default = "default_user")]
