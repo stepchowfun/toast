@@ -420,9 +420,9 @@ Options:
 
 ## Installation instructions
 
-### Installation on macOS or Linux (AArch64 or x86-64)
+### Installation on macOS or Linux
 
-If you're running macOS or Linux (AArch64 or x86-64), you can install Toast with this command:
+If you're running macOS or Linux, you can install Toast with this command:
 
 
 ```sh
@@ -433,9 +433,9 @@ The same command can be used again to update to the latest version.
 
 If you prefer not to use this installation method, you can download the binary from the [latest release](https://github.com/stepchowfun/toast/releases/latest), make it executable (e.g., with `chmod`), and place it in some directory in your [`PATH`](https://en.wikipedia.org/wiki/PATH_\(variable\)) (e.g., `/usr/local/bin`).
 
-### Installation on Windows (AArch64 or x86-64)
+### Installation on Windows
 
-If you're running Windows (AArch64 or x86-64), download the binary from the [latest release](https://github.com/stepchowfun/toast/releases/latest) and rename it to `toast` (or `toast.exe` if you have file extensions visible). Create a directory called `Toast` in your `%PROGRAMFILES%` directory (e.g., `C:\Program Files\Toast`), and place the renamed binary in there. Then, in the "Advanced" tab of the "System Properties" section of Control Panel, click on "Environment Variables..." and add the full path to the new `Toast` directory to the `PATH` variable under "System variables". Note that the `Program Files` directory might have a different name if Windows is configured for a language other than English.
+If you're running Windows, download the binary from the [latest release](https://github.com/stepchowfun/toast/releases/latest) and rename it to `toast` (or `toast.exe` if you have file extensions visible). Create a directory called `Toast` in your `%PROGRAMFILES%` directory (e.g., `C:\Program Files\Toast`), and place the renamed binary in there. Then, in the "Advanced" tab of the "System Properties" section of Control Panel, click on "Environment Variables..." and add the full path to the new `Toast` directory to the `PATH` variable under "System variables". Note that the `Program Files` directory might have a different name if Windows is configured for a language other than English.
 
 To update an existing installation, simply replace the existing binary.
 
