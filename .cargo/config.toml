@@ -1,0 +1,4 @@
+# Fail on any warning, including Cargo's own manifest warnings, which the `[lints]` table in
+# `Cargo.toml` doesn't cover.
+[build]
+warnings = "deny"
