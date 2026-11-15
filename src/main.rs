@@ -36,9 +36,6 @@ use typed_path::UnixPath;
 #[macro_use]
 extern crate log;
 
-#[macro_use]
-extern crate scopeguard;
-
 // Defaults
 const TOASTFILE_DEFAULT_NAME: &str = "toast.yml";
 const CONFIG_FILE_XDG_PATH: &str = "toast/toast.yml";

@@ -7,6 +7,7 @@ use crate::{
 use std::{
     collections::{HashMap, HashSet},
     io::{Seek, SeekFrom},
+    mem::DropGuard,
     path::PathBuf,
     sync::{
         Arc, Mutex,
@@ -167,15 +168,13 @@ pub fn run(
             };
 
             // Delete the container when we're done.
-            defer! {{
-              if let Err(e) = docker::delete_container(
-                  &settings.docker_cli,
-                  &container,
-                  interrupted
-              ) {
-                error!("{e}");
-              }
-            }}
+            let container = DropGuard::new(container, |container| {
+                if let Err(e) =
+                    docker::delete_container(&settings.docker_cli, &container, interrupted)
+                {
+                    error!("{e}");
+                }
+            });
 
             // Extract the output files from the container.
             if let Err(e) = docker::copy_from_container(
@@ -242,18 +241,19 @@ pub fn run(
         }
 
         // Delete the container when we're done.
-        defer! {{
-          // If the user interrupts the program, don't bother killing the container. We're about to
-          // kill it here. The `unwrap` will only fail if a panic already occurred.
-          {
-            active_containers.lock().unwrap().remove(&container);
-          }
+        let container = DropGuard::new(container, |container| {
+            // If the user interrupts the program, don't bother killing the container. We're about
+            // to kill it here. The `unwrap` will only fail if a panic already occurred.
+            {
+                active_containers.lock().unwrap().remove(&container);
+            }
 
-          // Delete the container.
-          if let Err(e) = docker::delete_container(&settings.docker_cli, &container, interrupted) {
-            error!("{e}");
-          }
-        }}
+            // Delete the container.
+            if let Err(e) = docker::delete_container(&settings.docker_cli, &container, interrupted)
+            {
+                error!("{e}");
+            }
+        });
 
         // Copy files into the container. If `task.input_paths` is empty, then this will just create
         // a directory for `location`.

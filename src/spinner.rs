@@ -1,8 +1,8 @@
 use crossbeam::channel::{Sender, bounded};
 use indicatif::{ProgressBar, ProgressStyle};
-use scopeguard::guard;
 use std::{
     io::{self, IsTerminal},
+    mem::DropGuard,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -82,7 +82,7 @@ pub fn spin(message: &str) -> impl Drop {
         .unwrap();
 
     // Return a guard that stops the spinner via its destructor.
-    guard((), move |()| {
+    DropGuard::new((), move |()| {
         // Tell the spinner service to stop the spinner.
         spinning.store(false, Ordering::SeqCst);
 
