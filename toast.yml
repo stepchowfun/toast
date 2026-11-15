@@ -127,7 +127,9 @@ tasks:
       mv Cargo.lock.og Cargo.lock
       mv Cargo.toml.og Cargo.toml
 
-      # Ask Cargo to build the project in order to fetch the dependencies.
+      # Ask Cargo to build the project in order to fetch the dependencies. The placeholder doesn't
+      # use them, so Cargo's unused-dependency warnings are expected here and not denied.
+      export CARGO_BUILD_WARNINGS=warn
       cargo-online build
       cargo-online build --release
       cargo-online clippy --all-features --all-targets --workspace
