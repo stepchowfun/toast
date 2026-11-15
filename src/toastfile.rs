@@ -287,7 +287,7 @@ pub fn command(toastfile: &Toastfile, task: &Task) -> String {
 }
 
 // Check that all dependencies exist and form a DAG (no cycles).
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
     // Check the default task [tag:valid_default].
     let valid_default = toastfile
@@ -436,7 +436,7 @@ fn check_dependencies<'a>(toastfile: &'a Toastfile) -> Result<(), Failure> {
 }
 
 // Check that a task is valid.
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 fn check_task(name: &str, task: &Task) -> Result<(), Failure> {
     // Check that environment variable names don't have `=` in them [tag:env_var_equals].
     for variable in task.environment.keys() {
@@ -676,7 +676,7 @@ tasks:
     }
 
     #[test]
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn parse_comprehensive_task() {
         let input = r"
 image: encom:os-12

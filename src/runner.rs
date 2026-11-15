@@ -4,6 +4,7 @@ use crate::{
     tar,
     toastfile::{Task, Toastfile, command, location, user},
 };
+use log::error;
 use std::{
     collections::{HashMap, HashSet},
     io::{Seek, SeekFrom},
@@ -39,8 +40,8 @@ impl Drop for Context {
 // Run a task in a given context and return a new context. The returned context should not be `None`
 // if `need_context` is `true` and `Err(Failure::Interrupted | Failure::System(_, _))` was not
 // returned.
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines)]
 pub fn run(
     settings: &super::Settings,
     environment: &HashMap<String, String>,

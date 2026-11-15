@@ -8,7 +8,7 @@ const DOCKER_CLI_DEFAULT: &str = "docker";
 // A program configuration
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct Config {
     #[serde(default = "default_docker_cli")]
     pub docker_cli: String,

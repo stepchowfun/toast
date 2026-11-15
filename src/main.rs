@@ -12,7 +12,7 @@ mod toastfile;
 use crate::{failure::Failure, format::CodeStr};
 use clap::{ArgAction, Parser};
 use env_logger::{Builder, fmt::style::Effects};
-use log::{Level, LevelFilter};
+use log::{Level, LevelFilter, debug, error, info};
 use std::{
     collections::{HashMap, HashSet},
     convert::AsRef,
@@ -32,9 +32,6 @@ use std::{
 };
 use toastfile::{DEFAULT_USER, default_task_mount_readonly, location, user};
 use typed_path::UnixPath;
-
-#[macro_use]
-extern crate log;
 
 // Defaults
 const TOASTFILE_DEFAULT_NAME: &str = "toast.yml";
@@ -114,7 +111,6 @@ fn parse_bool(s: &str) -> Result<bool, Failure> {
 
 // This struct represents the raw command-line arguments.
 #[derive(Parser)]
-#[allow(clippy::struct_excessive_bools)]
 #[command(
     about = concat!(
         env!("CARGO_PKG_DESCRIPTION"),
@@ -217,7 +213,7 @@ struct Cli {
 }
 
 // This struct represents the parsed command-line arguments.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct Settings {
     toastfile_path: PathBuf,
     docker_cli: String,
@@ -235,7 +231,6 @@ pub struct Settings {
 }
 
 // Parse the command-line arguments.
-#[allow(clippy::too_many_lines)]
 fn settings() -> Result<Settings, Failure> {
     let cli = Cli::parse();
 
@@ -473,7 +468,6 @@ fn fetch_environment(
 
 // Run some tasks and return the final context and the last attempted task. The returned context
 // should not be `None` if `need_context` is `true`.
-#[allow(clippy::too_many_arguments)]
 fn run_tasks(
     schedule: &[&str],
     settings: &Settings,
@@ -553,7 +547,7 @@ fn run_tasks(
 }
 
 // Program entrypoint
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 fn entry() -> Result<(), Failure> {
     // Determine whether to print colored output.
     colored::control::set_override(std::io::stderr().is_terminal());
