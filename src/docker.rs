@@ -1,4 +1,5 @@
 use crate::{failure, failure::Failure, format::CodeStr, spinner::spin, toastfile::MappingPath};
+use log::debug;
 use std::{
     collections::HashMap,
     convert::TryFrom,
@@ -113,7 +114,7 @@ pub fn delete_image(
 }
 
 // Create a container and return its ID.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn create_container(
     docker_cli: &str,
     image: &str,
@@ -468,7 +469,7 @@ pub fn delete_container(
 }
 
 // Run an interactive shell.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn spawn_shell(
     docker_cli: &str,
     image: &str,

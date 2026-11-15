@@ -272,7 +272,7 @@ fn add_path<W: Write + Seek>(
 
 // Construct a tar archive and return a hash of its contents. This function does not follow symbolic
 // links.
-#[allow(clippy::similar_names, clippy::too_many_lines)]
+#[expect(clippy::similar_names)]
 pub fn create<W: Write + Seek>(
     spinner_message: &str,
     writer: W,
