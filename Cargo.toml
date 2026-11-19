@@ -16,7 +16,7 @@ clippy.pedantic = { level = "deny", priority = -1 }
 rust.warnings = "deny"
 
 [dependencies]
-clap = { version = "4.6.7", features = ["derive", "wrap_help"] }
+clap = { version = "4.6.8", features = ["derive", "wrap_help"] }
 colored = "3.1.1"
 dirs = "7.0.0"
 env_logger = "0.11.11"
@@ -32,5 +32,5 @@ typed-path = { version = "0.13.0", features = ["serde"] }
 walkdir = "2.5.0"
 
 [dependencies.ctrlc]
-version = "3.5.2"
+version = "3.5.3"
 features = ["termination"] # [tag:ctrlc_term]
