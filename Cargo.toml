@@ -1,19 +1,12 @@
 [package]
 name = "toast"
 version = "0.48.0"
-authors = ["Stephan Boyer <stephan@stephanboyer.com>"]
 edition = "2024"
 description = "Containerize your development and continuous integration environments."
-license = "MIT"
 documentation = "https://github.com/stepchowfun/toast"
-repository = "https://github.com/stepchowfun/toast"
 readme = "README.md"
-
-[lints]
-clippy.all = { level = "deny", priority = -1 }
-clippy.default_numeric_fallback = "deny"
-clippy.pedantic = { level = "deny", priority = -1 }
-rust.warnings = "deny"
+repository = "https://github.com/stepchowfun/toast"
+license = "MIT"
 
 [dependencies]
 clap = { version = "4.6.8", features = ["derive", "wrap_help"] }
@@ -24,13 +17,19 @@ hex = "0.4.3"
 indicatif = "0.18.6"
 log = "0.4.35"
 serde = { version = "1.0.229", features = ["derive"] }
-yaml_serde = "0.10.7"
 sha2 = "0.11.1"
 tar = "0.4.46"
 tempfile = "3.27.0"
 typed-path = { version = "0.13.0", features = ["serde"] }
 walkdir = "2.5.0"
+yaml_serde = "0.10.7"
 
 [dependencies.ctrlc]
 version = "3.5.3"
-features = ["termination"] # [tag:ctrlc_term]
+features = ["termination"]  # [tag:ctrlc_term]
+
+[lints]
+clippy.all = { level = "deny", priority = -1 }
+clippy.default_numeric_fallback = "deny"
+clippy.pedantic = { level = "deny", priority = -1 }
+rust.warnings = "deny"
